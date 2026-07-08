@@ -42,7 +42,8 @@ def silver_submissions():
     epc = spark.read.table(f"{SRC}.ref_epc_mix_open").select(
         "postcode_district", (F.col("pct_e") + F.col("pct_f") + F.col("pct_g")).alias("epc_efg_pct"))
     app = spark.read.table(f"{SRC}.ref_appetite").select(
-        "trade_group", "hazard_grade", "appetite_status", "decline_code", "guide_section", "appetite_note")
+        "trade_group", "hazard_grade", "appetite_status",
+        F.col("decline_code").alias("appetite_decline_code"), "guide_section", "appetite_note")
     rg = spark.read.table(f"{SRC}.ref_rate_guide")
 
     # Trade cohort loss experience from the PAS book (burning-cost basis)

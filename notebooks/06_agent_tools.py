@@ -12,8 +12,10 @@
 
 dbutils.widgets.text("catalog", "lr_dev_aws_us_catalog")
 dbutils.widgets.text("schema", "underwriting_workbench")
+dbutils.widgets.text("mode", "full")  # full = create fns + batch-score · score_only = batch-score only (reset path — CREATE OR REPLACE FUNCTION revokes agent grants)
 catalog = dbutils.widgets.get("catalog")
 schema = dbutils.widgets.get("schema")
+MODE = dbutils.widgets.get("mode")
 fqn = f"{catalog}.{schema}"
 
 from databricks.sdk import WorkspaceClient
@@ -26,7 +28,8 @@ print("resolved endpoints:", EP_TRIAGE, "·", EP_RISK)
 
 # COMMAND ----------
 
-spark.sql(f"""
+def _create_scoring_fns():
+    spark.sql(f"""
 CREATE OR REPLACE FUNCTION {fqn}.fn_triage_score(sid STRING)
 RETURNS STRUCT<bind_propensity_pct DOUBLE, priority_band STRING, basis STRING>
 COMMENT 'ML triage priority for a submission: P(bind) from model_triage_priority @champion served on {EP_TRIAGE} (LightGBM over the UC Feature Store vector). Ranks the inbox: work the winnable business first. Advisory only. Input: submission_public_id.'
@@ -52,9 +55,9 @@ FROM (
         FROM {fqn}.feature_submission WHERE submission_public_id = sid) f
 ) p
 """)
-print("created: fn_triage_score")
+    print("created: fn_triage_score")
 
-spark.sql(f"""
+    spark.sql(f"""
 CREATE OR REPLACE FUNCTION {fqn}.fn_risk_score(sid STRING)
 RETURNS STRUCT<large_loss_propensity_pct DOUBLE, risk_band STRING, basis STRING>
 COMMENT 'ML risk quality for a submission: P(large loss >= GBP 25k within 3 years) from model_risk_quality @champion served on {EP_RISK}, trained on the PAS book claims experience. Feeds rate adequacy and referral judgement. Advisory only. Input: submission_public_id.'
@@ -78,9 +81,47 @@ FROM (
         FROM {fqn}.feature_submission WHERE submission_public_id = sid) f
 ) p
 """)
-print("created: fn_risk_score")
+    print("created: fn_risk_score")
+
+
+if MODE == "full":
+    _create_scoring_fns()
+else:
+    print("mode=score_only — skipping fn creation (CREATE OR REPLACE FUNCTION revokes agent grants)")
 
 # COMMAND ----------
+
+# MAGIC %md ## Batch-score the open inbox
+# MAGIC The app NEVER calls scale-to-zero model endpoints interactively (claims_workbench speed
+# MAGIC lesson) — the open pipeline is batch-scored here (real batch `ai_query` inference) into
+# MAGIC `gold_inbox_priority`; live model calls happen only in Try-a-submission.
+
+# COMMAND ----------
+
+spark.sql(f"""
+CREATE OR REPLACE TABLE {fqn}.gold_inbox_priority
+TBLPROPERTIES ('layer'='gold','demo'='underwriting_workbench') AS
+SELECT f.submission_public_id,
+       round(ai_query('{EP_TRIAGE}', named_struct(
+         'channel_e', f.channel_e, 'segment_e', f.segment_e, 'appetite_e', f.appetite_e,
+         'flood_e', f.flood_e, 'hazard_grade', f.hazard_grade, 'log_total_si', f.log_total_si,
+         'log_turnover', f.log_turnover, 'employees', f.employees, 'n_locations', f.n_locations,
+         'target_vs_technical', f.target_vs_technical, 'cohort_loss_ratio_pct', f.cohort_loss_ratio_pct,
+         'data_complete', f.data_complete), returnType => 'DOUBLE') * 100, 1) AS bind_propensity_pct,
+       round(ai_query('{EP_RISK}', named_struct(
+         'hazard_grade', f.hazard_grade, 'construction_e', f.construction_e, 'flood_e', f.flood_e,
+         'crime_count', f.crime_count, 'year_built', f.year_built, 'log_total_si', f.log_total_si,
+         'log_turnover', f.log_turnover, 'employees', f.employees,
+         'cohort_loss_ratio_pct', f.cohort_loss_ratio_pct), returnType => 'DOUBLE') * 100, 1) AS large_loss_propensity_pct,
+       current_timestamp() AS scored_at
+FROM {fqn}.feature_submission f
+JOIN {fqn}.gold_submission_lifecycle o USING (submission_public_id)
+""")
+spark.sql(f"""
+ALTER TABLE {fqn}.gold_inbox_priority ALTER COLUMN submission_public_id SET NOT NULL
+""")
+n = spark.table(f"{fqn}.gold_inbox_priority").count()
+print(f"gold_inbox_priority: {n} open submissions batch-scored")
 
 for sid in ("sub:900001", "sub:900002"):
     r = spark.sql(f"SELECT {fqn}.fn_triage_score('{sid}') AS t, {fqn}.fn_risk_score('{sid}') AS r").first()

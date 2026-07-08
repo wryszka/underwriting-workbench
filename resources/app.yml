@@ -1,0 +1,11 @@
+resources:
+  apps:
+    underwriting_workbench_app:
+      name: underwriting-workbench
+      description: "Bricksurance SE Underwriting Workbench — thin app over UC functions, models, agents, Genie"
+      source_code_path: ../app
+      resources:
+        - name: sql_warehouse
+          sql_warehouse:
+            id: ${var.warehouse_id}
+            permission: CAN_USE

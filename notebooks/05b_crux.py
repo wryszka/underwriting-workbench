@@ -79,7 +79,7 @@ COMMENT 'Appetite check: is this trade core/selective/excluded per the underwrit
 RETURN SELECT named_struct(
   'trade_group', any_value(trade_group), 'appetite_status', any_value(appetite_status),
   'in_appetite', any_value(appetite_status) <> 'excluded', 'hazard_grade', any_value(hazard_grade),
-  'decline_code', any_value(decline_code), 'guide_section', any_value(guide_section),
+  'decline_code', any_value(appetite_decline_code), 'guide_section', any_value(guide_section),
   'note', any_value(appetite_note))
 FROM {F}.silver_submissions WHERE submission_public_id = sid
 """)

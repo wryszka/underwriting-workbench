@@ -1,0 +1,17 @@
+command: ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
+
+env:
+  - name: CATALOG_NAME
+    value: "lr_dev_aws_us_catalog"
+  - name: SCHEMA_NAME
+    value: "underwriting_workbench"
+  - name: WAREHOUSE_ID
+    valueFrom: sql_warehouse
+  - name: USE_CACHE
+    value: "true"
+  - name: FM_ENDPOINT
+    value: "databricks-claude-sonnet-4-5"
+  - name: GENIE_SPACE_ID
+    value: ""
+  - name: DASHBOARD_ID
+    value: ""

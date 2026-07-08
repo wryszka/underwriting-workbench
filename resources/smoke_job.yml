@@ -1,0 +1,28 @@
+resources:
+  jobs:
+    underwriting_98_smoke_test:
+      name: underwriting_98_smoke_test
+      description: "End-to-end smoke test + installed-assets checklist (run after any deploy or reset; expect all PASS)"
+      tags:
+        project: underwriting_workbench
+      parameters:
+        - name: catalog
+          default: ${var.catalog}
+        - name: schema
+          default: ${var.schema}
+      environments:
+        - environment_key: default
+          spec:
+            client: "5"
+            dependencies:
+              - databricks-sdk
+              - pandas
+              - requests
+      tasks:
+        - task_key: smoke
+          environment_key: default
+          notebook_task:
+            notebook_path: ../notebooks/98_smoke_test.py
+            base_parameters:
+              catalog: "{{job.parameters.catalog}}"
+              schema: "{{job.parameters.schema}}"

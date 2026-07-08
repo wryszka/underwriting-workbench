@@ -1,0 +1,80 @@
+resources:
+  jobs:
+    underwriting_99_reset:
+      name: underwriting_99_reset
+      description: "Reset demo: re-anchor dates (seed=42) → landing files → extraction → medallion full refresh → features → inbox re-score + governance re-seed → cache clear + hero verification. Models NOT retrained; crux fns NOT recreated."
+      tags:
+        project: underwriting_workbench
+      parameters:
+        - name: catalog
+          default: ${var.catalog}
+        - name: schema
+          default: ${var.schema}
+        - name: seed
+          default: "42"
+      environments:
+        - environment_key: default
+          spec:
+            client: "5"
+        - environment_key: ml
+          spec:
+            client: "5"
+            dependencies:
+              - databricks-feature-engineering
+              - lightgbm
+              - scikit-learn
+              - mlflow
+              - databricks-sdk
+      tasks:
+        - task_key: data_gen
+          environment_key: default
+          notebook_task:
+            notebook_path: ../notebooks/00_setup_and_data_generation.py
+            base_parameters: {catalog: "{{job.parameters.catalog}}", schema: "{{job.parameters.schema}}", seed: "{{job.parameters.seed}}"}
+        - task_key: landing_files
+          depends_on: [{task_key: data_gen}]
+          environment_key: default
+          notebook_task:
+            notebook_path: ../notebooks/00b_landing_files.py
+            base_parameters: {catalog: "{{job.parameters.catalog}}", schema: "{{job.parameters.schema}}"}
+        - task_key: doc_extraction
+          depends_on: [{task_key: landing_files}]
+          environment_key: default
+          notebook_task:
+            notebook_path: ../notebooks/01c_doc_extraction.py
+            base_parameters: {catalog: "{{job.parameters.catalog}}", schema: "{{job.parameters.schema}}", fm_endpoint: ${var.fm_endpoint}}
+        - task_key: medallion
+          depends_on: [{task_key: doc_extraction}]
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.underwriting_medallion.id}
+            full_refresh: true
+        - task_key: dq_scorecard
+          depends_on: [{task_key: medallion}]
+          environment_key: default
+          notebook_task:
+            notebook_path: ../notebooks/03b_dq_scorecard.py
+            base_parameters: {catalog: "{{job.parameters.catalog}}", schema: "{{job.parameters.schema}}"}
+        - task_key: features
+          depends_on: [{task_key: medallion}]
+          environment_key: ml
+          notebook_task:
+            notebook_path: ../notebooks/04_features.py
+            base_parameters: {catalog: "{{job.parameters.catalog}}", schema: "{{job.parameters.schema}}"}
+        - task_key: inbox_rescore
+          depends_on: [{task_key: features}]
+          environment_key: ml
+          notebook_task:
+            notebook_path: ../notebooks/06_agent_tools.py
+            base_parameters: {catalog: "{{job.parameters.catalog}}", schema: "{{job.parameters.schema}}", mode: "score_only"}
+        - task_key: governance_reseed
+          depends_on: [{task_key: inbox_rescore}]
+          environment_key: default
+          notebook_task:
+            notebook_path: ../notebooks/07_governance.py
+            base_parameters: {catalog: "{{job.parameters.catalog}}", schema: "{{job.parameters.schema}}"}
+        - task_key: cache_reset
+          depends_on: [{task_key: governance_reseed}]
+          environment_key: default
+          notebook_task:
+            notebook_path: ../notebooks/99_reset.py
+            base_parameters: {catalog: "{{job.parameters.catalog}}", schema: "{{job.parameters.schema}}"}

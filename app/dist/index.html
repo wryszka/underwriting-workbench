@@ -1,0 +1,759 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bricksurance SE — Underwriting Workbench</title>
+<style>
+  :root{--slate:#1e293b;--slate2:#0f172a;--blue:#2563eb;--blue4:#60a5fa;--ink:#0f172a;--mut:#64748b;
+        --line:#e2e8f0;--bg:#f8fafc;--card:#fff;--red:#dc2626;--redbg:#fef2f2;--amber:#d97706;--ambbg:#fffbeb;
+        --green:#16a34a;--greenbg:#f0fdf4;--violet:#6d28d9}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       color:var(--ink);background:var(--bg);font-size:14px}
+  .app{display:flex;min-height:100vh}
+  .side{width:264px;background:linear-gradient(180deg,#1e293b 0%,#172033 100%);color:#cbd5e1;flex-shrink:0;display:flex;flex-direction:column;position:fixed;height:100vh;border-right:1px solid rgba(255,255,255,.06)}
+  .brand{display:flex;align-items:center;gap:11px;padding:16px 16px;border-bottom:1px solid rgba(255,255,255,.08);text-decoration:none;cursor:pointer}
+  .brand:hover{background:rgba(255,255,255,.03)}
+  .brand .logo{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,#2563eb,#60a5fa);display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 2px 10px rgba(37,99,235,.4)}
+  .brand .logo svg{width:19px;height:19px;stroke:#fff;fill:none;stroke-width:2}
+  .brand .btxt b{color:#fff;font-size:14.5px;display:block;line-height:1.15;letter-spacing:-.01em}
+  .brand .btxt span{font-size:10.5px;color:#94a3b8}
+  .nav{flex:1;padding:6px 10px;overflow:auto}
+  .nav .sec{font-size:10px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:#5b6878;padding:15px 10px 5px}
+  .nav .sec:first-child{padding-top:8px}
+  .nav a{display:flex;align-items:center;gap:11px;padding:8.5px 11px;border-radius:9px;color:#cbd5e1;text-decoration:none;font-size:13.5px;margin:1px 0;cursor:pointer;transition:background .12s,color .12s}
+  .nav a:hover{background:rgba(255,255,255,.06);color:#fff}
+  .nav a.on{background:linear-gradient(135deg,#2563eb,#3b82f6);color:#fff;font-weight:600;box-shadow:0 2px 8px rgba(37,99,235,.35)}
+  .learn{padding:4px 12px 8px}
+  .learn a{display:flex;align-items:center;gap:11px;padding:9px 11px;border-radius:9px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.03);color:#94a3b8;text-decoration:none;transition:.12s;cursor:pointer}
+  .learn a:hover{border-color:rgba(16,185,129,.4);color:#6ee7b7;background:rgba(16,185,129,.06)}
+  .learn a.on{background:rgba(16,185,129,.14);border-color:rgba(16,185,129,.45);color:#a7f3d0}
+  .learn b{font-size:12.5px;display:block;line-height:1.2;font-weight:600}
+  .learn .lsub{font-size:10px;color:#64748b}
+  .cachetog{padding:0 12px 6px}
+  .cachetog button{width:100%;display:flex;align-items:center;justify-content:center;gap:8px;padding:8px 10px;border-radius:9px;font-size:11.5px;font-weight:700;cursor:pointer;border:1px solid;background:transparent;transition:.12s;letter-spacing:.02em}
+  .cachetog .csub{font-size:9.5px;color:#64748b;text-align:center;margin-top:4px;line-height:1.3}
+  .cachetog button.cached{color:#fbbf24;border-color:rgba(251,191,36,.45);background:rgba(251,191,36,.12)}
+  .cachetog button.live{color:#34d399;border-color:rgba(52,211,153,.45);background:rgba(52,211,153,.12)}
+  .side .foot{padding:12px;border-top:1px solid rgba(255,255,255,.08)}
+  .rbtn{width:100%;padding:9px;border-radius:8px;background:rgba(255,255,255,.08);color:#e2e8f0;border:1px solid rgba(255,255,255,.12);cursor:pointer;font-size:13px}
+  .rbtn:hover{background:rgba(255,255,255,.16)}
+  .disc{font-size:10.5px;color:#64748b;margin-top:10px;line-height:1.4}
+  .main{margin-left:264px;flex:1;padding:28px 34px;max-width:1180px}
+  .eyebrow{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--blue);margin-bottom:4px}
+  h1{font-size:24px;margin:0 0 4px}
+  .sub{color:var(--mut);margin:0 0 22px;font-size:13.5px}
+  .grid{display:grid;gap:16px}
+  .g3{grid-template-columns:repeat(3,1fr)}.g2{grid-template-columns:repeat(2,1fr)}.g4{grid-template-columns:repeat(4,1fr)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+  .card h3{margin:0 0 8px;font-size:13px;color:var(--mut);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+  .big{font-size:26px;font-weight:700}
+  .pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:700}
+  .RED,.red{background:var(--redbg);color:var(--red)}
+  .AMBER,.amber{background:var(--ambbg);color:var(--amber)}
+  .GREEN,.green{background:var(--greenbg);color:var(--green)}
+  .bluep{background:#dbeafe;color:#1d4ed8}
+  .slatep{background:#e2e8f0;color:#334155}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line)}
+  th{color:var(--mut);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.04em}
+  tr.click:hover{background:#f1f5f9;cursor:pointer}
+  .bar{height:8px;border-radius:6px;background:#e2e8f0;overflow:hidden;margin-top:6px}
+  .bar>i{display:block;height:100%}
+  .rec{padding:14px 18px;border-radius:12px;font-size:16px;font-weight:700;margin-bottom:18px}
+  .narr{background:#f8fafc;border:1px solid var(--line);border-left:3px solid var(--violet);border-radius:8px;padding:13px 15px;margin-top:10px;font-size:13.5px;line-height:1.55;white-space:pre-wrap}
+  .narr .tag{font-size:10.5px;color:var(--mut);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;display:block}
+  .reasons{margin:8px 0 0;padding-left:18px}.reasons li{margin:3px 0;font-size:13px}
+  .muted{color:var(--mut);font-size:12.5px}
+  .kv{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #f1f5f9;font-size:13px;gap:12px}
+  .kv b{font-weight:600;text-align:right}
+  .btn{padding:7px 13px;border-radius:8px;background:var(--blue);color:#fff;border:0;cursor:pointer;font-size:12.5px;margin-right:8px}
+  .btn.ghost{background:#eef2ff;color:var(--blue)}
+  .btn.warn{background:var(--ambbg);color:var(--amber);border:1px solid #fde68a}
+  .btn.bad{background:var(--redbg);color:var(--red);border:1px solid #fecaca}
+  .note{background:var(--ambbg);border:1px solid #fde68a;border-radius:10px;padding:12px 15px;font-size:12.5px;color:#92400e;margin-top:16px}
+  .prov{background:#eef2ff;border:1px solid #c7d2fe;border-radius:10px;padding:12px 15px;font-size:12.5px;color:#3730a3;margin-top:16px}
+  a.lnk{color:var(--blue);text-decoration:none;cursor:pointer}
+  .loading{color:var(--mut);padding:20px}
+  .present{display:flex;gap:10px;align-items:flex-start;background:linear-gradient(90deg,#eef2ff,#faf5ff);border:1px solid #ddd6fe;border-radius:10px;padding:10px 14px;font-size:12.5px;color:#4338ca;margin:0 0 20px;line-height:1.5}
+  .present .ptag{flex-shrink:0;font-weight:700;text-transform:uppercase;letter-spacing:.05em;font-size:10px;color:#6d28d9;background:#fff;border:1px solid #ddd6fe;border-radius:6px;padding:3px 7px;margin-top:1px}
+  .askbox{background:linear-gradient(135deg,#312e81 0%,#6d28d9 55%,#7c3aed 100%);border-radius:16px;padding:22px 24px;color:#fff;margin-bottom:22px;box-shadow:0 10px 30px rgba(109,40,217,.28)}
+  .askbox h2{margin:0 0 5px;font-size:19px;color:#fff}
+  .askbox .sb{font-size:13px;color:#ddd6fe;margin-bottom:14px;line-height:1.5;max-width:760px}
+  .askbox .exs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+  .askbox .ex{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.22);color:#ede9fe;padding:6px 12px;border-radius:999px;font-size:12px;cursor:pointer}
+  .askbox .ex:hover{background:rgba(255,255,255,.24)}
+  .askbox .row{display:flex;gap:9px}
+  .askbox input{flex:1;padding:12px 14px;border:0;border-radius:9px;font-size:13.5px;color:var(--ink)}
+  .askbox .go{padding:12px 22px;border-radius:9px;background:#fff;color:#6d28d9;border:0;font-weight:700;cursor:pointer;font-size:13.5px}
+  .askbox .ans{margin-top:14px;background:rgba(255,255,255,.97);border-radius:11px;padding:14px 16px;color:var(--ink)}
+  .aitiles{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:10px}
+  .atile{background:var(--card);border:1.5px solid var(--line);border-radius:14px;padding:18px;position:relative;overflow:hidden;transition:transform .12s,box-shadow .12s;text-decoration:none;color:var(--ink);display:flex;flex-direction:column;cursor:pointer}
+  .atile:before{content:"";position:absolute;top:0;left:0;right:0;height:3px}
+  .atile:hover{transform:translateY(-3px);box-shadow:0 12px 30px rgba(15,23,42,.13)}
+  .atile .ic{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:21px;margin-bottom:12px}
+  .atile .role{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px}
+  .atile .nm{font-size:15px;display:block;margin-bottom:5px;font-weight:700}
+  .atile .d{font-size:12.5px;color:var(--mut);line-height:1.5;flex:1}
+  .atile .ep{margin-top:11px;font-size:10px;color:#94a3b8;font-family:ui-monospace,SFMono-Regular,monospace;word-break:break-all}
+  .tone-violet{border-color:#ddd6fe;background:#faf5ff}.tone-violet:before{background:linear-gradient(90deg,#7c3aed,#a78bfa)}.tone-violet .ic{background:#f3e8ff;color:#7c3aed}.tone-violet .role{color:#7c3aed}
+  .tone-blue{border-color:#bfdbfe;background:#eff6ff}.tone-blue:before{background:linear-gradient(90deg,#2563eb,#60a5fa)}.tone-blue .ic{background:#dbeafe;color:#2563eb}.tone-blue .role{color:#2563eb}
+  .tone-emerald{border-color:#bbf7d0;background:#f0fdf4}.tone-emerald:before{background:linear-gradient(90deg,#16a34a,#4ade80)}.tone-emerald .ic{background:#dcfce7;color:#15803d}.tone-emerald .role{color:#15803d}
+  .tone-amber{border-color:#fde68a;background:#fffbeb}.tone-amber:before{background:linear-gradient(90deg,#d97706,#fbbf24)}.tone-amber .ic{background:#fef3c7;color:#b45309}.tone-amber .role{color:#b45309}
+  .tone-rose{border-color:#fecdd3;background:#fff1f2}.tone-rose:before{background:linear-gradient(90deg,#e11d48,#fb7185)}.tone-rose .ic{background:#ffe4e6;color:#e11d48}.tone-rose .role{color:#e11d48}
+  .tone-orange{border-color:#fed7aa;background:#fff7ed}.tone-orange:before{background:linear-gradient(90deg,#ea580c,#fb923c)}.tone-orange .ic{background:#ffedd5;color:#ea580c}.tone-orange .role{color:#ea580c}
+  .tone-cyan{border-color:#a5f3fc;background:#ecfeff}.tone-cyan:before{background:linear-gradient(90deg,#0891b2,#22d3ee)}.tone-cyan .ic{background:#cffafe;color:#0e7490}.tone-cyan .role{color:#0e7490}
+  .sech{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--mut);margin:22px 0 4px}
+  .card.drill{cursor:pointer;transition:transform .12s,box-shadow .12s}
+  .card.drill:hover{transform:translateY(-2px);box-shadow:0 8px 22px rgba(15,23,42,.1)}
+  .modal-bg{position:fixed;inset:0;background:rgba(15,23,42,.5);z-index:40;display:flex;align-items:flex-start;justify-content:center;padding:40px 20px;overflow:auto}
+  .modal{background:#fff;border-radius:14px;max-width:940px;width:100%;padding:22px;position:relative}
+  .modal .x{position:absolute;top:12px;right:14px;cursor:pointer;font-size:18px;color:var(--mut);background:none;border:0}
+  .sqlbox{background:#0f172a;color:#93c5fd;font-family:ui-monospace,SFMono-Regular,monospace;font-size:11.5px;border-radius:9px;padding:12px;white-space:pre-wrap;margin-top:10px;display:none}
+  .srcbar{font-size:11px;color:var(--mut);margin-top:10px}
+  .tscroll{max-height:420px;overflow:auto}
+  .checks{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .check{border:1.5px solid var(--line);border-radius:12px;padding:13px;background:#fff}
+  .check .t{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--mut);margin-bottom:6px;display:flex;justify-content:space-between;align-items:center}
+  .check.ok{border-color:#bbf7d0;background:#f0fdf4}.check.warn{border-color:#fde68a;background:#fffbeb}.check.bad{border-color:#fecaca;background:#fef2f2}
+  .letter{background:#fffdf5;border:1px solid #e7e0c8;border-radius:10px;padding:16px 18px;font-size:13px;line-height:1.6;white-space:pre-wrap;font-family:Georgia,serif;margin-top:10px}
+  .tabs{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
+  .tabs button{padding:7px 14px;border-radius:999px;border:1px solid var(--line);background:#fff;cursor:pointer;font-size:12.5px}
+  .tabs button.on{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:600}
+  iframe.embed{width:100%;border:1px solid var(--line);border-radius:12px;background:#fff}
+  input.f,select.f{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:13px;margin-top:3px}
+  label.f{font-size:11px;color:var(--mut);font-weight:600;text-transform:uppercase;letter-spacing:.04em;display:block;margin-top:10px}
+  .lhero{text-align:center;padding:34px 20px 26px}
+  .lhero .eyebrow{font-size:12px}
+  .lhero h1{font-size:32px;margin:6px 0 10px}
+  .lhero p{color:var(--mut);max-width:720px;margin:0 auto 20px;font-size:14.5px;line-height:1.6}
+  .lstages{display:grid;grid-template-columns:repeat(7,1fr);gap:9px;margin:24px 0}
+  .lstage{border:1.5px solid var(--line);border-radius:11px;padding:11px 9px;text-align:center;cursor:pointer;background:#fff;transition:.12s}
+  .lstage:hover{border-color:var(--blue);transform:translateY(-2px)}
+  .lstage .n{width:22px;height:22px;border-radius:50%;background:var(--blue);color:#fff;font-size:11px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;margin-bottom:6px}
+  .lstage b{display:block;font-size:11.5px;margin-bottom:3px}
+  .lstage span{font-size:10px;color:var(--mut);line-height:1.3;display:block}
+  .about{background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:16px 20px;font-size:12.5px;color:#92400e;line-height:1.6;text-align:left;max-width:860px;margin:0 auto}
+  .soon{opacity:.75;border-style:dashed}
+  .soonpill{background:#f1f5f9;color:#64748b;font-size:9.5px;font-weight:700;letter-spacing:.05em;padding:2px 7px;border-radius:999px;text-transform:uppercase}
+  .slides .slide{display:none}.slides .slide.on{display:block}
+  .mono{font-family:ui-monospace,SFMono-Regular,monospace;font-size:11.5px}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <a class="brand" onclick="go('home')">
+      <div class="logo"><svg viewBox="0 0 24 24"><path d="M12 2 2 7l10 5 10-5-10-5Z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg></div>
+      <div class="btxt"><b>Bricksurance SE</b><span>Underwriting Workbench</span></div>
+    </a>
+    <nav class="nav" id="nav"></nav>
+    <div class="learn"><a id="learnLink" onclick="go('learn')"><svg viewBox="0 0 24 24"><path d="M22 10 12 5 2 10l10 5 10-5v6"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg><span><b>Learn</b><span class="lsub">How commercial underwriting works</span></span></a></div>
+    <div class="cachetog"><button id="cacheBtn" onclick="toggleCache()"></button><div class="csub">AI narration only — checks &amp; prices always live</div></div>
+    <div class="foot">
+      <button class="rbtn" id="resetBtn" onclick="resetDemo()">↺ Reset demo</button>
+      <div class="disc"><b>About this demo</b> — Bricksurance SE is a synthetic insurer; not a Databricks product. Every panel calls real Unity Catalog functions, models, agents and Genie. Open data (OFSI, EA flood, police.uk, EPC) is real and labelled.</div>
+    </div>
+  </aside>
+  <main class="main" id="m"><div class="loading">Loading…</div></main>
+</div>
+<div id="modalhost"></div>
+<script>
+"use strict";
+/* ---------- state + helpers ---------- */
+let CFG={}, CACHE_ON=(localStorage.getItem("uw_cache")??"1")==="1";
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const money=n=>{if(n==null||isNaN(n))return "—";n=Number(n);const s=n<0?"-":"";n=Math.abs(n);
+  if(n>=1e6)return s+"£"+(n/1e6).toFixed(n>=1e7?0:1)+"m";if(n>=1e3)return s+"£"+(n/1e3).toFixed(n>=1e5?0:1)+"k";return s+"£"+Math.round(n).toLocaleString()};
+const num=n=>n==null?"—":Number(n).toLocaleString();
+const pct=n=>n==null?"—":Number(n).toFixed(1)+"%";
+async function api(p,opt){const sep=p.includes("?")?"&":"?";const r=await fetch("/api"+p+sep+"cache="+(CACHE_ON?1:0),opt);return r.json()}
+async function post(p,body){return api(p,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body||{})})}
+function pill(v,cls){return `<span class="pill ${cls||""}">${esc(v)}</span>`}
+function ragPill(v){return pill(v, String(v).toLowerCase())}
+function kv(k,v){return `<div class="kv"><span>${k}</span><b>${v}</b></div>`}
+function present(txt){return `<div class="present"><span class="ptag">On this page</span><span>${txt}</span></div>`}
+function tbl(rows,cols){if(!rows||!rows.length)return '<div class="muted">no rows</div>';
+  cols=cols||Object.keys(rows[0]);
+  return `<div class="tscroll"><table><thead><tr>${cols.map(c=>`<th>${esc(c)}</th>`).join("")}</tr></thead><tbody>`+
+    rows.map(r=>`<tr>${cols.map(c=>`<td>${esc(r[c]??"—")}</td>`).join("")}</tr>`).join("")+"</tbody></table></div>"}
+function openModal(html){$("#modalhost").innerHTML=`<div class="modal-bg" onclick="if(event.target===this)closeModal()"><div class="modal"><button class="x" onclick="closeModal()">✕</button>${html}</div></div>`}
+function closeModal(){$("#modalhost").innerHTML=""}
+function toggleSql(id){const e=document.getElementById(id);e.style.display=e.style.display==="block"?"none":"block"}
+function showSqlBtn(id,sqlText){return `<div class="srcbar"><a class="lnk" onclick="toggleSql('${id}')">⌘ show the SQL</a><div class="sqlbox" id="${id}">${esc(sqlText)}</div></div>`}
+function narrSlot(id){return `<div class="narr" id="${id}"><span class="tag">agent narration</span><span class="muted">…</span></div>`}
+function cacheBadge(c){return c==="hit"?pill("cached","amber"):c==="live"||c==="miss"?pill("live","green"):pill(c,"slatep")}
+
+/* ---------- nav ---------- */
+const NAV=[
+ {sec:"", items:[["home","Overview","◇"]]},
+ {sec:"Head of Underwriting", items:[["tower","Portfolio Control Tower","▦"],["insight","Insight & Ask the Book","◉"]]},
+ {sec:"Underwriter", items:[["inbox","Submission Inbox","☰"],["work","Work a submission","✎"],["tryit","Try a submission","✚"]]},
+ {sec:"Distribution", items:[["brokers","Brokers","🤝"]]},
+ {sec:"Platform", items:[["ingestion","Ingestion","⇣"],["governance","Governance","🛡"],["ai","Underwriting AI","✳"],["onebook","One Book","▣"]]},
+];
+let CUR="home", CUR_SID="sub:900002";
+function renderNav(){
+  $("#nav").innerHTML=NAV.map(g=>(g.sec?`<div class="sec">${g.sec}</div>`:"")+g.items.map(([k,l,ic])=>
+    `<a class="${CUR===k?"on":""}" onclick="go('${k}')"><span style="width:16px;text-align:center">${ic}</span>${l}</a>`).join("")).join("");
+  $("#learnLink").className=CUR==="learn"?"on":"";
+}
+function go(k,arg){location.hash=arg?`#${k}/${arg}`:`#${k}`}
+function route(){closeModal();
+  const h=(location.hash||"#home").slice(1); const [r,...rest]=h.split("/"); const arg=rest.join("/");
+  CUR=r==="sub"?"work":r; renderNav();
+  const map={home:landing,tower:controlTower,insight:insight,inbox:inboxPage,work:()=>subView(CUR_SID),
+             sub:()=>subView(arg||CUR_SID),tryit:tryIt,brokers:brokersPage,ingestion:ingestionPage,
+             governance:governancePage,ai:aiPage,onebook:oneBook,learn:learnPage};
+  (map[r]||landing)();
+  if(r==="sub"&&arg)CUR_SID=arg;
+}
+window.addEventListener("hashchange",route);
+function toggleCache(){CACHE_ON=!CACHE_ON;localStorage.setItem("uw_cache",CACHE_ON?"1":"0");renderCacheBtn()}
+function renderCacheBtn(){const b=$("#cacheBtn");b.className=CACHE_ON?"cached":"live";b.textContent=CACHE_ON?"🗄 AI: CACHED":"📡 AI: LIVE"}
+async function resetDemo(){
+  if(!confirm("Re-anchor all dates to today, rebuild the medallion, re-warm the AI cache?"))return;
+  const b=$("#resetBtn");b.disabled=true;b.textContent="↺ Resetting…";
+  const r=await post("/reset");if(r.error){b.textContent="reset job not installed";return}
+  const poll=setInterval(async()=>{const s=await api("/reset/status?run_id="+r.run_id);
+    if(["TERMINATED","INTERNAL_ERROR","SKIPPED"].includes(s.life_cycle)){clearInterval(poll);
+      if(s.result==="SUCCESS"){await post("/warm-cache");b.textContent="✓ Reset complete"}else b.textContent="⚠ Reset "+(s.result||s.life_cycle);
+      b.disabled=false}},8000);
+}
+
+/* ---------- landing ---------- */
+function landing(){
+  $("#m").innerHTML=`
+  <div class="lhero">
+    <div class="eyebrow">Bricksurance SE · Commercial Lines</div>
+    <h1>Every submission. One governed workbench.</h1>
+    <p>An SME &amp; mid-market desk drowns in broker submissions — emails, scanned proposal forms, drifting risk
+    schedules — while appetite lives in tribal knowledge and the first quote usually wins. This workbench lands every
+    source in one governed lakehouse, extracts, enriches with real open data, checks appetite · authority ·
+    accumulation · sanctions, prices, and puts a complete dossier in front of a named underwriter — minutes, not days.</p>
+    <div><button class="btn" onclick="go('sub','sub:900002')">Work the referral hero</button>
+    <button class="btn ghost" onclick="go('tower')">Portfolio Control Tower</button>
+    <button class="btn ghost" onclick="go('inbox')">Open the inbox</button></div>
+  </div>
+  <div class="lstages">
+    ${[["1","Ingest","emails · PDFs · schedules · portals · open data","ingestion"],
+       ["2","Extract","ai_parse_document + LLM entity extraction","ingestion"],
+       ["3","Triage","ML priority — work the winnable first","inbox"],
+       ["4","Check","appetite · authority · accumulation · sanctions","work"],
+       ["5","Price","technical build-up + named loadings + IPT","work"],
+       ["6","Decide","quote / refer / decline / query — human signs","work"],
+       ["7","Govern","every step audited in Unity Catalog","governance"]].map(([n,b,s,r])=>
+      `<div class="lstage" onclick="go('${r}')"><span class="n">${n}</span><b>${b}</b><span>${s}</span></div>`).join("")}
+  </div>
+  <div class="about"><b>About this demo.</b> Bricksurance SE is a synthetic insurer — no real customer data; this is not a
+  Databricks product. Everything on screen runs for real on Databricks: Lakeflow Declarative Pipelines with expectations
+  and quarantine, <b>ai_parse_document</b> Document AI, Unity Catalog functions for the decision engine, MLflow models on
+  serverless endpoints, a real tool-calling supervisor agent, AI/BI Genie and an embedded dashboard. Bundled open data is
+  REAL and OGL-licensed: the OFSI sanctions list, EA flood-area register, police.uk crime counts, EPC band statistics.
+  Rating logic is illustrative; the full GLM engine is the sibling Pricing Workbench.</div>`;
+}
+
+/* ---------- control tower ---------- */
+async function controlTower(){
+  const m=$("#m");m.innerHTML='<div class="loading">Loading control tower…</div>';
+  const d=await api("/control-tower");
+  const gwp=d.gwp||{},ret=d.retention||{},pipe=d.pipeline||{},adq=d.adequacy||{};
+  const accum=(d.accum||[]).reduce((a,r)=>(a[r.rag]=r.districts,a),{});
+  const funnelRows=(d.funnel||[]).map(r=>{const stp=r.received?Math.round(r.bound/r.received*100):0;
+    return `<tr><td><b>${esc(r.channel)}</b></td><td>${num(r.received)}</td><td>${num(r.quoted)}</td><td>${num(r.bound)}</td><td>${r.avg_hours_to_quote??"—"}h</td><td>${pill(stp+"% bound","bluep")}</td></tr>`}).join("");
+  m.innerHTML=`
+  <div class="eyebrow">Head of Underwriting</div><h1>Portfolio Control Tower</h1>
+  <p class="sub">The book's vital signs, computed live from governed marts. Every tile drills to the reconciling rows and its SQL.</p>
+  ${present("GWP vs plan, retention &amp; rate change (the renewal engine), the funnel by channel, rate adequacy and district accumulation — the numbers a Head of Underwriting opens the morning with. Click any tile to prove it is computed, not hardcoded.")}
+  <div class="grid g4">
+    <div class="card drill" onclick="ctDrill('gwp')"><h3>In-force GWP vs plan</h3><div class="big">${money(gwp.gwp)}</div>
+      <div class="muted">plan ${money(gwp.plan_gwp)} · ${num(gwp.policies)} policies · LR ${pct(gwp.loss_ratio)}</div></div>
+    <div class="card drill" onclick="ctDrill('retention')"><h3>Retention · rate change</h3><div class="big">${pct(ret.retention_pct)}</div>
+      <div class="muted">avg rate change ${pct(ret.rate_change_pct)} on renewal</div></div>
+    <div class="card drill" onclick="ctDrill('adequacy')"><h3>Rate adequacy</h3><div class="big">${pct(adq.adequacy_pct)}</div>
+      <div class="muted">quoted vs technical (rate guide + burning cost)</div></div>
+    <div class="card drill" onclick="ctDrill('accumulation')"><h3>Accumulation</h3>
+      <div class="big">${(accum.amber||0)+(accum.red||0)} <span style="font-size:14px">hot districts</span></div>
+      <div class="muted">${accum.red||0} breach · ${accum.amber||0} referral-zone · ${accum.green||0} ok</div></div>
+  </div>
+  <div class="grid g2" style="margin-top:16px">
+    <div class="card drill" onclick="ctDrill('funnel')"><h3>Funnel by channel — straight-through is the headline</h3>
+      <table><thead><tr><th>channel</th><th>received</th><th>quoted</th><th>bound</th><th>time-to-quote</th><th>conversion</th></tr></thead>
+      <tbody>${funnelRows}</tbody></table></div>
+    <div class="card"><h3>Open pipeline now</h3>
+      ${kv("Open submissions",num(pipe.open_subs))}
+      ${kv("SLA breached",`<span class="pill red">${num(pipe.sla_breached)}</span>`)}
+      ${kv("Sitting at referral",num(pipe.referred))}
+      ${kv("Total SI on the desk",money(pipe.open_si))}
+      <div style="margin-top:12px"><button class="btn" onclick="go('inbox')">Open the inbox →</button></div>
+      <h3 style="margin-top:16px">Hottest districts</h3>
+      ${(d.accum_hot||[]).map(r=>`<div class="kv"><span>${esc(r.postcode_district)} ${r.flood_band==="High"?pill("flood HIGH","red"):""}</span><b>${pct(r.utilisation_pct)} ${ragPill(r.rag)}</b></div>`).join("")}
+    </div>
+  </div>
+  <div class="prov">⛁ Freshness: queried ${esc((d.meta||{}).queried_at||"")} · inbox batch-scored ${esc((d.meta||{}).scored_at||"")}. Tables: gold_portfolio_position · gold_renewals · gold_pipeline_funnel · gold_rate_adequacy · gold_accumulation · gold_submission_lifecycle.</div>`;
+}
+async function ctDrill(key){
+  openModal('<div class="loading">Loading drill…</div>');
+  const d=await api("/control-tower/drill?key="+key);
+  openModal(`<div class="eyebrow">Reconciling rows</div><h2 style="margin:0 0 8px">${key} — computed from ${esc(d.table)}</h2>
+    ${tbl(d.rows)}${showSqlBtn("sql-"+key,d.sql)}`);
+}
+
+/* ---------- inbox ---------- */
+async function inboxPage(){
+  const m=$("#m");m.innerHTML='<div class="loading">Loading inbox…</div>';
+  const d=await api("/inbox");
+  const rows=(d.rows||[]).map(r=>{
+    const hero=r.submission_public_id.startsWith("sub:9000");
+    return `<tr class="click" onclick="go('sub','${r.submission_public_id}')">
+      <td>${hero?"★ ":""}<b>${esc(r.submission_public_id)}</b><br><span class="muted">${esc(r.company_name)}</span></td>
+      <td>${esc(r.trade_group)}<br><span class="muted">${esc(r.segment)} · ${esc(r.postcode_district)}</span></td>
+      <td>${pill(r.channel,"slatep")}</td>
+      <td>${money(r.total_si)}</td>
+      <td>${r.bind_propensity_pct!=null?`<b>${r.bind_propensity_pct}%</b>`:"—"}</td>
+      <td>${pill(r.lifecycle_state,"bluep")}</td>
+      <td>${pill(r.sla_status,r.sla_status==="breached"?"red":r.sla_status==="at_risk"?"amber":"green")}<br><span class="muted">${r.hours_since_received}h / ${r.sla_target_hours}h</span></td>
+      <td>${r.flood_band==="High"?pill("flood","red"):""} ${r.turnover_mismatch_ratio>=1.5?pill("fair-presentation","amber"):""} ${r.appetite_status==="excluded"?pill("out of appetite","red"):""}</td></tr>`}).join("");
+  m.innerHTML=`
+  <div class="eyebrow">Underwriter</div><h1>Submission Inbox</h1>
+  <p class="sub">The open pipeline, priority-ranked by batch-scored bind propensity (model_triage_priority) — work the winnable business first. Heroes pinned. Click a row to work it.</p>
+  ${present("Real desks triage by gut and by inbox order. Here the queue is ranked by a defensible model score with SLA clocks per channel — and why-chips flag flood, fair-presentation and appetite before you open the file.")}
+  <div class="card"><table><thead><tr><th>submission</th><th>trade</th><th>channel</th><th>total SI</th><th>P(bind)</th><th>state</th><th>SLA</th><th>flags</th></tr></thead><tbody>${rows}</tbody></table></div>
+  <div class="prov">Scores are batch inference (ai_query over the champion model) refreshed by the pipeline — the app never blocks on a cold model endpoint. ${esc(d.note||"")}</div>`;
+}
+
+/* ---------- work a submission ---------- */
+function checkCard(title,state,body){const cls=state==="ok"?"ok":state==="warn"?"warn":state==="bad"?"bad":"";
+  const ic=state==="ok"?"✓":state==="warn"?"⚠":state==="bad"?"⊘":"·";
+  return `<div class="check ${cls}"><div class="t">${title}<span>${ic}</span></div>${body}</div>`}
+async function subView(sid){
+  CUR_SID=sid;
+  const m=$("#m");m.innerHTML=`<div class="loading">Assembling the dossier for ${esc(sid)} — running the crux functions…</div>`;
+  const d=await api(`/submission/${encodeURIComponent(sid)}/panels`);
+  const es=d.dossier||{},app_=d.appetite||{},auth=d.authority||{},acc=d.accumulation||{},prc=d.price||{},
+        scr=d.screening||{},ui=d.underinsurance||{},rec=d.recommendation||{},sc=d.scores||{};
+  const actioncls=rec.action==="quote"?"GREEN":rec.action==="decline"?"RED":"AMBER";
+  const accDistricts=(acc.districts||[]).map(x=>`<div class="kv"><span>${esc(x.postcode_district)} ${x.flood_band==="High"?pill("flood HIGH","red"):""}</span>
+      <b>${pct(x.current_util_pct)} → ${pct(x.post_util_pct)} ${ragPill(x.status==="ok"?"green":x.status==="referral"?"amber":"red")}</b></div>`).join("");
+  const ofsi=(scr.ofsi_candidates||[]).map(c=>`<div class="kv"><span>${esc(c.subject)} ≈ <b>${esc(c.listed_name)}</b> (${esc(c.regime)})</span><b>${pill("false positive — cleared","green")}</b></div><div class="muted" style="margin:2px 0 6px">${esc(c.resolution)}</div>`).join("");
+  const wl=(scr.watchlist_hits||[]).map(c=>`<div class="kv"><span>${esc(c.subject)}</span><b>${pill("INTERNAL HIT","red")}</b></div><div class="muted" style="margin:2px 0 6px">${esc(c.reason)} <b>(internal only — never broker-facing)</b></div>`).join("");
+  const docs=(d.documents||[]).map(x=>`<div class="kv"><span>${esc(x.file_name)} ${pill(x.doc_type,"slatep")}</span><b>${pill("conf "+Number(x.extraction_confidence).toFixed(2),Number(x.extraction_confidence)>=0.6?"green":"red")}</b></div>`).join("");
+  const locRows=(d.locations||[]).map(l=>`<tr><td>${l.loc_no}</td><td>${esc(l.site_name)}</td><td>${esc(l.postcode_district)}</td>
+     <td>${money(l.property_si)}</td><td>${l.flood_band==="High"?pill("High","red"):l.flood_band==="Medium"?pill("Med","amber"):pill("Low","green")}</td><td class="muted">${esc(l.rivers||"")}</td></tr>`).join("");
+  m.innerHTML=`
+  <div class="eyebrow">Underwriter · Work a submission</div>
+  <h1>${esc(es.company_name||sid)} <span class="muted" style="font-size:14px">${esc(sid)} · via ${esc(es.broker_id||"")} · ${esc(es.channel||"")}</span></h1>
+  <p class="sub">${esc(es.trade_group||"")} · ${esc(es.segment||"")} · ${es.n_locations||1} location(s) · received ${esc(es.received_ts||"")}</p>
+  ${present("The centrepiece: everything an underwriter used to swivel-chair across six systems, assembled live by Unity Catalog functions — checks, evidence, price build-up, and a human decision recorded to the audit trail.")}
+  <div class="rec ${actioncls}">Recommendation: ${esc((rec.action||"…").toUpperCase().replace("_"," "))}
+    ${rec.refer_to_grade?` → ${esc(rec.refer_to_grade)}${rec.suggested_underwriter?` (${esc(rec.suggested_underwriter)})`:""}`:""}
+    ${rec.straight_through?pill("STRAIGHT-THROUGH ELIGIBLE","green"):""}
+    <ul class="reasons">${(rec.reasons||[]).map(r=>`<li>${esc(r)}</li>`).join("")}</ul></div>
+  <div class="checks">
+    ${checkCard("Appetite",app_.in_appetite?"ok":"bad",
+      kv("Status",pill(app_.appetite_status||"—",app_.in_appetite?"green":"red"))+kv("Hazard grade",app_.hazard_grade??"—")+
+      (app_.decline_code?kv("Decline code",`<span class="mono">${esc(app_.decline_code)} · ${esc(app_.guide_section)}</span>`):kv("Guide",esc(app_.guide_section||"—")))+`<div class="muted">${esc(app_.note||"")}</div>`)}
+    ${checkCard("Authority",["senior_underwriter","head_of_underwriting"].includes(auth.required_grade)?"warn":"ok",
+      kv("Requires",esc(auth.required_grade||"—"))+kv("Suggested",esc(auth.suggested_underwriter||"—"))+
+      kv("E-trade fit",auth.etrade_eligible?pill("yes","green"):pill("no","slatep"))+
+      `<div class="muted">${esc((auth.triggers||[]).join(" · "))}</div>`)}
+    ${checkCard("Accumulation",acc.worst_status==="breach"?"bad":acc.worst_status==="referral"?"warn":"ok",
+      accDistricts||'<div class="muted">no district data</div>')}
+    ${checkCard("Screening (real OFSI list)",scr.status==="internal_watchlist_hit"?"bad":scr.status==="false_positive_resolved"?"warn":"ok",
+      kv("Status",pill((scr.status||"—").replaceAll("_"," "),scr.status==="clear"?"green":scr.status==="false_positive_resolved"?"amber":"red"))+
+      (ofsi||"")+(wl||"")+`<div class="muted">${esc(scr.guidance||"")}</div>`)}
+    ${checkCard("Underinsurance",ui.underinsured_flag||ui.bi_indemnity_flag?"warn":"ok",
+      kv("Buildings vs rebuild",ui.buildings_adequacy_pct!=null?pct(ui.buildings_adequacy_pct):"n/a (tenant / no schedule)")+
+      kv("BI indemnity",(ui.bi_indemnity_months??"—")+" months"+(ui.bi_indemnity_flag?" ⚠":""))+`<div class="muted">${esc(ui.note||"")}</div>`)}
+    ${checkCard("Fair presentation",es.turnover_mismatch_ratio>=1.5?"warn":"ok",
+      kv("Turnover stated",money(es.turnover_stated))+kv("Filed accounts",es.filed_turnover?money(es.filed_turnover):"not filed (micro-entity)")+
+      (es.turnover_mismatch_ratio?kv("Ratio",`<b>${es.turnover_mismatch_ratio}×</b>`):"")+
+      (es.turnover_mismatch_ratio>=1.5?'<div class="muted">Insurance Act 2015 duty of fair presentation — EL/PL rating basis and BI sums affected.</div>':"")+
+      (es.sic_mismatch?'<div class="muted">⚠ declared trade differs from registered SIC code</div>':""))}
+  </div>
+  <div class="grid g2" style="margin-top:16px">
+    <div class="card"><h3>Technical price build-up <span class="muted">(full GLM engine → Pricing Workbench)</span></h3>
+      ${kv("Property",money(prc.property_component))}${kv("Business interruption",money(prc.bi_component))}
+      ${kv("EL",money(prc.el_component))}${kv("Products/PL",money(prc.pl_component))}
+      ${kv("<b>Base</b>","<b>"+money(prc.base_premium)+"</b>")}
+      ${kv("+ Theft &amp; malicious damage <span class='muted'>(police.uk crime evidence)</span>",money(prc.crime_theft_loading))}
+      ${kv("+ Flood <span class='muted'>(EA RoFRS High-band share)</span>",money(prc.flood_loading))}
+      ${kv("+ Claims experience <span class='muted'>(cohort burning cost)</span>",money(prc.claims_experience_loading))}
+      ${kv("<b>Technical premium</b>","<b>"+money(prc.technical_premium)+"</b>")}
+      ${kv("IPT @ 12%",money(prc.ipt_amount))}${kv("<b>Total payable</b>","<b>"+money(prc.total_inc_ipt)+"</b>")}
+      ${kv("Commission",pct(prc.commission_pct))}
+      ${prc.target_premium?kv("Broker target",money(prc.target_premium)+" → "+pct(prc.adequacy_pct)+" "+pill(prc.verdict,prc.adequacy_pct>=95?"green":prc.adequacy_pct>=85?"amber":"red")):kv("Broker target","none — priced to guide")}
+      <div class="muted" style="margin-top:8px">${esc(prc.basis||"")}</div></div>
+    <div class="card"><h3>Evidence &amp; documents</h3>
+      ${kv("Flood",`${esc(es.flood_band||"—")} — ${esc(es.flood_rivers||"no named EA areas")}`)}
+      ${kv("Crime (police.uk)",num(es.crime_count)+(es.crime_imputed?" "+pill("GMP gap — imputed","amber"):""))}
+      ${kv("ML P(bind)",sc.bind_propensity_pct!=null?sc.bind_propensity_pct+"%":"—")}
+      ${kv("ML large-loss propensity",sc.large_loss_propensity_pct!=null?sc.large_loss_propensity_pct+"%":"—")}
+      ${(es.doc_hazards||[]).length?`<div style="margin:8px 0 4px"><b>Extracted hazards</b> <span class="muted">(Document AI)</span></div>`+(es.doc_hazards||[]).map(h=>pill(esc(h),"amber")).join(" "):""}
+      <div style="margin:10px 0 4px"><b>Documents</b></div>${docs||'<div class="muted">structured channel — no documents (that is the point of e-trade)</div>'}
+      ${locRows?`<div style="margin:12px 0 4px"><b>Schedule of premises</b></div><table><thead><tr><th>#</th><th>site</th><th>district</th><th>property SI</th><th>flood</th><th>EA rivers</th></tr></thead><tbody>${locRows}</tbody></table>`:""}
+    </div>
+  </div>
+  <div class="grid g2" style="margin-top:16px">
+    <div class="card"><h3>Decision — a named human signs</h3>
+      ${(rec.terms||[]).length?`<b style="font-size:12.5px">Terms</b><ul class="reasons">${rec.terms.map(t=>`<li>${esc(t)}</li>`).join("")}</ul>`:""}
+      ${(rec.subjectivities||[]).length?`<b style="font-size:12.5px">Subjectivities</b><ul class="reasons">${rec.subjectivities.map(t=>`<li>${esc(t)}</li>`).join("")}</ul>`:""}
+      ${(rec.internal_notes||[]).length?`<b style="font-size:12.5px">Internal notes (never broker-facing)</b><ul class="reasons">${rec.internal_notes.map(t=>`<li>${esc(t)}</li>`).join("")}</ul>`:""}
+      <div style="margin-top:12px">
+        <button class="btn" onclick="recordDecision('${sid}','quote')">✓ Quote</button>
+        <button class="btn warn" onclick="recordDecision('${sid}','refer')">→ Refer</button>
+        <button class="btn bad" onclick="recordDecision('${sid}','decline')">⊘ Decline</button>
+        <button class="btn ghost" onclick="recordDecision('${sid}','request_information')">? Request info</button>
+      </div><div class="muted" id="decmsg" style="margin-top:8px"></div>
+      <h3 style="margin-top:18px">Broker letter (agent-drafted · HITL)</h3>
+      <div><button class="btn ghost" onclick="draftLetter('${sid}','quote')">Draft quote letter</button>
+      <button class="btn ghost" onclick="draftLetter('${sid}','decline')">Draft decline letter</button>
+      <button class="btn ghost" onclick="draftLetter('${sid}','request for information')">Draft info request</button></div>
+      <div id="letterslot"></div></div>
+    <div class="card"><h3>Second opinions — the agent bench</h3>
+      <div><button class="btn ghost" onclick="narr('${sid}','risk_profile')">Risk profile</button>
+      <button class="btn ghost" onclick="narr('${sid}','appetite')">Appetite view</button>
+      <button class="btn ghost" onclick="narr('${sid}','pricing_adequacy')">Adequacy view</button>
+      <button class="btn ghost" onclick="narr('${sid}','challenge')">⚖ Challenge</button></div>
+      <div id="narrslot"></div>
+      <h3 style="margin-top:18px">Ask the supervisor <span class="muted">(real tool-calling agent)</span></h3>
+      <div style="display:flex;gap:8px"><input class="f" id="supq" style="margin:0" placeholder="Should we quote this? What would you change?">
+      <button class="btn" onclick="askSup('${sid}')">Ask</button></div><div id="supslot"></div></div>
+  </div>
+  <div class="prov">⌘ Every panel above is a live UC function call: ${Object.values(d.fns||{}).map(f=>`<span class="mono">${esc(f.split("(")[0].split(".").pop())}</span>`).join(" · ")} — inspect them in Catalog Explorer. Decisions write to gold_decision_audit.</div>`;
+}
+async function recordDecision(sid,action){
+  const d=await api(`/submission/${encodeURIComponent(sid)}/panels`);
+  const rec=d.recommendation||{},prc=d.price||{};
+  const r=await post("/decision",{sid,action,refer_to:rec.refer_to_grade,underwriter:rec.suggested_underwriter,
+    reasons:rec.reasons||[],terms:rec.terms||[],subjectivities:rec.subjectivities||[],
+    decline_code:rec.decline_code_external,external_reason:rec.external_reason,
+    internal_notes:rec.internal_notes||[],quoted_premium:prc.technical_premium,
+    straight_through:!!rec.straight_through});
+  $("#decmsg").innerHTML=`✓ Recorded <span class="mono">${esc(r.decision_id)}</span> by ${esc(r.recorded_by)} → gold_decision_audit`;
+}
+async function draftLetter(sid,type){
+  $("#letterslot").innerHTML='<div class="letter">Drafting…</div>';
+  const r=await api(`/submission/${encodeURIComponent(sid)}/comms?letter_type=${encodeURIComponent(type)}`);
+  $("#letterslot").innerHTML=`<div class="letter">${esc(r.text)}</div>
+    <div style="margin-top:8px">${cacheBadge(r.cache)} <button class="btn" onclick="approveLetter('${sid}','${esc(type)}')">Approve &amp; record</button>
+    <span class="muted" id="lettermsg"></span></div>`;
+  window._letter=r.text;
+}
+async function approveLetter(sid,type){
+  const r=await post("/comms/record",{sid,letter_type:type,content:window._letter||"",status:"approved"});
+  $("#lettermsg").textContent=`✓ ${r.draft_id} approved by ${r.approver} → gold_comms_drafts`;
+}
+async function narr(sid,role){
+  $("#narrslot").innerHTML=narrSlot("narrbody");
+  const r=await api(`/submission/${encodeURIComponent(sid)}/narrate?role=${role}`);
+  $("#narrbody").innerHTML=`<span class="tag">${role.replaceAll("_"," ")} · ${cacheBadge(r.cache)} · ${esc(r.endpoint)}</span>${esc(r.text)}`;
+}
+async function askSup(sid){
+  const q=$("#supq").value||"Should we quote this? Give the call, terms and who signs.";
+  $("#supslot").innerHTML=narrSlot("supbody");
+  const r=await post("/agent/ask",{question:q,sid});
+  $("#supbody").innerHTML=`<span class="tag">supervisor · ${cacheBadge(r.cache)} · tools: ${(r.tools||[]).map(esc).join(" → ")||"none"}</span>${esc(r.text)}`;
+}
+
+/* ---------- try a submission ---------- */
+async function tryIt(){
+  const m=$("#m");m.innerHTML='<div class="loading">Loading…</div>';
+  const o=await api("/whatif/options");
+  const trades=(o.trades||[]).map(t=>`<option value="${esc(t.trade_group)}">${esc(t.trade_group)} (${esc(t.appetite_status)})</option>`).join("");
+  const dists=(o.districts||[]).map(d=>`<option value="${esc(d.postcode_district)}">${esc(d.postcode_district)} — flood ${esc(d.flood_band)}</option>`).join("");
+  m.innerHTML=`
+  <div class="eyebrow">Underwriter</div><h1>Try a submission</h1>
+  <p class="sub">A live what-if: price a hypothetical risk against the real rate guide, open-data loadings and district capacity — the same UC functions the workbench uses.</p>
+  ${present("Change the trade or the district and watch the price build-up and accumulation react — HX7 (Calder Valley) vs a city district is the one to show.")}
+  <div class="grid g2"><div class="card">
+    <label class="f">Trade</label><select class="f" id="w_trade">${trades}</select>
+    <label class="f">District</label><select class="f" id="w_dist">${dists}</select>
+    <div class="grid g2">
+      <div><label class="f">Buildings SI</label><input class="f" id="w_b" value="1200000"></div>
+      <div><label class="f">Plant SI</label><input class="f" id="w_p" value="300000"></div>
+      <div><label class="f">Contents SI</label><input class="f" id="w_c" value="150000"></div>
+      <div><label class="f">Stock SI</label><input class="f" id="w_s" value="200000"></div>
+      <div><label class="f">BI SI</label><input class="f" id="w_bi" value="800000"></div>
+      <div><label class="f">Employees</label><input class="f" id="w_e" value="25"></div>
+      <div><label class="f">Turnover</label><input class="f" id="w_t" value="2500000"></div>
+      <div><label class="f">Broker target £ (optional)</label><input class="f" id="w_tp" value=""></div></div>
+    <div style="margin-top:14px"><button class="btn" onclick="runWhatif()">Price it live →</button></div></div>
+  <div class="card" id="w_out"><h3>Result</h3><div class="muted">Fill the facts and price it. Calls fn_price_whatif + fn_accumulation_whatif live.</div></div></div>`;
+}
+async function runWhatif(){
+  $("#w_out").innerHTML='<div class="loading">Calling the UC functions…</div>';
+  const g=id=>document.getElementById(id).value;
+  const r=await post("/whatif",{trade_group:g("w_trade"),postcode_district:g("w_dist"),buildings_si:g("w_b"),
+    plant_si:g("w_p"),contents_si:g("w_c"),stock_si:g("w_s"),bi_si:g("w_bi"),employees:g("w_e"),
+    turnover:g("w_t"),target_premium:g("w_tp")||null});
+  const p=r.price||{},a=r.accum||{};
+  $("#w_out").innerHTML=`<h3>Result — ${esc(p.appetite_status||"")} appetite, hazard ${p.hazard_grade??"—"}</h3>
+    ${p.appetite_status==="excluded"?'<div class="rec RED">Excluded trade — this would be a coded decline.</div>':""}
+    ${kv("Property",money(p.property_component))}${kv("BI",money(p.bi_component))}${kv("EL",money(p.el_component))}${kv("PL",money(p.pl_component))}
+    ${kv("+ Theft/mal-damage (crime)",money(p.crime_theft_loading))}${kv("+ Flood ("+esc(p.flood_band||"")+")",money(p.flood_loading))}
+    ${kv("<b>Technical premium</b>","<b>"+money(p.technical_premium)+"</b>")}${kv("IPT 12%",money(p.ipt_amount))}
+    ${kv("<b>Total payable</b>","<b>"+money(p.total_inc_ipt)+"</b>")}
+    ${p.adequacy_pct!=null?kv("Target adequacy",pct(p.adequacy_pct)):""}
+    <h3 style="margin-top:14px">Accumulation in ${esc(a.postcode_district||"")}</h3>
+    ${kv("Utilisation",pct(a.current_util_pct)+" → "+pct(a.post_util_pct)+" "+ragPill(a.status==="ok"?"green":a.status==="referral"?"amber":"red"))}
+    ${kv("Headroom after",money(a.headroom_gbp))}`;
+}
+
+/* ---------- insight (EMBEDDED dashboard + genie) ---------- */
+async function insight(){
+  const m=$("#m");
+  m.innerHTML=`
+  <div class="eyebrow">Head of Underwriting</div><h1>Insight &amp; Ask the Book</h1>
+  <p class="sub">The AI/BI dashboard and Genie, embedded — not linked. Ask in natural language; Genie writes the SQL over the governed marts.</p>
+  ${present("Both are live Databricks AI/BI surfaces rendered inside the workbench. The Genie answer shows its generated SQL — governed self-service, not a black box.")}
+  <div class="card"><h3>Ask the Book (AI/BI Genie — in-app)</h3>
+    <div class="exs" id="gex"></div>
+    <div style="display:flex;gap:8px"><input class="f" id="gq" style="margin:0" placeholder="e.g. Which districts are over 80% of property capacity?">
+    <button class="btn" onclick="askGenie()">Ask</button></div><div id="gout"></div></div>
+  ${CFG.dashboard_embed_url?`<div class="card" style="margin-top:16px"><h3>Underwriting Portfolio — AI/BI dashboard (embedded)</h3>
+     <iframe class="embed" style="height:760px" src="${esc(CFG.dashboard_embed_url)}"></iframe></div>`
+    :'<div class="note">Dashboard not configured yet (set DASHBOARD_ID) — it embeds here.</div>'}
+  ${CFG.genie_embed_url?`<div class="card" style="margin-top:16px"><h3>Genie room (embedded)</h3>
+     <iframe class="embed" style="height:620px" src="${esc(CFG.genie_embed_url)}"></iframe></div>`:""}`;
+  const ex=await api("/genie/examples");
+  $("#gex").innerHTML=(ex.examples||[]).map(e=>`<span class="ex" style="background:#eef2ff;border:1px solid #c7d2fe;color:#3730a3;padding:5px 11px;border-radius:999px;font-size:12px;cursor:pointer" onclick="$('#gq').value=this.textContent;askGenie()">${esc(e)}</span>`).join(" ");
+}
+async function askGenie(){
+  $("#gout").innerHTML='<div class="loading">Genie is thinking (writes SQL over the marts)…</div>';
+  const r=await post("/genie/ask",{question:$("#gq").value});
+  if(r.error){$("#gout").innerHTML=`<div class="note">${esc(r.error)}</div>`;return}
+  $("#gout").innerHTML=`${r.answer?`<div class="narr"><span class="tag">genie answer</span>${esc(r.answer)}</div>`:""}
+    ${r.rows&&r.rows.length?`<div style="margin-top:10px">${tbl(r.rows)}</div>`:""}
+    ${r.query?showSqlBtn("gsql",r.query):""}`;
+}
+
+/* ---------- brokers ---------- */
+async function brokersPage(){
+  const m=$("#m");m.innerHTML='<div class="loading">Loading…</div>';
+  const d=await api("/brokers");
+  const rows=(d.rows||[]).map(r=>`<tr><td><b>${esc(r.broker_name||r.broker_id)}</b><br><span class="muted">${esc(r.segment||"")} · ${esc(r.producer_code||"")}</span></td>
+    <td>${num(r.submissions_12m)}</td><td>${pct(r.quote_rate_pct)}</td><td><b>${pct(r.hit_ratio_pct)}</b></td>
+    <td>${r.avg_hours_to_quote??"—"}h</td><td>${pct(r.data_complete_pct)}</td><td>${pct(r.ntu_rate_pct)}</td><td>${money(r.gwp_bound)}</td></tr>`).join("");
+  m.innerHTML=`
+  <div class="eyebrow">Distribution</div><h1>Broker scorecard</h1>
+  <p class="sub">Every head of underwriting wants this and almost nobody has it: volume, quote rate, hit ratio, speed, submission quality and NTU rate per broker — evidence for the panel conversation.</p>
+  ${present("Data quality % = complete submissions (core facts present) — the brokers who make the desk fast. NTU (not taken up) is tracked separately from lost-to-competitor.")}
+  <div class="card"><table><thead><tr><th>broker</th><th>submissions 12m</th><th>quote rate</th><th>hit ratio</th><th>time-to-quote</th><th>data quality</th><th>NTU rate</th><th>GWP bound</th></tr></thead><tbody>${rows}</tbody></table></div>
+  <div class="grid g2" style="margin-top:16px">
+    <div class="card soon"><h3>Broker portal <span class="soonpill">roadmap</span></h3><div class="muted">Self-service submission status for brokers over a UC <b>row-filtered view</b> — each broker sees only their book. The pattern is live in the sibling Claims Workbench broker portal.</div></div>
+    <div class="card soon"><h3>Bordereaux &amp; delegated authority <span class="soonpill">roadmap</span></h3><div class="muted">MGA/binder bordereaux ingestion with the same expectations + quarantine pattern; coverholder performance beside the broker scorecard.</div></div>
+  </div>`;
+}
+
+/* ---------- ingestion ---------- */
+async function ingestionPage(){
+  const m=$("#m");m.innerHTML='<div class="loading">Loading source assets…</div>';
+  const d=await api("/ingestion/assets");
+  const live=(d.sources||[]).filter(s=>s.status==="live"),road=(d.sources||[]).filter(s=>s.status!=="live");
+  const score={};(d.scorecard||[]).forEach(r=>{(score[r.dataset]=score[r.dataset]||[]).push(r)});
+  const srcRows=live.map(s=>`<tr class="click" onclick="sampleTable('${esc(s.table_name)}')">
+    <td><b>${esc(s.source)}</b><br><span class="muted">${esc(s.system)}</span></td>
+    <td>${esc(s.source_group)}</td><td>${esc(s.format)}</td><td class="mono">${esc(s.databricks_tool)}</td>
+    <td>${s.row_count!=null?num(s.row_count):"—"}</td><td class="muted">${esc(s.note)}</td></tr>`).join("");
+  const scoreBlocks=Object.entries(score).map(([ds,rows])=>{
+    const allPass=rows.every(r=>Number(r.failed)===0);
+    return `<div style="border:1px solid var(--line);border-radius:10px;margin-bottom:10px;overflow:hidden">
+      <div style="padding:8px 12px;background:${allPass?"var(--greenbg)":"var(--ambbg)"};font-weight:700;font-size:12.5px">${esc(ds)} — ${rows.filter(r=>Number(r.failed)===0).length}/${rows.length} passing</div>
+      <table><tbody>${rows.map(r=>`<tr><td>${esc(r.expectation)}</td><td>${pill(r.action==="drop_to_quarantine"?"drop→quarantine":"track","slatep")}</td>
+        <td>${num(r.passed)} ✓</td><td>${Number(r.failed)?`<b class="red" style="background:none">${num(r.failed)} ✗</b>`:"0"}</td><td>${pct(r.pass_pct)}</td></tr>`).join("")}</tbody></table></div>`}).join("");
+  const quar=(d.quarantine||[]).map(q=>`<tr class="click" onclick="quarDrill('${esc(q.src)}')"><td>${esc(q.src)}</td><td class="mono">${esc(q.quarantine_reason)}</td><td><b>${num(q.n)}</b></td></tr>`).join("");
+  const docs=(d.docs||[]).map(x=>`<tr><td>${esc(x.file_name)}</td><td>${pill(x.doc_type,"slatep")}</td><td>${esc(x.submission_public_id)}</td>
+    <td>${pill(Number(x.extraction_confidence).toFixed(2),Number(x.extraction_confidence)>=0.6?"green":"red")}</td><td class="mono muted">${esc(x.source_tool)}</td></tr>`).join("");
+  m.innerHTML=`
+  <div class="eyebrow">Platform</div><h1>Ingestion — every channel into one governed lakehouse</h1>
+  <p class="sub">Structured feeds, an email inbox, scanned PDFs through Document AI, schedules that drift, the PAS book, and real bundled open data — all through expectations, nothing silently lost.</p>
+  ${present("Click a live source to preview its real rows. The quality contract is the DLT event log; the drifted schedule and the illegible fax are IN quarantine right now — that is the no-silent-loss story.")}
+  <div class="card"><h3>Live sources (${live.length})</h3>
+    <table><thead><tr><th>source</th><th>group</th><th>format</th><th>databricks tool</th><th>rows</th><th>note</th></tr></thead><tbody>${srcRows}</tbody></table></div>
+  <div class="grid g2" style="margin-top:16px">
+    <div class="card"><h3>Quality contract — DLT expectations (event log)</h3>${scoreBlocks}</div>
+    <div>
+      <div class="card"><h3>Quarantine — nothing silently lost</h3>
+        <table><thead><tr><th>feed</th><th>reason</th><th>rows</th></tr></thead><tbody>${quar}</tbody></table>
+        <div class="muted" style="margin-top:8px">Click a reason to inspect the actual quarantined rows (incl. the drifted schedule's _rescued_data).</div></div>
+      <div class="card" style="margin-top:16px"><h3>Document AI spotlight</h3>
+        <table><thead><tr><th>file</th><th>type</th><th>submission</th><th>confidence</th><th>tool</th></tr></thead><tbody>${docs}</tbody></table>
+        <div class="muted" style="margin-top:8px">ai_parse_document (layout-aware) + ai_query entity extraction; &lt;0.6 confidence → quarantined for human review — the fax scan proves the gate.</div></div>
+    </div>
+  </div>
+  <div class="grid g2" style="margin-top:16px">
+    <div class="card"><h3>Open data provenance (bundled, real, OGL)</h3>
+      ${kv("OFSI consolidated list","12k+ primary names · HM Treasury · screened at quote")}
+      ${kv("EA flood areas","full register match by town · RoFRS-curated band · England only")}
+      ${kv("police.uk crime","monthly counts · GMP gap flagged + imputed honestly")}
+      ${kv("EPC band mix","MEES/ESG lens only — never a rating factor")}
+      <div class="muted" style="margin-top:8px">Bundled at build time so the demo never depends on an external API. See data/open/PROVENANCE.md.</div></div>
+    <div class="card"><h3>Roadmap sources (${road.length})</h3>
+      ${road.map(s=>`<div class="kv"><span>${esc(s.source)} <span class="soonpill">roadmap</span></span><b class="muted">${esc(s.note)}</b></div>`).join("")}
+      <div class="muted" style="margin-top:8px">Live Companies House API example ships as notebook 91 — off the demo's critical path by design (reliability).</div></div>
+  </div>`;
+}
+async function sampleTable(t){
+  if(!t)return;openModal('<div class="loading">Loading sample…</div>');
+  const d=await api("/ingestion/sample?table="+encodeURIComponent(t));
+  openModal(`<div class="eyebrow">Data preview</div><h2 style="margin:0 0 8px" class="mono">${esc(d.table||t)}</h2>${tbl(d.rows)}`);
+}
+async function quarDrill(src){
+  openModal('<div class="loading">Loading quarantine rows…</div>');
+  const d=await api("/ingestion/quarantine?src="+encodeURIComponent(src));
+  openModal(`<div class="eyebrow">Quarantine</div><h2 style="margin:0 0 8px">${esc(src)} — ${esc(d.table||"")}</h2>${tbl(d.rows)}`);
+}
+
+/* ---------- governance ---------- */
+let GOV_TAB="collect";
+async function governancePage(){
+  const m=$("#m");
+  m.innerHTML=`
+  <div class="eyebrow">Platform</div><h1>Governance</h1>
+  <p class="sub">Collect once, surface by role; every decision audited; AI activity logged; sensitive detail masked by Unity Catalog itself.</p>
+  ${present("The masked watchlist is the proof point: this app's service principal is OUTSIDE the readers group, so the redaction you see is enforced by UC — not by the app being polite.")}
+  <div class="tabs">
+    ${[["collect","🗂 What we collect"],["decisions","⚖ Decisions & audit"],["ai","🤖 Models & AI activity"],["conduct","🛡 Authority & conduct"]].map(([k,l])=>
+      `<button class="${GOV_TAB===k?"on":""}" onclick="GOV_TAB='${k}';governancePage()">${l}</button>`).join("")}
+  </div><div id="govbody"><div class="loading">Loading…</div></div>`;
+  const b=$("#govbody");
+  if(GOV_TAB==="collect"){
+    const [inv,lin]=await Promise.all([api("/governance/inventory"),api("/governance/lineage")]);
+    b.innerHTML=`<div class="card"><h3>Data inventory — collect once, surface many ways</h3>
+      ${tbl(inv.rows,["asset","sensitivity_tier","contains_personal_data","retention","used_for","surfaced_as","audience"])}</div>
+      <div class="card" style="margin-top:16px"><h3>Lineage (${esc(lin.source||"")})</h3>${tbl((lin.rows||[]).slice(0,25))}</div>`;
+  }else if(GOV_TAB==="decisions"){
+    const d=await api("/governance/decisions");
+    b.innerHTML=`<div class="card"><h3>Decision audit — every quote / refer / decline / query</h3>
+      ${tbl((d.audit||[]).map(r=>({when:r.decision_ts,submission:r.submission_public_id,action:r.action,
+        refer_to:r.refer_to_grade,by:r.decided_by,via:r.decided_via,external_code:r.decline_code_external,
+        straight_through:r.straight_through})))}</div>
+      <div class="grid g2" style="margin-top:16px">
+      <div class="card"><h3>Declinature consistency (coded)</h3>${tbl(d.conduct)}</div>
+      <div class="card"><h3>Broker letters (HITL trail)</h3>${tbl(d.comms)}</div></div>`;
+  }else if(GOV_TAB==="ai"){
+    const [mo,act]=await Promise.all([api("/governance/models"),api("/governance/ai-activity")]);
+    b.innerHTML=`<div class="card"><h3>Model registry (Unity Catalog, live)</h3>${tbl(mo.models)}</div>
+      <div class="card" style="margin-top:16px"><h3>AI activity log</h3>${tbl((act.rows||[]).map(r=>({submission:r.submission_public_id,agent:r.agent,activity:r.activity,signal:r.signal,tools:r.tools_used,reasoning:r.reasoning})))}</div>`;
+  }else{
+    const mk=await api("/governance/masking");
+    b.innerHTML=`<div class="card"><h3>Watchlist through the UC dynamic mask <span class="mono muted">${esc(mk.view||"")}</span></h3>
+      ${tbl(mk.rows)}<div class="note">${esc(mk.note||"")}</div></div>
+      <div class="grid g2" style="margin-top:16px">
+      <div class="card"><h3>External vs internal reasons</h3><div class="muted">Decline letters cite appetite and the underwriting guide ONLY. Screening/watchlist findings live in the audit trail. A true OFSI match freezes the submission and escalates to compliance — no letter. Hero sub:900003 demonstrates the separation end-to-end.</div></div>
+      <div class="card soon"><h3>Fair value &amp; premium finance <span class="soonpill">roadmap</span></h3><div class="muted">PROD 4 fair-value assessment evidence per product; premium-finance APR disclosure under FCA scrutiny — both natural extensions of the decision audit.</div></div></div>`;
+  }
+}
+
+/* ---------- underwriting AI ---------- */
+async function aiPage(){
+  const m=$("#m");m.innerHTML='<div class="loading">Loading…</div>';
+  const d=await api("/agents");
+  const tiles=[
+    ["tone-violet","supervisor","Underwriting AI supervisor","A REAL tool-calling agent: Claude decides which UC functions to call (dossier, appetite, authority, accumulation, price, screening, recommendation, Genie), runs them, and answers with the tool trace shown.","🧠",d.supervisor],
+    ["tone-blue","risk profile","Risk profile analyst","Ten-second risk profile from the enrichment: company, flood + EA river evidence, crime, cohort experience, fair-presentation flags.","🔎",d.roles?.risk_profile],
+    ["tone-emerald","appetite","Appetite advisor","Why in / why out, citing the underwriting-guide section; what would need to change.","🎯",d.roles?.appetite],
+    ["tone-cyan","pricing adequacy","Adequacy reviewer","Is the broker target achievable; where is the negotiation room vs technical.","💷",d.roles?.pricing_adequacy],
+    ["tone-amber","broker comms","Comms drafter (HITL)","Drafts quote / decline / info-request letters. Hard rule: declines cite appetite only. A human approves every letter.","✉️",d.roles?.broker_comms],
+    ["tone-rose","challenge","Challenge — second pair of eyes","Argues the other side with a conduct lens: fair, consistent, coded outcomes.","⚖",d.roles?.challenge],
+    ["tone-orange","genie","Ask the Book (Genie)","Natural-language analytics over the funnel, accumulation, brokers and renewals — embedded in Insight.","💬",{url:"#insight",endpoint:CFG.genie_space_id?("space "+CFG.genie_space_id):"configure GENIE_SPACE_ID"}],
+    ["tone-blue","model","Triage priority model","LightGBM P(bind) over the UC Feature Store — ranks the inbox. Batch-scored; champion alias.","📈",d.models?.["underwriting-triage"]],
+    ["tone-blue","model","Risk quality model","LightGBM large-loss propensity trained on the PAS book's claims experience.","📉",d.models?.["underwriting-risk"]],
+  ].map(([tone,role,nm,desc,ic,ep])=>`<a class="atile ${tone}" ${ep&&ep.url?`href="${esc(ep.url)}" target="${ep.url.startsWith("#")?"_self":"_blank"}"`:""}>
+      <div class="ic">${ic}</div><div class="role">${role}</div><b class="nm">${nm}</b><div class="d">${desc}</div>
+      <div class="ep">${esc(ep&&ep.endpoint||"")}</div></a>`).join("");
+  m.innerHTML=`
+  <div class="eyebrow">Platform</div><h1>Underwriting AI</h1>
+  <p class="sub">One supervisor. A bench of specialists. Models decide scores, rules decide checks, agents reason and draft — <b>a named human signs</b>. Every call audited.</p>
+  ${present("Ask the supervisor about a live submission and watch the tool trace: those are real Unity Catalog function calls, not retrieval theatre. Tiles open the actual serving endpoints.")}
+  <div class="askbox"><h2>Ask the supervisor</h2>
+    <div class="sb">It will call the same governed functions the workbench uses and show you exactly which.</div>
+    <div class="exs">
+      <span class="ex" onclick="aiAsk('Should we quote sub:900002? Give the call, the terms and who signs.','sub:900002')">The Calder Valley referral</span>
+      <span class="ex" onclick="aiAsk('Why is sub:900001 straight-through eligible?','sub:900001')">The fast-track shop</span>
+      <span class="ex" onclick="aiAsk('Summarise why sub:900003 must be declined and what the broker letter may say.','sub:900003')">The decline (watch the compliance rule)</span></div>
+    <div class="row"><input id="aiq" placeholder="Ask about a submission (mention sub:900001/2/3) or the book…">
+    <button class="go" onclick="aiAsk()">Ask</button></div><div id="aians"></div></div>
+  <div class="sech">The bench</div><div class="aitiles">${tiles}</div>
+  <div class="prov">Escalate-not-bind: agents advise, draft and challenge. Decisions are recorded by a named underwriter to gold_decision_audit. Narration is cache-wrapped (toggle in the sidebar); structured checks and prices are always live UC calls.</div>`;
+}
+async function aiAsk(q,sid){
+  q=q||$("#aiq").value;if(!q)return;
+  if(!sid){const mtc=q.match(/sub:\d+/);sid=mtc?mtc[0]:null}
+  $("#aians").innerHTML='<div class="ans"><div class="loading">The supervisor is working — calling UC functions…</div></div>';
+  const r=await post("/agent/ask",{question:q,sid});
+  $("#aians").innerHTML=`<div class="ans"><div style="font-size:11px;color:#6d28d9;font-weight:700;margin-bottom:6px">
+    ${cacheBadge(r.cache)} tools: ${(r.tools||[]).map(esc).join(" → ")||"none"}</div><div style="white-space:pre-wrap">${esc(r.text)}</div></div>`;
+}
+
+/* ---------- one book ---------- */
+async function oneBook(){
+  const m=$("#m");
+  m.innerHTML=`
+  <div class="eyebrow">Growth</div><h1>One Book — consolidating the lines</h1>
+  <p class="sub">Commercial SME/mid-market is live. The same governed chassis — one schema pattern, one decision engine, one audit trail — is built to take every line. Placeholders are labelled honestly.</p>
+  ${present("The consolidation argument: each lane added to the SAME platform compounds — shared enrichment spend, a cross-line client 360, group-level accumulation, one governance model — instead of another silo.")}
+  <div class="grid g3">
+    <div class="card tone-blue" style="border-width:1.5px"><h3>Commercial SME &amp; mid-market</h3><div class="big" style="font-size:16px">LIVE — this workbench</div>
+      <div class="muted">Submission → decision, end to end, governed.</div></div>
+    <div class="card soon"><h3>Personal motor &amp; home <span class="soonpill">placeholder</span></h3>
+      <div class="muted">The Bricksurance personal-lines universe already exists in the sibling <b>Claims Workbench</b> (same brokers, same districts) — new-business underwriting plugs into this chassis.</div></div>
+    <div class="card soon"><h3>Specialty / London Market <span class="soonpill">placeholder</span></h3>
+      <div class="muted">MRC-slip intake is proven in the sibling <b>Reinsurance Workbench</b> Document AI path; specialty risks reuse the same extraction + checks spine.</div></div>
+    <div class="card soon"><h3>Renewals workbench <span class="soonpill">placeholder</span></h3>
+      <div class="muted">Retention and rate-change vitals are live on the Control Tower; the renewal invitation workflow (rate vs risk change, pre-renewal survey chase) is the next lane.</div></div>
+    <div class="card soon"><h3>MTAs &amp; endorsements <span class="soonpill">placeholder</span></h3>
+      <div class="muted">Mid-term changes through the same checks (accumulation delta, authority) — a large share of real desk volume.</div></div>
+    <div class="card soon"><h3>Post-bind obligations <span class="soonpill">placeholder</span></h3>
+      <div class="muted">Subjectivity ageing + survey/risk-improvement tracking, seeded from gold_decision_audit — the classic internal-audit finding, solved by the audit trail we already write.</div></div>
+    <div class="card soon"><h3>MGA / delegated binders <span class="soonpill">placeholder</span></h3>
+      <div class="muted">Bordereaux in through the same quarantine pattern; coverholder scorecards beside broker scorecards.</div></div>
+    <div class="card soon"><h3>Reinsurance outward <span class="soonpill">placeholder</span></h3>
+      <div class="muted">Facultative trigger above the net line per risk; treaty view lives in the sibling <b>Reinsurance Workbench</b> (cross-link).</div></div>
+    <div class="card tone-emerald" style="border-width:1.5px"><h3>Why consolidate</h3>
+      <div class="muted">• One enrichment spend (flood/crime/CH/sanctions) serving every line<br>• Cross-line client 360 &amp; group accumulation<br>• One decision-audit + conduct model for the regulator<br>• Each new line = a lane, not a platform</div></div>
+  </div>`;
+}
+
+/* ---------- learn ---------- */
+let SLIDE=0;
+const SLIDES=[
+ ["What a commercial underwriting desk does","An underwriter accepts, prices and shapes risks on behalf of the carrier's capital. For SME (shops, offices, small firms) business arrives via e-trade portals and should flow untouched; mid-market (£2m–£50m turnover) arrives as an email + proposal form + risk schedule and needs judgement. The desk lives or dies by speed (first quote usually wins), consistency (same risk, same answer) and portfolio discipline (appetite, accumulation)."],
+ ["The submission lifecycle","received → extracted → triaged → enriched → assessed → referred → quoted → awaiting broker → bound / declined / NTU / lost. NTU ('not taken up') means we quoted and the client walked — tracked separately from lost-to-competitor because the fixes differ. SLA clocks differ by channel: minutes for e-trade, days for email."],
+ ["Appetite & authority","Appetite = which trades we want (core / selective / excluded), written in the underwriting guide with coded sections. Authority = who may sign what: each grade carries limits (total sum insured, premium, hazard grade, flood permission). Anything above limits refers UP a named route. This workbench encodes both as Unity Catalog reference tables and checks them per submission."],
+ ["Accumulation","One street can hold many of our risks. Districts carry a capacity appetite for total property sum insured; every submission's marginal exposure is checked BEFORE quoting (most insurers reconcile quarterly in a spreadsheet, after the fact). ≥80% = referral, ≥100% = breach. Watch HX7 — Calder Valley — in the referral hero."],
+ ["Technical price","Rate guide (per-trade rates on property/BI, per-capita EL, per-turnover PL) + the book's own burning cost + NAMED loadings: theft/malicious-damage evidenced by real police.uk counts, flood by the EA RoFRS band. Then IPT at 12% and commission. Adequacy = broker target ÷ technical. The full frequency/severity GLM engine is the sibling Pricing Workbench — deliberately not duplicated."],
+ ["Fair presentation (Insurance Act 2015)","Commercial insureds owe a duty of fair presentation. Filed accounts showing £24m turnover against £8m stated is not a typo — it corrupts the EL/PL rating basis and the BI sums. The workbench surfaces the mismatch from the Companies-House-shaped profile and turns it into a subjectivity: audited turnover confirmation within 14 days."],
+ ["Screening — done properly","Every submission screens the entity + directors against the REAL OFSI consolidated list (bundled, 12k names) plus the internal watchlist. Most matches are FALSE positives — resolved on DOB/nationality and logged; that resolution trail is the real work. A true OFSI match freezes the file and escalates to compliance. Watchlist reasons NEVER appear in broker letters."],
+ ["Terms & subjectivities","A quote is rarely 'yes': it is 'yes, if'. Terms shape the risk (£100k flood excess at High-band sites). Subjectivities are conditions to satisfy (satisfactory survey in 60 days; composite-panel percentage confirmed; audited turnover in 14 days). The workbench builds them from the checks and the comms agent writes them into the letter verbatim."],
+ ["Decline with dignity","Declines are a conduct topic: coded reasons (APP-EXCL-WASTE, guide UG-9.2), consistent wording, audited. The external letter cites appetite only; internal intelligence stays internal. sub:900003 walks the whole path."],
+ ["What Databricks does here","Lakeflow pipelines with expectations + quarantine (the drifted schedule), ai_parse_document + ai_query Document AI, UC functions as the explicable decision engine, Feature Store + MLflow models on serverless endpoints, a real tool-calling agent, Genie + AI/BI embedded, UC masking + lineage + audit — one platform, scale-to-zero, every step governed."],
+ ["The three heroes","sub:900001 Fenwick & Moss (Altrincham shop package) — clean, e-trade, straight-through with a resolved screening near-miss. sub:900002 Calder Valley Fine Foods — messy mid-market Commercial Combined: drifted schedule, £24m vs £8m turnover, flood-High sites, 87% accumulation → refer to a senior with terms. sub:900003 Midland Metal & Waste — excluded trade + internal watchlist → coded decline, compliant letter."],
+];
+function learnPage(){
+  const m=$("#m");
+  m.innerHTML=`
+  <div class="eyebrow">Learn</div><h1>Commercial underwriting, in ten slides</h1>
+  <p class="sub">For colleagues showing this demo: the domain, the vocabulary, and where each beat lives.</p>
+  <div class="card slides">
+    ${SLIDES.map(([t,b],i)=>`<div class="slide ${i===SLIDE?"on":""}"><h2 style="margin-top:0">${i+1} · ${t}</h2><p style="line-height:1.7;font-size:14px">${b}</p></div>`).join("")}
+    <div style="display:flex;justify-content:space-between;margin-top:14px">
+      <button class="btn ghost" onclick="SLIDE=Math.max(0,SLIDE-1);learnPage()">← Prev</button>
+      <span class="muted">Slide ${SLIDE+1} of ${SLIDES.length}</span>
+      <button class="btn" onclick="SLIDE=Math.min(${SLIDES.length-1},SLIDE+1);learnPage()">Next →</button></div></div>
+  <div class="prov">Demo run: Overview → Control Tower (drill a tile) → Inbox → work sub:900002 (checks · price · terms · decision · letter) → sub:900003 decline → Try a submission (HX7 vs city) → Ingestion (quarantine + Document AI) → Governance (mask) → Underwriting AI (tool trace) → One Book. Full step-by-step in the demo doc.</div>`;
+}
+
+/* ---------- boot ---------- */
+async function boot(){
+  renderCacheBtn();
+  try{CFG=await api("/config")}catch(e){CFG={}}
+  route();
+}
+boot();
+</script>
+</body>
+</html>
