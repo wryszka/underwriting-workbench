@@ -414,7 +414,15 @@ async function subView(sid){
       <b>${pct(x.current_util_pct)} → ${pct(x.post_util_pct)} ${ragPill(x.status==="ok"?"green":x.status==="referral"?"amber":"red")}</b></div>`).join("");
   const ofsi=(scr.ofsi_candidates||[]).map(c=>`<div class="kv"><span>${esc(c.subject)} ≈ <b>${esc(c.listed_name)}</b> (${esc(c.regime)})</span><b>${pill("false positive — cleared","green")}</b></div><div class="muted" style="margin:2px 0 6px">${esc(c.resolution)}</div>`).join("");
   const wl=(scr.watchlist_hits||[]).map(c=>`<div class="kv"><span>${esc(c.subject)}</span><b>${pill("INTERNAL HIT","red")}</b></div><div class="muted" style="margin:2px 0 6px">${esc(c.reason)} <b>(internal only — never broker-facing)</b></div>`).join("");
-  const docs=(d.documents||[]).map(x=>`<div class="kv"><span>${esc(x.file_name)} ${pill(x.doc_type,"slatep")}</span><b>${pill("conf "+Number(x.extraction_confidence).toFixed(2),Number(x.extraction_confidence)>=0.6?"green":"red")}</b></div>`).join("");
+  const paperDocs=(d.documents||[]).filter(x=>x.doc_type!=="call_transcript");
+  const callDocs=(d.documents||[]).filter(x=>x.doc_type==="call_transcript");
+  const docs=paperDocs.map(x=>`<div class="kv"><span>${esc(x.file_name)} ${pill(x.doc_type,"slatep")}</span><b>${pill("conf "+Number(x.extraction_confidence).toFixed(2),Number(x.extraction_confidence)>=0.6?"green":"red")}</b></div>`).join("");
+  const calls=callDocs.map(x=>{let hz=[];try{hz=JSON.parse(x.key_hazards_json||"[]")}catch(e){}
+    return `<div style="border:1px solid #fde68a;background:#fffbeb;border-radius:10px;padding:10px 12px;margin-top:8px">
+      <div style="display:flex;justify-content:space-between"><b style="font-size:12.5px">📞 ${esc(x.file_name)}</b>${pill("conf "+Number(x.extraction_confidence).toFixed(2),Number(x.extraction_confidence)>=0.6?"green":"red")}</div>
+      ${x.turnover_stated_gbp?`<div class="kv"><span>Turnover said on the call</span><b>${money(x.turnover_stated_gbp)}</b></div>`:""}
+      ${hz.length?`<div style="margin-top:5px">${hz.map(h=>pill(esc(h),"amber")).join(" ")}</div>`:""}
+    </div>`}).join("");
   const locRows=(d.locations||[]).map(l=>`<tr><td>${l.loc_no}</td><td>${esc(l.site_name)}</td><td>${esc(l.postcode_district)}</td>
      <td>${money(l.property_si)}</td><td>${l.flood_band==="High"?pill("High","red"):l.flood_band==="Medium"?pill("Med","amber"):pill("Low","green")}</td><td class="muted">${esc(l.rivers||"")}</td></tr>`).join("");
   m.innerHTML=`
@@ -469,6 +477,7 @@ async function subView(sid){
       ${kv("ML large-loss propensity",sc.large_loss_propensity_pct!=null?sc.large_loss_propensity_pct+"%":"—")}
       ${(es.doc_hazards||[]).length?`<div style="margin:8px 0 4px"><b>Extracted hazards</b> <span class="muted">(Document AI)</span></div>`+(es.doc_hazards||[]).map(h=>pill(esc(h),"amber")).join(" "):""}
       <div style="margin:10px 0 4px"><b>Documents</b></div>${docs||'<div class="muted">structured channel — no documents (that is the point of e-trade)</div>'}
+      ${calls?`<div style="margin:10px 0 0"><b>Calls &amp; insights</b> <span class="muted">(transcripts through the SAME pipeline — facts said on calls that never reach a form)</span></div>${calls}`:""}
       ${locRows?`<div style="margin:12px 0 4px"><b>Schedule of premises</b></div><table><thead><tr><th>#</th><th>site</th><th>district</th><th>property SI</th><th>flood</th><th>EA rivers</th></tr></thead><tbody>${locRows}</tbody></table>`:""}
     </div>
   </div>

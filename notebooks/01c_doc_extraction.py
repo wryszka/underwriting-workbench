@@ -88,8 +88,10 @@ final = spark.sql(f"""
            from_json(regexp_extract(extraction_raw, '(?s)\\\\{{.*\\\\}}', 0), '{SCHEMA_JSON}') AS x
     FROM _docs_extracted)
   SELECT file_name,
-         concat('sub:', regexp_extract(file_name, 'sub-([0-9]+)', 1)) AS submission_public_id,
-         CASE WHEN file_name LIKE '%proposal%' THEN 'proposal_form'
+         CASE WHEN regexp_extract(file_name, 'sub-([0-9]+)', 1) != ''
+              THEN concat('sub:', regexp_extract(file_name, 'sub-([0-9]+)', 1)) END AS submission_public_id,
+         CASE WHEN file_name LIKE '%call%' THEN 'call_transcript'
+              WHEN file_name LIKE '%proposal%' THEN 'proposal_form'
               WHEN file_name LIKE '%loss_run%' THEN 'loss_run'
               WHEN file_name LIKE '%schedule%' THEN 'risk_schedule'
               WHEN file_name LIKE '%presentation%' THEN 'risk_presentation'

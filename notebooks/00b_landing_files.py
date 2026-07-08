@@ -139,6 +139,80 @@ EL: [torn] PL: 2,OOO,OOO empl0yees: s1x
 write_text("sub-108150_fax_scan.txt", FAX_108150)
 
 write_text("sub-900001_etrade_receipt.txt", EMAIL_900001)
+
+# COMMAND ----------
+
+# MAGIC %md ## Call transcripts — material facts said on calls that never reach a form
+# MAGIC The extensibility proof: a NEW SOURCE is a folder drop + one extraction prompt. The
+# MAGIC transcripts land in the SAME Volume, flow through the SAME Auto Loader + Document AI
+# MAGIC pipeline, and the governance/quarantine/audit come for free.
+# MAGIC Hero beat: Calder Valley's FD mentions a SECOND PRODUCTION SHIFT and "about twenty-four
+# MAGIC million now" — material facts on no form, cross-checkable against the proposal.
+
+# COMMAND ----------
+
+CALL_900002_FD = f"""CALL TRANSCRIPT — {TODAY.strftime('%d %b %Y')} 11:20 (14 min)
+Parties: Marcus Webb (Bricksurance underwriting) · Margaret Calder (FD, Calder Valley Fine Foods)
+Channel: recorded line, consent given. Auto-transcribed.
+
+MW: Thanks for the time. I'm working through the proposal your broker sent across.
+MC: Of course. We're keen to move — RSA's renewal terms were a shock.
+MW: Understood. Can I confirm the operation — two production sites in the valley?
+MC: Yes, Hebden Bridge is the main mill, Mytholmroyd does the chilled lines. Since we took on
+    the SECOND PRODUCTION SHIFT last spring both sites run sixteen hours a day now.
+MW: That's useful — the proposal shows 120 employees, is that current?
+MC: That was last year's headcount. With the second shift we're nearer a hundred and sixty.
+MW: And turnover — the form says eight million?
+MC: Oh, that must be old. We're doing about TWENTY-FOUR MILLION now — the supermarket
+    own-label contract changed everything.
+MW: That's a material difference — we'll need audited figures.
+MC: Whatever you need. Also worth saying: after the 2020 flood we put in the pumps and raised
+    all the racking. The Environment Agency alert system pages our site manager directly.
+MW: Good to know. Last thing — the fryer line suppression, is that installed?
+MC: The new Ansul system went into fryer line B in January. Line A is gravity-fed, no frying.
+MW: Perfect, that answers one of our subjectivities. I'll come back with terms this week.
+"""
+
+CALL_900002_BROKER_CHASE = f"""CALL TRANSCRIPT — {TODAY.strftime('%d %b %Y')} 15:05 (3 min)
+Parties: David Whitworth (Pennine Commercial Risks) · Bricksurance new business desk
+Channel: recorded line. Auto-transcribed.
+
+DW: Just chasing the Calder Valley submission — the client's renewal is close and I'll be
+    honest, whoever quotes first with sensible terms probably takes it.
+BX: It's with a senior underwriter today — flood terms and the turnover point to resolve.
+DW: Understood. If the flood excess is the sticking point they'd wear a hundred thousand,
+    between us. Speed matters more than shaving the premium here.
+BX: Noted on the file. You'll have terms before Friday.
+"""
+
+CALL_100774_STOCK = f"""CALL TRANSCRIPT — {TODAY.strftime('%d %b %Y')} 09:48 (6 min)
+Parties: Bricksurance trading desk · caller states they are the owner, Fenland Wholesale
+Channel: recorded line. Auto-transcribed.
+
+CALLER: You have our renewal in — I wanted to flag the stock figure is wrong on the schedule.
+DESK: Go on.
+CALLER: It says one-eighty. Pre-Christmas we peak well over three hundred thousand in the
+    warehouse, October through December. Rest of the year one-eighty is fair.
+DESK: So a seasonal stock increase clause around 65 percent uplift for the last quarter.
+CALLER: That's exactly it. Our old insurer had it worded that way.
+DESK: We'll reflect that in the quote — thanks for calling it in before we bound it.
+"""
+
+CALL_ETRADE_SUPPORT = f"""CALL TRANSCRIPT — {TODAY.strftime('%d %b %Y')} 10:31 (2 min)
+Parties: Northgate Insurance Brokers service line · Bricksurance e-trade support
+Channel: recorded line. Auto-transcribed.
+
+NB: Quick one — the portal rejected a shop package because the money limit field wouldn't
+    take more than five thousand. Client wants seven-five.
+BX: Above the e-trade envelope — it'll route to an underwriter automatically if you submit
+    with a note. Takes it out of straight-through but it's a same-day turnaround.
+NB: That works. Sending it now.
+"""
+
+write_text("sub-900002_call_fd.txt", CALL_900002_FD)
+write_text("sub-900002_call_broker_chase.txt", CALL_900002_BROKER_CHASE)
+write_text("sub-100774_call_stock.txt", CALL_100774_STOCK)
+write_text("call_etrade_support_20260708.txt", CALL_ETRADE_SUPPORT)
 write_text("sub-900002_email.txt", EMAIL_900002)
 write_text("sub-900002_email_chaser.txt", CHASER_900002)
 write_text("sub-900003_email.txt", EMAIL_900003)
