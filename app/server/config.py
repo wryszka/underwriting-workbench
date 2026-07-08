@@ -17,6 +17,7 @@ GENIE_SPACE_ID = os.getenv("GENIE_SPACE_ID", "")
 DASHBOARD_ID = os.getenv("DASHBOARD_ID", "")
 FM_ENDPOINT = os.getenv("FM_ENDPOINT", "databricks-claude-sonnet-4-5")
 RESET_JOB_SUBSTR = os.getenv("RESET_JOB_SUBSTR", "underwriting_99_reset")
+CLAIMS_APP_URL = os.getenv("CLAIMS_APP_URL", "https://claims-workbench-7474656169654171.aws.databricksapps.com")
 
 # Agent / model endpoints are resolved by substring at runtime (dev-prefix safe).
 EP_RISKPROFILE_SUBSTR = os.getenv("EP_RISKPROFILE_SUBSTR", "underwriting-riskprofile")

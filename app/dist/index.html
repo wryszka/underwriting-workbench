@@ -716,9 +716,12 @@ async function brokersPage(){
   <p class="sub">Every head of underwriting wants this and almost nobody has it: volume, quote rate, hit ratio, speed, submission quality and NTU rate per broker — evidence for the panel conversation.</p>
   ${present("Data quality % = complete submissions (core facts present) — the brokers who make the desk fast. NTU (not taken up) is tracked separately from lost-to-competitor.")}
   <div class="card"><table><thead><tr><th>broker</th><th>submissions 12m</th><th>quote rate</th><th>hit ratio</th><th>time-to-quote</th><th>data quality</th><th>NTU rate</th><th>GWP bound</th></tr></thead><tbody>${rows}</tbody></table></div>
-  <div class="grid g2" style="margin-top:16px">
-    <div class="card soon"><h3>Broker portal <span class="soonpill">roadmap</span></h3><div class="muted">Self-service submission status for brokers over a UC <b>row-filtered view</b> — each broker sees only their book. The pattern is live in the sibling Claims Workbench broker portal.</div></div>
-    <div class="card soon"><h3>Bordereaux &amp; delegated authority <span class="soonpill">roadmap</span></h3><div class="muted">MGA/binder bordereaux ingestion with the same expectations + quarantine pattern; coverholder performance beside the broker scorecard.</div></div>
+  <div class="grid g3" style="margin-top:16px">
+    <div class="card tone-emerald" style="border-width:1.5px"><h3>The 360 nobody has</h3>
+      <div class="muted" style="line-height:1.55">These same brokers (BRK-001/002/003) live in the sibling <b>Claims Workbench</b> on this platform — same IDs, same universe. One consolidated view spans <b>trading</b> (hit ratio, data quality, speed — this page) and <b>service</b> (claims chase volume, status queries). That combined scorecard exists nowhere in the market, and here it is one JOIN away.</div>
+      <div style="margin-top:10px"><a class="btn ghost" href="${esc(CFG.claims_app_url||"#")}/#broker" target="_blank">Open the broker's claims view ↗</a></div></div>
+    <div class="card soon"><h3>Broker portal <span class="soonpill">roadmap</span></h3><div class="muted">Self-service submission status over a UC <b>row-filtered view</b> — each broker sees only their book. Pattern live in the Claims Workbench broker portal.</div></div>
+    <div class="card soon"><h3>Bordereaux &amp; delegated authority <span class="soonpill">roadmap</span></h3><div class="muted">MGA/binder bordereaux through the same expectations + quarantine pattern; coverholder performance beside this scorecard.</div></div>
   </div>`;
 }
 
@@ -906,8 +909,8 @@ async function oneBook(){
       <div class="muted">Bordereaux in through the same quarantine pattern; coverholder scorecards beside broker scorecards.</div></div>
     <div class="card soon"><h3>Reinsurance outward <span class="soonpill">placeholder</span></h3>
       <div class="muted">Facultative trigger above the net line per risk; treaty view lives in the sibling <b>Reinsurance Workbench</b> (cross-link).</div></div>
-    <div class="card tone-emerald" style="border-width:1.5px"><h3>Why consolidate</h3>
-      <div class="muted">• One enrichment spend (flood/crime/CH/sanctions) serving every line<br>• Cross-line client 360 &amp; group accumulation<br>• One decision-audit + conduct model for the regulator<br>• Each new line = a lane, not a platform</div></div>
+    <div class="card tone-emerald" style="border-width:1.5px"><h3>Why consolidate — the loop</h3>
+      <div class="muted" style="line-height:1.6">Underwriting writes the risk → <b>Claims</b> (sibling workbench, same universe) records what it truly cost → that experience feeds the <b>burning cost, rate guide and appetite</b> back on this platform → the next quote prices on it. One governed loop instead of three systems and a quarterly spreadsheet.<br><br>• One enrichment spend (flood/crime/CH/sanctions) serving every line<br>• Cross-line client &amp; broker 360, group accumulation across books<br>• One decision-audit + conduct model for the regulator<br>• Each new line = a lane, not a platform</div></div>
   </div>`;
 }
 

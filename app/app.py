@@ -37,6 +37,7 @@ def get_config():
         "genie_embed_url": f"{host}/embed/genie/rooms/{config.GENIE_SPACE_ID}" if config.GENIE_SPACE_ID else "",
         "dashboard_embed_url": f"{host}/embed/dashboardsv3/{config.DASHBOARD_ID}" if config.DASHBOARD_ID else "",
         "pricing_workbench_url": "https://github.com/wryszka/pricing-workbench",
+        "claims_app_url": config.CLAIMS_APP_URL,
         "supervisor_endpoint": config.resolve_endpoint(config.EP_AGENT_SUBSTR),
     }
 
@@ -581,7 +582,7 @@ def gov_models():
 @app.get("/api/governance/ai-activity")
 def gov_ai_activity(sid: str = None):
     where = f"WHERE submission_public_id='{sql.esc(sid)}'" if sid else ""
-    return {"rows": sql.query(f"SELECT * FROM {F('gold_ai_activity')} {where} ORDER BY submission_public_id, agent")}
+    return {"rows": sql.query(f"SELECT * FROM {F('gold_ai_activity')} {where} ORDER BY recorded_at DESC LIMIT 60")}
 
 
 @app.get("/api/governance/lineage")
