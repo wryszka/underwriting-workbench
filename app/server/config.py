@@ -59,9 +59,12 @@ def resolve_endpoint(substr: str) -> str:
 
 def workspace_host() -> str:
     h = os.getenv("DATABRICKS_HOST", "")
-    if h:
-        return h.rstrip("/")
-    try:
-        return get_workspace_client().config.host.rstrip("/")
-    except Exception:
-        return ""
+    if not h:
+        try:
+            h = get_workspace_client().config.host or ""
+        except Exception:
+            h = ""
+    h = h.rstrip("/")
+    if h and not h.startswith("http"):
+        h = "https://" + h
+    return h

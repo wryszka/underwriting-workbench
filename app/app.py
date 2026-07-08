@@ -66,7 +66,7 @@ def control_tower():
         "meta": f"""SELECT current_timestamp() queried_at,
                            (SELECT max(scored_at) FROM {F('gold_inbox_priority')}) scored_at""",
     })
-    return {k: (v[0] if k not in ("funnel", "accum", "accum_hot") else v) for k, v in q.items()}
+    return {k: (v if k in ("funnel", "accum", "accum_hot") else (v[0] if v else {})) for k, v in q.items()}
 
 
 DRILLS = {
