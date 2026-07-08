@@ -344,6 +344,79 @@ def whatif_options():
     return q
 
 
+# ---------------------------------------------------------------- appetite & rate committee
+@app.get("/api/committee")
+def committee():
+    q = sql.query_many({
+        "guide": f"""SELECT a.trade_group, a.appetite_status, a.hazard_grade, a.guide_section,
+                            r.property_rate_permille, r.bi_rate_permille, r.min_premium,
+                            p.gwp, p.policies, p.loss_ratio_3y_pct, ra.adequacy_pct
+                     FROM {F('ref_appetite')} a
+                     JOIN {F('ref_rate_guide')} r USING (trade_group)
+                     LEFT JOIN {F('gold_portfolio_position')} p USING (trade_group)
+                     LEFT JOIN {F('gold_rate_adequacy')} ra USING (trade_group)
+                     ORDER BY p.gwp DESC NULLS LAST""",
+        "proposals": f"""SELECT * FROM {F('gov_guide_changes')} ORDER BY proposed_ts DESC LIMIT 25""",
+    })
+    return q
+
+
+@app.post("/api/committee/preview")
+async def committee_preview(req: Request):
+    """Projected impact of a rate change on the OPEN pipeline — property component repriced."""
+    b = await req.json()
+    t = sql.esc(b.get("trade_group", ""))
+    new_rate = float(b.get("new_property_rate_permille", 0))
+    row = sql.query_one(f"""
+        WITH cur AS (SELECT property_rate_permille FROM {F('ref_rate_guide')} WHERE trade_group='{t}')
+        SELECT count(*) open_subs,
+               round(avg(l.technical_base_premium), 0) avg_tech_now,
+               round(avg(l.technical_base_premium
+                         + l.total_property_si * ({new_rate} - cur.property_rate_permille) / 1000), 0) avg_tech_new,
+               round(sum(l.total_property_si * ({new_rate} - cur.property_rate_permille) / 1000), 0) pipeline_premium_delta,
+               round(avg(l.target_premium / nullif(l.technical_base_premium
+                         + l.total_property_si * ({new_rate} - cur.property_rate_permille) / 1000, 0)) * 100, 1) new_adequacy_pct,
+               any_value(cur.property_rate_permille) current_rate
+        FROM {F('gold_submission_lifecycle')} l CROSS JOIN cur
+        WHERE l.trade_group = '{t}'""")
+    inforce = sql.query_one(f"""SELECT gwp, policies FROM {F('gold_portfolio_position')} WHERE trade_group='{t}'""")
+    return {"impact": row, "in_force": inforce,
+            "note": "Property component repriced on the OPEN pipeline (BI/EL/PL unchanged); book marts refresh on the next pipeline run."}
+
+
+@app.post("/api/committee/propose")
+async def committee_propose(req: Request):
+    b = await req.json()
+    pid = "GC-" + uuid.uuid4().hex[:8]
+    who = sql.esc(req.headers.get("x-forwarded-email", "demo-user"))
+    sql.query(f"""INSERT INTO {F('gov_guide_changes')} VALUES (
+        '{pid}', '{sql.esc(b.get("trade_group", ""))}', '{sql.esc(b.get("change_type", "rate"))}',
+        '{sql.esc(str(b.get("current_value", "")))}', '{sql.esc(str(b.get("proposed_value", "")))}',
+        '{sql.esc(b.get("rationale", ""))[:800]}', '{sql.esc(json.dumps(b.get("impact") or {}))[:4000]}',
+        'proposed', '{who}', current_timestamp(), NULL)""")
+    return {"proposal_id": pid, "status": "proposed", "by": who}
+
+
+@app.post("/api/committee/apply")
+async def committee_apply(req: Request):
+    """Apply a rate proposal: the guide IS data — the change is one governed UPDATE."""
+    b = await req.json()
+    pid = sql.esc(b.get("proposal_id", ""))
+    row = sql.query_one(f"SELECT * FROM {F('gov_guide_changes')} WHERE proposal_id='{pid}'")
+    if not row:
+        return JSONResponse({"error": "proposal not found"}, status_code=404)
+    if row["change_type"] == "rate":
+        sql.query(f"""UPDATE {F('ref_rate_guide')} SET property_rate_permille = {float(row['proposed_value'])}
+                      WHERE trade_group = '{sql.esc(row['trade_group'])}'""")
+    else:
+        sql.query(f"""UPDATE {F('ref_appetite')} SET appetite_status = '{sql.esc(row['proposed_value'])}'
+                      WHERE trade_group = '{sql.esc(row['trade_group'])}'""")
+    sql.query(f"""UPDATE {F('gov_guide_changes')} SET status='applied', applied_ts=current_timestamp()
+                  WHERE proposal_id='{pid}'""")
+    return {"proposal_id": pid, "status": "applied",
+            "note": "New quotes price on the new guide immediately (the crux functions read the ref tables live); book marts refresh on the next pipeline run."}
+
+
 # ---------------------------------------------------------------- supervisor + genie
 @app.post("/api/agent/ask")
 async def agent_ask(req: Request, cache: int = None):

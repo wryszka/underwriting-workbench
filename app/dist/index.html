@@ -189,7 +189,7 @@ function cacheBadge(c){return c==="hit"?pill("cached","amber"):c==="live"||c==="
 /* ---------- nav ---------- */
 const NAV=[
  {sec:"", items:[["home","Overview","◇"]]},
- {sec:"Head of Underwriting", items:[["tower","Portfolio Control Tower","▦"],["insight","Insight & Ask the Book","◉"]]},
+ {sec:"Head of Underwriting", items:[["tower","Portfolio Control Tower","▦"],["committee","Appetite & Rates","⚖"],["insight","Insight & Ask the Book","◉"]]},
  {sec:"Underwriter", items:[["inbox","Submission Inbox","☰"],["renewals","Renewals desk","↻"],["work","Work a submission","✎"],["tryit","Try a submission","✚"]]},
  {sec:"Distribution", items:[["brokers","Brokers","🤝"]]},
  {sec:"Platform", items:[["ingestion","Ingestion","⇣"],["governance","Governance","🛡"],["ai","Underwriting AI","✳"],["onebook","One Book","▣"]]},
@@ -205,7 +205,7 @@ function route(){closeModal();
   const h=(location.hash||"#home").slice(1); const [r,...rest]=h.split("/"); const arg=rest.join("/");
   CUR=r==="sub"?"work":r; renderNav();
   const map={home:landing,tower:controlTower,insight:insight,inbox:inboxPage,work:()=>subView(CUR_SID),
-             sub:()=>subView(arg||CUR_SID),tryit:tryIt,brokers:brokersPage,ingestion:ingestionPage,renewals:renewalsDesk,
+             sub:()=>subView(arg||CUR_SID),tryit:tryIt,brokers:brokersPage,ingestion:ingestionPage,renewals:renewalsDesk,committee:committeePage,
              governance:governancePage,ai:aiPage,onebook:oneBook,learn:learnPage};
   (map[r]||landing)();
   if(r==="sub"&&arg)CUR_SID=arg;
@@ -610,6 +610,70 @@ async function runWhatif(){
     <h3 style="margin-top:14px">Accumulation in ${esc(a.postcode_district||"")}</h3>
     ${kv("Utilisation",pct(a.current_util_pct)+" → "+pct(a.post_util_pct)+" "+ragPill(a.status==="ok"?"green":a.status==="referral"?"amber":"red"))}
     ${kv("Headroom after",money(a.headroom_gbp))}`;
+}
+
+/* ---------- appetite & rate committee ---------- */
+async function committeePage(){
+  const m=$("#m");m.innerHTML='<div class="loading">Loading the underwriting guide…</div>';
+  const d=await api("/committee");
+  window._guide=d.guide||[];
+  const rows=(d.guide||[]).map(g=>`<tr>
+    <td><b>${esc(g.trade_group)}</b><br><span class="muted">${esc(g.guide_section)}</span></td>
+    <td>${pill(g.appetite_status,g.appetite_status==="core"?"green":g.appetite_status==="selective"?"amber":"red")}</td>
+    <td>${g.hazard_grade}</td><td><b>${g.property_rate_permille}‰</b></td>
+    <td>${money(g.gwp)}<br><span class="muted">${num(g.policies)} policies</span></td>
+    <td>${pct(g.loss_ratio_3y_pct)}</td><td>${g.adequacy_pct!=null?pct(g.adequacy_pct):"—"}</td></tr>`).join("");
+  const props=(d.proposals||[]).map(p=>`<div class="kv">
+    <span><span class="mono">${esc(p.proposal_id)}</span> · <b>${esc(p.trade_group)}</b> ${esc(p.change_type)}: ${esc(p.current_value)} → <b>${esc(p.proposed_value)}</b><br>
+    <span class="muted">${esc(p.rationale||"")} · ${esc(p.proposed_by)} · ${esc(p.proposed_ts)}</span></span>
+    <b>${p.status==="applied"?pill("applied","green"):`${pill("proposed","amber")} <button class="btn" style="margin:0 0 0 6px;padding:4px 9px" onclick="applyProposal('${esc(p.proposal_id)}')">Apply</button>`}</b></div>`).join("");
+  const opts=(d.guide||[]).map(g=>`<option value="${esc(g.trade_group)}">${esc(g.trade_group)} (now ${g.property_rate_permille}‰ · adequacy ${g.adequacy_pct!=null?g.adequacy_pct+"%":"n/a"})</option>`).join("");
+  m.innerHTML=`
+  <div class="eyebrow">Head of Underwriting</div><h1>Appetite &amp; Rate Committee</h1>
+  <p class="sub">In this platform the underwriting guide <b>is data</b> — so changing it is a governed, attributable event with its projected impact captured at proposal time, not a PDF re-issued by email.</p>
+  ${present("What it is: the live underwriting guide (appetite matrix + rate guide) with each trade's book context. What it shows: propose a rate change, see the PROJECTED impact on the open pipeline instantly, record it to the committee register (gov_guide_changes), and apply it — new quotes price on the new guide immediately. Every proposal is attributable and auditable.")}
+  <div class="card"><h3>The guide, live — with each trade's evidence</h3>
+    <table><thead><tr><th>trade</th><th>appetite</th><th>hazard</th><th>property rate</th><th>in-force</th><th>loss ratio 3y</th><th>rate adequacy</th></tr></thead><tbody>${rows}</tbody></table></div>
+  <div class="grid g2" style="margin-top:16px">
+    <div class="card"><h3>Propose a rate change</h3>
+      <label class="f">Trade</label><select class="f" id="cm_trade">${opts}</select>
+      <label class="f">New property rate (‰)</label><input class="f" id="cm_rate" placeholder="e.g. 6.0">
+      <label class="f">Rationale</label><input class="f" id="cm_why" placeholder="e.g. adequacy 73% and LR trending up — move to technical">
+      <div style="margin-top:12px"><button class="btn" onclick="previewChange()">Preview impact →</button></div>
+      <div id="cm_preview"></div></div>
+    <div class="card"><h3>Committee register — every guide change, attributable</h3>
+      ${props||'<div class="muted">No proposals yet. The register lives in gov_guide_changes.</div>'}</div>
+  </div>
+  <div class="prov">Why this matters: most carriers version their guide as documents. Here appetite + rates are Unity Catalog tables read live by the decision functions — a committee decision is one governed UPDATE, effective on the next quote, with the impact estimate archived beside it.</div>`;
+}
+async function previewChange(){
+  const t=document.getElementById("cm_trade").value, r=parseFloat(document.getElementById("cm_rate").value);
+  if(!r){document.getElementById("cm_preview").innerHTML='<div class="note">Enter a new rate first.</div>';return}
+  document.getElementById("cm_preview").innerHTML='<div class="loading">Repricing the open pipeline…</div>';
+  const d=await post("/committee/preview",{trade_group:t,new_property_rate_permille:r});
+  const i=d.impact||{},f=d.in_force||{};window._cm={trade:t,rate:r,impact:d};
+  document.getElementById("cm_preview").innerHTML=`
+    ${kv("Current → proposed rate",(i.current_rate??"—")+"‰ → <b>"+r+"‰</b>")}
+    ${kv("Open submissions repriced",num(i.open_subs))}
+    ${kv("Avg technical premium",money(i.avg_tech_now)+" → <b>"+money(i.avg_tech_new)+"</b>")}
+    ${kv("Pipeline premium Δ",money(i.pipeline_premium_delta))}
+    ${kv("New adequacy vs broker targets",i.new_adequacy_pct!=null?pct(i.new_adequacy_pct):"n/a")}
+    ${kv("In-force context",money(f.gwp)+" · "+num(f.policies)+" policies")}
+    <div class="muted" style="margin-top:6px">${esc(d.note||"")}</div>
+    <div style="margin-top:10px"><button class="btn" onclick="proposeChange()">Record proposal → register</button></div>
+    <div class="muted" id="cm_msg"></div>`;
+}
+async function proposeChange(){
+  const c=window._cm||{};const why=document.getElementById("cm_why").value||"(no rationale given)";
+  const cur=(c.impact&&c.impact.impact&&c.impact.impact.current_rate)||"";
+  const r=await post("/committee/propose",{trade_group:c.trade,change_type:"rate",current_value:cur+"‰",
+    proposed_value:c.rate,rationale:why,impact:c.impact});
+  document.getElementById("cm_msg").innerHTML=`✓ ${esc(r.proposal_id)} recorded by ${esc(r.by)} → gov_guide_changes`;
+}
+async function applyProposal(pid){
+  if(!confirm("Apply this guide change? New quotes price on it immediately."))return;
+  const r=await post("/committee/apply",{proposal_id:pid});
+  alert((r.error)||("Applied "+r.proposal_id+". "+(r.note||"")));committeePage();
 }
 
 /* ---------- insight (EMBEDDED dashboard + genie) ---------- */

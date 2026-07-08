@@ -74,6 +74,24 @@ print("gold_comms_drafts ready")
 
 # COMMAND ----------
 
+# MAGIC %md ## Guide-change audit — the appetite & rate committee's register
+# MAGIC The underwriting guide is DATA here (ref_appetite / ref_rate_guide), so changing it is a
+# MAGIC governed, attributable event with the projected impact captured at proposal time.
+
+# COMMAND ----------
+
+spark.sql(f"""
+CREATE TABLE IF NOT EXISTS {fqn}.gov_guide_changes (
+  proposal_id STRING, trade_group STRING, change_type STRING,
+  current_value STRING, proposed_value STRING, rationale STRING,
+  impact_json STRING, status STRING, proposed_by STRING,
+  proposed_ts TIMESTAMP, applied_ts TIMESTAMP)
+TBLPROPERTIES ('layer'='gold','demo'='underwriting_workbench')
+""")
+print("gov_guide_changes ready")
+
+# COMMAND ----------
+
 # MAGIC %md ## Data inventory — collect once, surface many ways by role
 
 # COMMAND ----------
