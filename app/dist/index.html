@@ -425,7 +425,8 @@ async function subView(sid){
   <div class="rec ${actioncls}">Recommendation: ${esc((rec.action||"…").toUpperCase().replace("_"," "))}
     ${rec.refer_to_grade?` → ${esc(rec.refer_to_grade)}${rec.suggested_underwriter?` (${esc(rec.suggested_underwriter)})`:""}`:""}
     ${rec.straight_through?pill("STRAIGHT-THROUGH ELIGIBLE","green"):""}
-    <ul class="reasons">${(rec.reasons||[]).map(r=>`<li>${esc(r)}</li>`).join("")}</ul></div>
+    <ul class="reasons">${(rec.reasons||[]).map(r=>`<li>${esc(r)}</li>`).join("")}</ul>
+    ${rec.straight_through?'<div style="font-size:11.5px;font-weight:400;margin-top:6px;opacity:.85">Straight-through is a COST decision — every check passed within e-trade authority, so no underwriter minutes are spent. It is deliberately independent of win-likelihood: P(bind) decides where humans spend time, not whether clean business flows.</div>':""}</div>
   <div class="checks">
     ${checkCard("Appetite",app_.in_appetite?"ok":"bad",
       kv("Status",pill(app_.appetite_status||"—",app_.in_appetite?"green":"red"))+kv("Hazard grade",app_.hazard_grade??"—")+
