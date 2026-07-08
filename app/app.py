@@ -77,10 +77,9 @@ def control_tower():
                                         row_number() OVER (ORDER BY sum(gross_premium) DESC) rk
                                  FROM {F('bronze_pas_policies')} WHERE policy_status = 'in_force'
                                    AND broker_id != 'DIRECT' GROUP BY broker_id)""",
-        "trade_acc": f"""SELECT trade_group, round(share_pct, 1) share_pct FROM (
-                           SELECT trade_group,
-                                  sum(property_si) / sum(sum(property_si)) OVER () * 100 share_pct
-                           FROM {F('gold_portfolio_position')} GROUP BY trade_group, property_si)
+        "trade_acc": f"""SELECT trade_group,
+                                round(property_si / sum(property_si) OVER () * 100, 1) share_pct
+                         FROM {F('gold_portfolio_position')}
                          ORDER BY share_pct DESC LIMIT 1""",
         "meta": f"""SELECT current_timestamp() queried_at,
                            (SELECT max(scored_at) FROM {F('gold_inbox_priority')}) scored_at""",
