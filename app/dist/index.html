@@ -35,6 +35,11 @@
   .cachetog button{width:100%;display:flex;align-items:center;justify-content:center;gap:8px;padding:8px 10px;border-radius:9px;font-size:11.5px;font-weight:700;cursor:pointer;border:1px solid;background:transparent;transition:.12s;letter-spacing:.02em}
   .cachetog .csub{font-size:9.5px;color:#64748b;text-align:center;margin-top:4px;line-height:1.3}
   .cachetog button.cached{color:#fbbf24;border-color:rgba(251,191,36,.45);background:rgba(251,191,36,.12)}
+  .cachetog button.learnbtn{color:#34d399;border-color:rgba(52,211,153,.45);background:rgba(52,211,153,.12)}
+  .cachetog button.learnbtn:hover{background:rgba(52,211,153,.2)}
+  .cachetog button.learnbtn.on{background:rgba(52,211,153,.3)}
+  .cachetog button.docbtn{color:#60a5fa;border-color:rgba(96,165,250,.45);background:rgba(96,165,250,.12)}
+  .cachetog button.docbtn:hover{background:rgba(96,165,250,.2)}
   .cachetog button.live{color:#34d399;border-color:rgba(52,211,153,.45);background:rgba(52,211,153,.12)}
   .side .foot{padding:12px;border-top:1px solid rgba(255,255,255,.08)}
   .rbtn{width:100%;padding:9px;border-radius:8px;background:rgba(255,255,255,.08);color:#e2e8f0;border:1px solid rgba(255,255,255,.12);cursor:pointer;font-size:13px}
@@ -173,8 +178,8 @@
       <div class="btxt"><b>Bricksurance SE</b><span>Underwriting Workbench</span></div>
     </a>
     <nav class="nav" id="nav"></nav>
-    <div class="learn" style="padding-bottom:2px"><a href="https://docs.google.com/document/d/1-J6OfcRAekJUEwmA3kWD3GpBZx7OoNT0LbDLA7j-jRY/edit" target="_blank" style="border-color:rgba(96,165,250,.35)"><svg viewBox="0 0 24 24" style="stroke:#60a5fa"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span><b style="font-size:12px">Demo doc</b> <span class="lsub">· step-by-step run</span></span></a></div>
-    <div class="learn"><a id="learnLink" onclick="go('learn')"><svg viewBox="0 0 24 24"><path d="M22 10 12 5 2 10l10 5 10-5v6"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg><span><b style="font-size:12px">Learn</b> <span class="lsub">· Underwriting 101</span></span></a></div>
+    <div class="cachetog" style="padding-bottom:0"><button class="learnbtn" id="learnLink" onclick="go('learn')">🎓 LEARN · UNDERWRITING 101</button></div>
+    <div class="cachetog" style="padding-bottom:0"><button class="docbtn" onclick="window.open('https://docs.google.com/document/d/1-J6OfcRAekJUEwmA3kWD3GpBZx7OoNT0LbDLA7j-jRY/edit','_blank')">📘 DEMO DOC · STEP-BY-STEP</button></div>
     <div class="cachetog"><button id="cacheBtn" onclick="toggleCache()"></button><div class="csub">AI narration only — checks &amp; prices always live</div></div>
     <div class="foot">
       <button class="rbtn" id="resetBtn" onclick="resetDemo()">↺ Reset demo</button>
@@ -223,7 +228,7 @@ let CUR="home", CUR_SID="sub:900002";
 function renderNav(){
   $("#nav").innerHTML=NAV.map(g=>(g.sec?`<div class="sec">${g.sec}</div>`:"")+g.items.map(([k,l,ic])=>
     `<a class="${CUR===k?"on":""}" onclick="go('${k}')"><span style="width:16px;text-align:center">${ic}</span>${l}</a>`).join("")).join("");
-  $("#learnLink").className=CUR==="learn"?"on":"";
+  $("#learnLink").className="learnbtn"+(CUR==="learn"?" on":"");
 }
 function go(k,arg){location.hash=arg?`#${k}/${arg}`:`#${k}`}
 function route(){closeModal();
