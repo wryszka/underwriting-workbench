@@ -353,7 +353,8 @@ RETURN SELECT named_struct(
      CASE WHEN es.sic_mismatch THEN 'Declared trade differs from Companies House SIC code - verify actual activities' END,
      CASE WHEN es.accounts_overdue THEN 'Companies House accounts overdue - financial resilience question' END
      ), x -> x IS NOT NULL),
-  'straight_through', app.in_appetite AND scr.status = 'clear' AND coalesce(acc.worst_status, 'a_ok') = 'a_ok'
+  'straight_through', app.in_appetite AND scr.status IN ('clear', 'false_positive_resolved')
+     AND coalesce(acc.worst_status, 'a_ok') = 'a_ok'
      AND es.channel = 'etrade' AND auth.etrade_eligible AND es.data_complete
      AND coalesce(es.turnover_mismatch_ratio, 1.0) < 1.5)
 FROM (SELECT {F}.fn_extract_summary(sid) AS es, {F}.fn_appetite_check(sid) AS app,
