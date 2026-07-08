@@ -285,6 +285,17 @@ async function controlTower(){
     <div class="card" id="worthcard"><h3>What this is worth</h3><div class="muted">…</div></div>
     <div class="card" id="briefcard"><h3>☕ Morning brief</h3><div class="muted">…</div></div>
   </div>
+  <div class="grid g3" style="margin-top:16px">
+    <div class="card drill" onclick="ctDrill('declines')"><h3>Declinature mix (coded)</h3>
+      ${(d.declines||[]).slice(0,3).map(x=>kv(`<span class="mono">${esc(x.code)}</span>`,num(x.n))).join("")||'<div class="muted">no declines</div>'}
+      <div class="muted" style="margin-top:6px">consistent, coded, auditable — the conduct answer</div></div>
+    <div class="card drill" onclick="ctDrill('brokers')"><h3>Broker concentration</h3>
+      <div class="big">${pct((d.broker_conc||{}).top3_pct)}</div>
+      <div class="muted">of in-force GWP with the top 3 brokers (excl. direct)</div></div>
+    <div class="card drill" onclick="ctDrill('trades')"><h3>Trade concentration</h3>
+      <div class="big">${pct((d.trade_acc||{}).share_pct)}</div>
+      <div class="muted">largest trade share of property exposure — <b>${esc((d.trade_acc||{}).trade_group||"")}</b> (soft cap 20%)</div></div>
+  </div>
   <div class="grid g2" style="margin-top:16px">
     <div class="card drill" onclick="ctDrill('funnel')"><h3>Funnel by channel — straight-through is the headline</h3>
       <table><thead><tr><th>channel</th><th>received</th><th>quoted</th><th>bound</th><th>time-to-quote</th><th>conversion</th></tr></thead>

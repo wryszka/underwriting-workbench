@@ -69,10 +69,23 @@ def control_tower():
                                sum(coalesce(l.target_premium, l.technical_base_premium)) max_gwp
                         FROM {F('gold_submission_lifecycle')} l
                         LEFT JOIN {F('gold_inbox_priority')} p USING (submission_public_id)""",
+        "declines": f"""SELECT coalesce(decline_code, 'APP-REF-RISK') code, count(*) n
+                         FROM {F('silver_submissions')} WHERE outcome = 'declined'
+                         GROUP BY 1 ORDER BY n DESC""",
+        "broker_conc": f"""SELECT round(sum(CASE WHEN rk <= 3 THEN gwp ELSE 0 END) / sum(gwp) * 100, 1) top3_pct
+                           FROM (SELECT broker_id, sum(gross_premium) gwp,
+                                        row_number() OVER (ORDER BY sum(gross_premium) DESC) rk
+                                 FROM {F('bronze_pas_policies')} WHERE policy_status = 'in_force'
+                                   AND broker_id != 'DIRECT' GROUP BY broker_id)""",
+        "trade_acc": f"""SELECT trade_group, round(share_pct, 1) share_pct FROM (
+                           SELECT trade_group,
+                                  sum(property_si) / sum(sum(property_si)) OVER () * 100 share_pct
+                           FROM {F('gold_portfolio_position')} GROUP BY trade_group, property_si)
+                         ORDER BY share_pct DESC LIMIT 1""",
         "meta": f"""SELECT current_timestamp() queried_at,
                            (SELECT max(scored_at) FROM {F('gold_inbox_priority')}) scored_at""",
     })
-    return {k: (v if k in ("funnel", "accum", "accum_hot") else (v[0] if v else {})) for k, v in q.items()}
+    return {k: (v if k in ("funnel", "accum", "accum_hot", "declines") else (v[0] if v else {})) for k, v in q.items()}
 
 
 DRILLS = {
@@ -85,10 +98,21 @@ DRILLS = {
                  "coalesce(l.target_premium, l.technical_base_premium) premium, p.bind_propensity_pct, "
                  "round(coalesce(l.target_premium, l.technical_base_premium) * coalesce(p.bind_propensity_pct, 25) / 100, 0) expected_value "
                  "FROM {t} l LEFT JOIN {p} p USING (submission_public_id) ORDER BY expected_value DESC LIMIT 60"),
+    "declines": ("SELECT coalesce(decline_code,'APP-REF-RISK') code, count(*) declines, "
+                 "min(decided_ts) first_seen, max(decided_ts) last_seen "
+                 "FROM {t} WHERE outcome = 'declined' GROUP BY 1 ORDER BY declines DESC"),
+    "brokers": ("SELECT broker_id, count(*) policies, sum(gross_premium) gwp, "
+                "round(sum(gross_premium) / (SELECT sum(gross_premium) FROM {t} WHERE policy_status='in_force') * 100, 1) share_pct "
+                "FROM {t} WHERE policy_status = 'in_force' GROUP BY broker_id ORDER BY gwp DESC"),
+    "trades": ("SELECT trade_group, appetite_status, policies, gwp, property_si, "
+               "round(property_si / (SELECT sum(property_si) FROM {t}) * 100, 1) property_share_pct, loss_ratio_3y_pct "
+               "FROM {t} ORDER BY property_share_pct DESC"),
 }
 DRILL_TABLE = {"gwp": "gold_portfolio_position", "retention": "gold_renewals",
                "accumulation": "gold_accumulation", "adequacy": "gold_rate_adequacy",
-               "funnel": "gold_pipeline_funnel", "forecast": "gold_submission_lifecycle"}
+               "funnel": "gold_pipeline_funnel", "forecast": "gold_submission_lifecycle",
+               "declines": "silver_submissions", "brokers": "bronze_pas_policies",
+               "trades": "gold_portfolio_position"}
 
 
 @app.get("/api/control-tower/drill")
