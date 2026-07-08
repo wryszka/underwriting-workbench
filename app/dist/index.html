@@ -300,6 +300,30 @@ async function controlTower(){
     </div>
   </div>
   <div class="prov">⛁ Freshness: queried ${esc((d.meta||{}).queried_at||"")} · inbox batch-scored ${esc((d.meta||{}).scored_at||"")}. Tables: gold_portfolio_position · gold_renewals · gold_pipeline_funnel · gold_rate_adequacy · gold_accumulation · gold_submission_lifecycle.</div>`;
+  loadBrief();loadWorth();
+}
+async function loadBrief(){
+  const el=document.getElementById("briefcard");if(!el)return;
+  try{const r=await api("/brief");
+    if(document.getElementById("briefcard"))document.getElementById("briefcard").innerHTML=
+      `<h3>☕ Morning brief ${cacheBadge(r.cache)}</h3><div style="white-space:pre-wrap;font-size:12.5px;line-height:1.55">${esc(r.text)}</div>`;
+  }catch(e){}
+}
+async function loadWorth(){
+  const el=document.getElementById("worthcard");if(!el)return;
+  try{const w=await api("/worth");const el2=document.getElementById("worthcard");if(!el2)return;
+    el2.innerHTML=`<h3>💷 What this is worth <span class="pill amber">illustrative</span></h3>
+      <div class="big">${money(w.gwp_uplift_per_year)}<span style="font-size:13px;font-weight:400"> /yr GWP potential</span></div>
+      <div class="muted">${esc(w.headline||"")}</div>
+      <div class="kv"><span>Underwriter hours back</span><b>${num(w.hours_saved_per_year)} h/yr</b></div>
+      <div class="srcbar"><a class="lnk" onclick="worthDrill()">how this is computed</a></div>`;
+    window._worth=w;
+  }catch(e){}
+}
+function worthDrill(){const w=window._worth||{};
+  openModal(`<div class="eyebrow">Computed live from YOUR funnel</div><h2 style="margin:0 0 8px">What this is worth — the arithmetic</h2>
+    ${(w.lines||[]).map(l=>`<div class="kv"><span>${esc(l[0])}</span><b>${esc(l[1])}</b></div>`).join("")}
+    <div class="note">Illustrative: applies the e-trade channel's quote rate to the manual channels at today's hit ratio and average bound premium — all inputs from gold_pipeline_funnel, queried live.</div>`);
 }
 async function ctDrill(key){
   openModal('<div class="loading">Loading drill…</div>');

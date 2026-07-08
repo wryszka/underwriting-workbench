@@ -24,6 +24,7 @@ EP_APPETITE_SUBSTR = os.getenv("EP_APPETITE_SUBSTR", "underwriting-appetite")
 EP_ADEQUACY_SUBSTR = os.getenv("EP_ADEQUACY_SUBSTR", "underwriting-adequacy")
 EP_COMMS_SUBSTR = os.getenv("EP_COMMS_SUBSTR", "underwriting-comms")
 EP_CHALLENGE_SUBSTR = os.getenv("EP_CHALLENGE_SUBSTR", "underwriting-challenge")
+EP_BRIEF_SUBSTR = os.getenv("EP_BRIEF_SUBSTR", "underwriting-brief")
 EP_AGENT_SUBSTR = os.getenv("EP_AGENT_SUBSTR", "underwriting_agent")  # the REAL tool-calling supervisor
 
 CACHE_TABLE = f"{CATALOG}.{SCHEMA}.cache_agent_responses"
@@ -34,6 +35,7 @@ ROLE_SUBSTR = {
     "pricing_adequacy": EP_ADEQUACY_SUBSTR,
     "broker_comms": EP_COMMS_SUBSTR,
     "challenge": EP_CHALLENGE_SUBSTR,
+    "cuo_brief": EP_BRIEF_SUBSTR,
 }
 
 

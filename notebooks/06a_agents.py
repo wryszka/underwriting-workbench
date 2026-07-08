@@ -64,6 +64,13 @@ class UnderwritingAgent(mlflow.pyfunc.PythonModel):
                 "total payable, commission basis, and list every term and subjectivity verbatim; (3) an "
                 "INFORMATION REQUEST lists the missing items as bullets with a 14-day response window. "
                 "End 'This letter is a draft for underwriter review and approval.' A human approves and sends."),
+            "cuo_brief": (
+                "You are the Chief Underwriting Officer's chief of staff at Bricksurance SE. From the "
+                "structured control-tower findings, write the MORNING BRIEF: exactly three bullet points, "
+                "each one sentence, each naming a number and the action it suggests (e.g. a district near "
+                "capacity, a trade sliding on adequacy, SLA breaches, the weighted pipeline forecast vs plan). "
+                "Then one closing line on the single thing you would do today. Crisp, quantified, no preamble. "
+                "You brief; humans decide."),
             "challenge": (
                 "You are the challenge / second-pair-of-eyes underwriter at Bricksurance SE, with a conduct lens. "
                 "Argue the OTHER side of the recommendation in 3-4 quantified sentences: if it says quote, surface "
@@ -125,4 +132,5 @@ deploy_agent("underwriting-appetite", "appetite")
 deploy_agent("underwriting-adequacy", "pricing_adequacy")
 deploy_agent("underwriting-comms", "broker_comms")
 deploy_agent("underwriting-challenge", "challenge")
-print("✅ 06a — 5 role agents deploying (non-blocking)")
+deploy_agent("underwriting-brief", "cuo_brief")
+print("✅ 06a — 6 role agents deploying (non-blocking)")

@@ -99,6 +99,60 @@ def ct_drill(key: str):
     return {"rows": sql.query(stmt), "sql": stmt, "table": F(DRILL_TABLE[key])}
 
 
+@app.get("/api/worth")
+def worth():
+    """The business case in £, computed live from the book's own funnel (labelled illustrative)."""
+    ch = {r["channel"]: r for r in sql.query(f"""
+        SELECT channel, sum(received) received, sum(quoted) quoted, sum(bound) bound,
+               sum(gwp_bound) gwp_bound, round(avg(avg_hours_to_quote),1) hours
+        FROM {F('gold_pipeline_funnel')} WHERE channel IN ('etrade','portal','email') GROUP BY channel""")}
+    et, em, po = ch.get("etrade", {}), ch.get("email", {}), ch.get("portal", {})
+
+    def g(d, k):
+        try:
+            return float(d.get(k) or 0)
+        except (TypeError, ValueError):
+            return 0.0
+
+    etr_qr = g(et, "quoted") / max(g(et, "received"), 1)
+    bound_total = g(et, "bound") + g(em, "bound") + g(po, "bound")
+    quoted_total = g(et, "quoted") + g(em, "quoted") + g(po, "quoted")
+    hit = bound_total / max(quoted_total, 1)
+    avg_prem = (g(et, "gwp_bound") + g(em, "gwp_bound") + g(po, "gwp_bound")) / max(bound_total, 1)
+    extra_quotes = sum(max(etr_qr * g(d, "received") - g(d, "quoted"), 0) for d in (em, po))
+    uplift = extra_quotes * hit * avg_prem
+    manual_recv = g(em, "received") + g(po, "received")
+    hours_saved = manual_recv * 40 / 60  # 40 min rekeying/assembly per manual submission (assumption)
+    headline = (f"Lift the manual channels' quote rate to e-trade's {etr_qr*100:.0f}% at today's "
+                f"{hit*100:.0f}% hit ratio and £{avg_prem:,.0f} average premium.")
+    lines = [
+        ["E-trade quote rate (the benchmark)", f"{etr_qr*100:.0f}%"],
+        ["Email quote rate today", f"{g(em,'quoted')/max(g(em,'received'),1)*100:.0f}% of {g(em,'received'):.0f} submissions"],
+        ["Portal quote rate today", f"{g(po,'quoted')/max(g(po,'received'),1)*100:.0f}% of {g(po,'received'):.0f} submissions"],
+        ["Additional submissions quoted/yr", f"{extra_quotes:,.0f}"],
+        ["× hit ratio", f"{hit*100:.0f}%"],
+        ["× average bound premium", f"£{avg_prem:,.0f}"],
+        ["= GWP potential", f"£{uplift:,.0f}/yr"],
+        ["Manual submissions/yr × 40 min assembly saved", f"{hours_saved:,.0f} underwriter hours"],
+        ["Time-to-quote today", f"e-trade {g(et,'hours'):.1f}h · portal {g(po,'hours'):.1f}h · email {g(em,'hours'):.1f}h"],
+    ]
+    return {"gwp_uplift_per_year": round(uplift), "hours_saved_per_year": round(hours_saved),
+            "headline": headline, "lines": lines}
+
+
+@app.get("/api/brief")
+def brief(cache: int = None):
+    """CUO morning brief — the leader persona's daily wow: the control-tower numbers narrated."""
+    ct = control_tower()
+    data = {
+        "forecast": ct.get("forecast"), "gwp": ct.get("gwp"), "retention": ct.get("retention"),
+        "adequacy": ct.get("adequacy"), "pipeline": ct.get("pipeline"),
+        "hot_districts": ct.get("accum_hot"), "funnel_by_channel": ct.get("funnel"),
+    }
+    return agents.narrate("cuo_brief", "Write today's morning brief for the Head of Underwriting.",
+                          data, use_cache=_cache_flag(cache))
+
+
 # ---------------------------------------------------------------- inbox
 @app.get("/api/inbox")
 def inbox():
@@ -477,9 +531,10 @@ def warm_cache():
         for role in ("risk_profile", "appetite", "pricing_adequacy", "challenge"):
             submission_narrate(sid, role=role, cache=1)
             warmed.append(f"{sid}:{role}")
+    brief(cache=1)
     agents.ask_agent("Should we quote this? Give the call, terms and who signs.",
                      {"submission_public_id": "sub:900002"}, use_cache=True)
-    return {"warmed": len(warmed) + 1}
+    return {"warmed": len(warmed) + 2}
 
 
 # ---------------------------------------------------------------- static SPA
