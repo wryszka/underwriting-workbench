@@ -193,7 +193,7 @@ RETURN SELECT named_struct(
 FROM (
   SELECT s.seg, s.target, s.prop_c, s.bi_c, s.el_c, s.pl_c,
          greatest(s.min_p, s.prop_c + s.bi_c + s.el_c + s.pl_c) AS base,
-         (s.contents_stock * least(s.crime, 150) / 150.0) * 0.045 AS crime_l,
+         (s.contents_stock * s.prop_rate / 1000) * (least(s.crime, 150) / 150.0) * 0.35 AS crime_l,
          coalesce(s.high_share, 0) * s.prop_c * 0.25 AS flood_l,
          CASE WHEN s.cohort_lr > 65 THEN (s.prop_c + s.bi_c) * 0.10
               WHEN s.cohort_lr < 35 THEN -(s.prop_c + s.bi_c) * 0.05 ELSE 0 END AS exp_l
@@ -203,6 +203,7 @@ FROM (
                any_value(ss.employees) * any_value(r.el_rate_per_employee) AS el_c,
                coalesce(any_value(ss.turnover_stated), 0) / 1000 * any_value(r.pl_rate_per_1k_turnover) AS pl_c,
                any_value(r.min_premium) AS min_p,
+               any_value(r.property_rate_permille) AS prop_rate,
                any_value(ss.contents_si) + any_value(ss.stock_si) AS contents_stock,
                coalesce(any_value(ss.crime_count), 0) AS crime,
                coalesce(any_value(ss.cohort_loss_ratio_pct), 50) AS cohort_lr,

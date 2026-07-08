@@ -585,9 +585,11 @@ for i in range(N_SUBS):
                  decided_ts.isoformat() if decided_ts else None, decline_code))
 
 # ---- SACRED HEROES ----------------------------------------------------------------------
-H1_RECEIVED = datetime.datetime.combine(TODAY, datetime.time(8, 47))
-H2_RECEIVED = datetime.datetime.combine(TODAY, datetime.time(9, 12))
-H3_RECEIVED = datetime.datetime.combine(TODAY, datetime.time(10, 3))
+# Heroes arrive "this morning" RELATIVE TO NOW (SLA clocks read fresh at any demo hour)
+_NOW = datetime.datetime.now()
+H1_RECEIVED = _NOW - datetime.timedelta(minutes=25)   # e-trade — minutes old
+H2_RECEIVED = _NOW - datetime.timedelta(hours=2)      # email mid-market
+H3_RECEIVED = _NOW - datetime.timedelta(hours=3)
 HEROES = [
     # sub:900001 — Fenwick & Moss Homewares (clean fast-track SME shop package, e-trade)
     ("sub:900001", H1_RECEIVED.isoformat(), "etrade", "BRK-003", "09384712", "Fenwick & Moss Homewares Ltd",

@@ -45,7 +45,7 @@ FROM (
                   + p_bi * any_value(r.bi_rate_permille) / 1000
                   + p_employees * any_value(r.el_rate_per_employee)
                   + p_turnover / 1000 * any_value(r.pl_rate_per_1k_turnover)) AS base,
-         ((p_contents + p_stock) * least(coalesce(any_value(c.effective_count), 0), 150) / 150.0) * 0.045 AS crime_l,
+         ((p_contents + p_stock) * any_value(r.property_rate_permille) / 1000) * (least(coalesce(any_value(c.effective_count), 0), 150) / 150.0) * 0.35 AS crime_l,
          CASE WHEN any_value(f.flood_band) = 'High'
               THEN (p_buildings + p_plant + p_contents + p_stock) * any_value(r.property_rate_permille) / 1000 * 0.25
               ELSE 0 END AS flood_l,
