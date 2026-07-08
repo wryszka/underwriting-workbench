@@ -173,6 +173,7 @@
       <div class="btxt"><b>Bricksurance SE</b><span>Underwriting Workbench</span></div>
     </a>
     <nav class="nav" id="nav"></nav>
+    <div class="learn" style="padding-bottom:2px"><a href="https://docs.google.com/document/d/1-J6OfcRAekJUEwmA3kWD3GpBZx7OoNT0LbDLA7j-jRY/edit" target="_blank" style="border-color:rgba(96,165,250,.35)"><svg viewBox="0 0 24 24" style="stroke:#60a5fa"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span><b style="font-size:12px">Demo doc</b> <span class="lsub">· step-by-step run</span></span></a></div>
     <div class="learn"><a id="learnLink" onclick="go('learn')"><svg viewBox="0 0 24 24"><path d="M22 10 12 5 2 10l10 5 10-5v6"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg><span><b style="font-size:12px">Learn</b> <span class="lsub">· Underwriting 101</span></span></a></div>
     <div class="cachetog"><button id="cacheBtn" onclick="toggleCache()"></button><div class="csub">AI narration only — checks &amp; prices always live</div></div>
     <div class="foot">
@@ -453,6 +454,13 @@ async function renewalsDesk(){
 }
 
 /* ---------- work a submission ---------- */
+function openSub(){
+  let v=(document.getElementById("subsearch")||{}).value||"";
+  v=v.trim();if(!v)return;
+  if(/^\d+$/.test(v))v="sub:"+v;
+  if(!v.startsWith("sub:"))v="sub:"+v.replace(/^sub[:\s]*/i,"");
+  go("sub",v);
+}
 function checkCard(title,state,body){const cls=state==="ok"?"ok":state==="warn"?"warn":state==="bad"?"bad":"";
   const ic=state==="ok"?"✓":state==="warn"?"⚠":state==="bad"?"⊘":"·";
   return `<div class="check ${cls}"><div class="t">${title}<span>${ic}</span></div>${body}</div>`}
@@ -480,6 +488,14 @@ async function subView(sid){
      <td>${money(l.property_si)}</td><td>${l.flood_band==="High"?pill("High","red"):l.flood_band==="Medium"?pill("Med","amber"):pill("Low","green")}</td><td class="muted">${esc(l.rivers||"")}</td></tr>`).join("");
   m.innerHTML=`
   <div class="eyebrow">Underwriter · Work a submission</div>
+  <div style="display:flex;gap:8px;align-items:center;margin:0 0 10px;flex-wrap:wrap">
+    <input class="f" id="subsearch" style="margin:0;max-width:240px" placeholder="Open a submission… e.g. 900003" onkeydown="if(event.key==='Enter')openSub()">
+    <button class="btn ghost" onclick="openSub()">Open</button>
+    <span class="muted">demo cases:</span>
+    <span class="pill bluep" style="cursor:pointer" onclick="go('sub','sub:900001')">★ 900001 fast-track</span>
+    <span class="pill amber" style="cursor:pointer" onclick="go('sub','sub:900002')">★ 900002 referral</span>
+    <span class="pill red" style="cursor:pointer" onclick="go('sub','sub:900003')">★ 900003 decline</span>
+  </div>
   <h1>${esc(es.company_name||sid)} <span class="muted" style="font-size:14px">${esc(sid)} · via ${esc(es.broker_id||"")} · ${esc(es.channel||"")}</span></h1>
   <p class="sub">${esc(es.trade_group||"")} · ${esc(es.segment||"")} · ${es.n_locations||1} location(s) · received ${esc(es.received_ts||"")}</p>
   ${present("The centrepiece: everything an underwriter used to swivel-chair across six systems, assembled live by Unity Catalog functions — checks, evidence, price build-up, and a human decision recorded to the audit trail.")}
