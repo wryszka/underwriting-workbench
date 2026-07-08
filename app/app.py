@@ -252,6 +252,8 @@ async def decision(req: Request):
     def arr(key):
         return "array(" + ",".join(f"'{sql.esc(x)}'" for x in b.get(key, [])) + ")"
 
+    evidence = json.dumps(b.get("evidence")) if b.get("evidence") else None
+    ev_sql = f"'{sql.esc(evidence[:180000])}'" if evidence else "NULL"
     sql.query(f"""INSERT INTO {F('gold_decision_audit')} VALUES (
         '{did}', '{sid}', '{sql.esc(b.get("action", ""))}', {f"'{sql.esc(b['refer_to'])}'" if b.get("refer_to") else "NULL"},
         {f"'{sql.esc(b['underwriter'])}'" if b.get("underwriter") else "NULL"},
@@ -259,15 +261,36 @@ async def decision(req: Request):
         {f"'{sql.esc(b['decline_code'])}'" if b.get("decline_code") else "NULL"},
         {f"'{sql.esc(b['external_reason'])}'" if b.get("external_reason") else "NULL"},
         {arr("internal_notes")}, {b.get("quoted_premium") or "NULL"},
-        {str(bool(b.get("straight_through"))).lower()}, '{who}', 'app', current_timestamp())""")
-    return {"decision_id": did, "recorded_by": who}
+        {str(bool(b.get("straight_through"))).lower()}, '{who}', 'app', current_timestamp(), {ev_sql})""")
+    return {"decision_id": did, "recorded_by": who, "evidence_recorded": bool(evidence)}
 
 
 @app.get("/api/decisions")
 def decisions(sid: str = None):
     where = f"WHERE submission_public_id='{sql.esc(sid)}'" if sid else ""
-    return {"rows": sql.query(f"""SELECT * FROM {F('gold_decision_audit')} {where}
+    return {"rows": sql.query(f"""SELECT decision_id, submission_public_id, action, refer_to_grade,
+                                         suggested_underwriter, reasons, terms, subjectivities,
+                                         decline_code_external, quoted_premium, straight_through,
+                                         decided_by, decided_via, decision_ts,
+                                         (decision_evidence IS NOT NULL) AS has_evidence
+                                  FROM {F('gold_decision_audit')} {where}
                                   ORDER BY decision_ts DESC LIMIT 50""")}
+
+
+@app.get("/api/decision/evidence")
+def decision_evidence(decision_id: str):
+    """The auditor's question answered: the exact dossier as-at decision time."""
+    row = sql.query_one(f"""SELECT decision_id, submission_public_id, decided_by, decision_ts,
+                                   decision_evidence
+                            FROM {F('gold_decision_audit')}
+                            WHERE decision_id = '{sql.esc(decision_id)}' LIMIT 1""")
+    if not row:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    try:
+        row["decision_evidence"] = json.loads(row["decision_evidence"]) if row.get("decision_evidence") else None
+    except Exception:
+        pass
+    return row
 
 
 # ---------------------------------------------------------------- try a submission (what-if)
@@ -389,7 +412,10 @@ def gov_inventory():
 @app.get("/api/governance/decisions")
 def gov_decisions():
     q = sql.query_many({
-        "audit": f"SELECT * FROM {F('gold_decision_audit')} ORDER BY decision_ts DESC LIMIT 40",
+        "audit": f"""SELECT decision_id, submission_public_id, action, refer_to_grade, decided_by,
+                            decided_via, decline_code_external, straight_through, decision_ts,
+                            (decision_evidence IS NOT NULL) AS has_evidence
+                     FROM {F('gold_decision_audit')} ORDER BY decision_ts DESC LIMIT 40""",
         "conduct": f"SELECT * FROM {F('gov_conduct_declines')}",
         "comms": f"SELECT draft_id, submission_public_id, letter_type, status, approved_by, drafted_ts FROM {F('gold_comms_drafts')} ORDER BY drafted_ts DESC LIMIT 20",
     })

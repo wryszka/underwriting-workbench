@@ -462,15 +462,16 @@ async function subView(sid){
   </div>
   <div class="grid g2" style="margin-top:16px">
     <div class="card"><h3>Decision — a named human signs</h3>
-      ${(rec.terms||[]).length?`<b style="font-size:12.5px">Terms</b><ul class="reasons">${rec.terms.map(t=>`<li>${esc(t)}</li>`).join("")}</ul>`:""}
-      ${(rec.subjectivities||[]).length?`<b style="font-size:12.5px">Subjectivities</b><ul class="reasons">${rec.subjectivities.map(t=>`<li>${esc(t)}</li>`).join("")}</ul>`:""}
+      ${(rec.terms||[]).length||(rec.subjectivities||[]).length?`<div class="muted" style="margin-bottom:6px">Terms and subjectivities are EDITABLE (one per line) — revise and re-record to run a negotiation round; every version is audited.</div>`:""}
+      ${(rec.terms||[]).length?`<b style="font-size:12.5px">Terms</b><textarea class="f" id="ed_terms" rows="2">${(rec.terms||[]).map(esc).join("\n")}</textarea>`:""}
+      ${(rec.subjectivities||[]).length?`<b style="font-size:12.5px">Subjectivities</b><textarea class="f" id="ed_subj" rows="3">${(rec.subjectivities||[]).map(esc).join("\n")}</textarea>`:""}
       ${(rec.internal_notes||[]).length?`<b style="font-size:12.5px">Internal notes (never broker-facing)</b><ul class="reasons">${rec.internal_notes.map(t=>`<li>${esc(t)}</li>`).join("")}</ul>`:""}
       <div style="margin-top:12px">
         <button class="btn" onclick="recordDecision('${sid}','quote')">✓ Quote</button>
         <button class="btn warn" onclick="recordDecision('${sid}','refer')">→ Refer</button>
         <button class="btn bad" onclick="recordDecision('${sid}','decline')">⊘ Decline</button>
         <button class="btn ghost" onclick="recordDecision('${sid}','request_information')">? Request info</button>
-      </div><div class="muted" id="decmsg" style="margin-top:8px"></div>
+      </div><div class="muted" id="decmsg" style="margin-top:8px"></div><div id="dechist"></div>
       <h3 style="margin-top:18px">Broker letter (agent-drafted · HITL)</h3>
       <div><button class="btn ghost" onclick="draftLetter('${sid}','quote')">Draft quote letter</button>
       <button class="btn ghost" onclick="draftLetter('${sid}','decline')">Draft decline letter</button>
@@ -486,17 +487,49 @@ async function subView(sid){
       <div style="display:flex;gap:8px"><input class="f" id="supq" style="margin:0" placeholder="Should we quote this? What would you change?">
       <button class="btn" onclick="askSup('${sid}')">Ask</button></div><div id="supslot"></div></div>
   </div>
-  <div class="prov">⌘ Every panel above is a live UC function call: ${Object.values(d.fns||{}).map(f=>`<span class="mono">${esc(f.split("(")[0].split(".").pop())}</span>`).join(" · ")} — inspect them in Catalog Explorer. Decisions write to gold_decision_audit.</div>`;
+  <div class="prov">⌘ Every panel above is a live UC function call: ${Object.values(d.fns||{}).map(f=>`<span class="mono">${esc(f.split("(")[0].split(".").pop())}</span>`).join(" · ")} — inspect them in Catalog Explorer. Decisions write to gold_decision_audit with the full as-at dossier snapshot.</div>`;
+  loadDecisionHistory(sid);
 }
 async function recordDecision(sid,action){
   const d=await api(`/submission/${encodeURIComponent(sid)}/panels`);
   const rec=d.recommendation||{},prc=d.price||{};
+  const evidence={dossier:d.dossier,appetite:d.appetite,authority:d.authority,accumulation:d.accumulation,
+    price:d.price,screening:d.screening,underinsurance:d.underinsurance,recommendation:d.recommendation,scores:d.scores};
   const r=await post("/decision",{sid,action,refer_to:rec.refer_to_grade,underwriter:rec.suggested_underwriter,
-    reasons:rec.reasons||[],terms:rec.terms||[],subjectivities:rec.subjectivities||[],
+    reasons:rec.reasons||[],terms:editedList("terms",rec.terms),subjectivities:editedList("subj",rec.subjectivities),
     decline_code:rec.decline_code_external,external_reason:rec.external_reason,
     internal_notes:rec.internal_notes||[],quoted_premium:prc.technical_premium,
-    straight_through:!!rec.straight_through});
-  $("#decmsg").innerHTML=`✓ Recorded <span class="mono">${esc(r.decision_id)}</span> by ${esc(r.recorded_by)} → gold_decision_audit`;
+    straight_through:!!rec.straight_through,evidence});
+  $("#decmsg").innerHTML=`✓ Recorded <span class="mono">${esc(r.decision_id)}</span> by ${esc(r.recorded_by)} — with the full as-at dossier snapshot → gold_decision_audit`;
+  loadDecisionHistory(sid);
+}
+function editedList(id,fallback){
+  const el=document.getElementById("ed_"+id);
+  if(!el)return fallback||[];
+  return el.value.split("\n").map(x=>x.trim()).filter(Boolean);
+}
+async function loadDecisionHistory(sid){
+  const el=document.getElementById("dechist");if(!el)return;
+  const d=await api("/decisions?sid="+encodeURIComponent(sid));
+  const rows=(d.rows||[]);
+  el.innerHTML=rows.length?`<h3 style="margin-top:18px">Decision history — negotiation rounds</h3>`+
+    rows.map((r,i)=>`<div class="kv"><span>v${rows.length-i} · ${pill(r.action,r.action==="quote"?"green":r.action==="decline"?"red":"amber")} ${esc(r.decision_ts)}<br>
+      <span class="muted">${esc(r.decided_by)} · terms: ${(r.terms||[]).length} · subjectivities: ${(r.subjectivities||[]).length}</span></span>
+      <b>${String(r.has_evidence)==="true"?`<a class="lnk" onclick="evidenceModal('${esc(r.decision_id)}')">dossier as-at ↗</a>`:""}</b></div>`).join(""):"";
+}
+async function evidenceModal(did){
+  openModal('<div class="loading">Loading the as-at dossier snapshot…</div>');
+  const d=await api("/decision/evidence?decision_id="+encodeURIComponent(did));
+  const e=d.decision_evidence||{};const rec=e.recommendation||{},prc=e.price||{};
+  openModal(`<div class="eyebrow">Decision reproducibility</div>
+    <h2 style="margin:0 0 4px">Exactly what the underwriter saw — ${esc(did)}</h2>
+    <div class="muted" style="margin-bottom:10px">${esc(d.submission_public_id)} · decided by ${esc(d.decided_by)} · ${esc(d.decision_ts)}</div>
+    <div class="rec ${rec.action==="quote"?"GREEN":rec.action==="decline"?"RED":"AMBER"}">${esc((rec.action||"").toUpperCase())} ${rec.refer_to_grade?"→ "+esc(rec.refer_to_grade):""}
+      <ul class="reasons">${(rec.reasons||[]).map(x=>`<li>${esc(x)}</li>`).join("")}</ul></div>
+    <div class="grid g2">
+      <div class="card"><h3>Price as-at</h3>${kv("Technical",money(prc.technical_premium))}${kv("IPT",money(prc.ipt_amount))}${kv("Target",prc.target_premium?money(prc.target_premium):"—")}${kv("Adequacy",prc.adequacy_pct!=null?pct(prc.adequacy_pct):"—")}</div>
+      <div class="card"><h3>Checks as-at</h3>${kv("Appetite",esc((e.appetite||{}).appetite_status||"—"))}${kv("Authority",esc((e.authority||{}).required_grade||"—"))}${kv("Accumulation worst",esc((e.accumulation||{}).worst_district||"—")+" "+pct((e.accumulation||{}).worst_post_util_pct))}${kv("Screening",esc((e.screening||{}).status||"—"))}</div></div>
+    <div class="prov">Stored verbatim in gold_decision_audit.decision_evidence at decision time — the panels are never recomputed for the auditor.</div>`);
 }
 async function draftLetter(sid,type){
   $("#letterslot").innerHTML='<div class="letter">Drafting…</div>';
@@ -692,10 +725,15 @@ async function governancePage(){
       <div class="card" style="margin-top:16px"><h3>Lineage (${esc(lin.source||"")})</h3>${tbl((lin.rows||[]).slice(0,25))}</div>`;
   }else if(GOV_TAB==="decisions"){
     const d=await api("/governance/decisions");
+    const audRows=(d.audit||[]).map(r=>`<tr>
+      <td>${esc(r.decision_ts)}</td><td><b>${esc(r.submission_public_id)}</b></td>
+      <td>${pill(r.action,r.action==="quote"?"green":r.action==="decline"?"red":"amber")}</td>
+      <td>${esc(r.refer_to_grade||"—")}</td><td>${esc(r.decided_by)}</td><td>${esc(r.decided_via)}</td>
+      <td>${esc(r.decline_code_external||"—")}</td>
+      <td>${String(r.has_evidence)==="true"?`<a class="lnk" onclick="evidenceModal('${esc(r.decision_id)}')">as-at dossier ↗</a>`:'<span class="muted">seed</span>'}</td></tr>`).join("");
     b.innerHTML=`<div class="card"><h3>Decision audit — every quote / refer / decline / query</h3>
-      ${tbl((d.audit||[]).map(r=>({when:r.decision_ts,submission:r.submission_public_id,action:r.action,
-        refer_to:r.refer_to_grade,by:r.decided_by,via:r.decided_via,external_code:r.decline_code_external,
-        straight_through:r.straight_through})))}</div>
+      <div class="muted" style="margin-bottom:8px">"Show me exactly what the underwriter saw" — decisions recorded in the app carry the full dossier snapshot as-at decision time. Click one.</div>
+      <table><thead><tr><th>when</th><th>submission</th><th>action</th><th>refer to</th><th>by</th><th>via</th><th>code</th><th>reproducibility</th></tr></thead><tbody>${audRows}</tbody></table></div>
       <div class="grid g2" style="margin-top:16px">
       <div class="card"><h3>Declinature consistency (coded)</h3>${tbl(d.conduct)}</div>
       <div class="card"><h3>Broker letters (HITL trail)</h3>${tbl(d.comms)}</div></div>`;

@@ -34,9 +34,14 @@ CREATE TABLE IF NOT EXISTS {fqn}.gold_decision_audit (
   suggested_underwriter STRING, reasons ARRAY<STRING>, terms ARRAY<STRING>,
   subjectivities ARRAY<STRING>, decline_code_external STRING, external_reason STRING,
   internal_notes ARRAY<STRING>, quoted_premium DOUBLE, straight_through BOOLEAN,
-  decided_by STRING, decided_via STRING, decision_ts TIMESTAMP)
+  decided_by STRING, decided_via STRING, decision_ts TIMESTAMP,
+  decision_evidence STRING)
 TBLPROPERTIES ('layer'='gold','demo'='underwriting_workbench')
 """)
+# Reproducibility (the auditor's question: "show me exactly what the underwriter saw"):
+# the app stores the full as-at panel JSON per decision. Migrate older installs in place.
+if "decision_evidence" not in [c.name for c in spark.table(f"{fqn}.gold_decision_audit").schema.fields]:
+    spark.sql(f"ALTER TABLE {fqn}.gold_decision_audit ADD COLUMN decision_evidence STRING")
 
 # Idempotent hero seed: delete + re-derive from fn_recommendation + fn_technical_price
 spark.sql(f"DELETE FROM {fqn}.gold_decision_audit WHERE decided_via = 'seed'")
@@ -46,7 +51,7 @@ SELECT concat('UW-', substr(sha2(sid, 256), 1, 10)), sid,
        r.action, r.refer_to_grade, r.suggested_underwriter, r.reasons, r.terms, r.subjectivities,
        r.decline_code_external, r.external_reason, r.internal_notes,
        p.technical_premium, r.straight_through,
-       'system_recommendation', 'seed', current_timestamp()
+       'system_recommendation', 'seed', current_timestamp(), CAST(NULL AS STRING)
 FROM (SELECT explode(array('sub:900001', 'sub:900002', 'sub:900003')) AS sid) s
 CROSS JOIN LATERAL (SELECT {fqn}.fn_recommendation(s.sid) AS r)
 CROSS JOIN LATERAL (SELECT {fqn}.fn_technical_price(s.sid) AS p)
