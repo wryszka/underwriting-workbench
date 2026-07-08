@@ -81,3 +81,5 @@ databricks bundle run underwriting_98_smoke_test -t dev   # expect ALL PASS
 - `ai_query` needs a batch-inference-capable FM endpoint (sonnet-4-5 ✓, sonnet-5 ✗ on this estate).
 - Statement Execution API returns all values as strings — the app casts.
 - The open-data files ship in `data/open/` (see PROVENANCE.md); re-fetch with `scripts/fetch_open_data.py` at build time only.
+- The app caches endpoint-name resolution (`lru_cache`). If the app started BEFORE the agents were
+  deployed, it will 404 on agent calls — **restart the app once after step 5** (`databricks apps stop/start`).
