@@ -268,7 +268,7 @@ async function controlTower(){
   <p class="sub">The book's vital signs, computed live from governed marts. Every tile drills to the reconciling rows and its SQL.</p>
   ${present("GWP vs plan, retention &amp; rate change (the renewal engine), the funnel by channel, rate adequacy and district accumulation — the numbers a Head of Underwriting opens the morning with. Click any tile to prove it is computed, not hardcoded.")}
   <div class="grid g4">
-    <div class="card drill" onclick="ctDrill('gwp')"><h3>In-force GWP vs plan</h3><div class="big">${money(gwp.gwp)}</div>
+    <div class="card drill" onclick="ctDrill('gwp')"><h3>GWP written vs plan</h3><div class="big">${money(gwp.gwp)}</div>
       <div class="muted">plan ${money(gwp.plan_gwp)} · ${num(gwp.policies)} policies · LR ${pct(gwp.loss_ratio)}</div></div>
     <div class="card drill" onclick="ctDrill('retention')"><h3>Retention · rate change</h3><div class="big">${pct(ret.retention_pct)}</div>
       <div class="muted">avg rate change ${pct(ret.rate_change_pct)} on renewal</div></div>
@@ -368,15 +368,15 @@ async function subView(sid){
       kv("Buildings vs rebuild",ui.buildings_adequacy_pct!=null?pct(ui.buildings_adequacy_pct):"n/a (tenant / no schedule)")+
       kv("BI indemnity",(ui.bi_indemnity_months??"—")+" months"+(ui.bi_indemnity_flag?" ⚠":""))+`<div class="muted">${esc(ui.note||"")}</div>`)}
     ${checkCard("Fair presentation",es.turnover_mismatch_ratio>=1.5?"warn":"ok",
-      kv("Turnover stated",money(es.turnover_stated))+kv("Filed accounts",es.filed_turnover?money(es.filed_turnover):"not filed (micro-entity)")+
+      kv("Turnover stated",money(es.turnover_stated))+kv("Filed accounts",es.filed_turnover?money(es.filed_turnover):"turnover not disclosed (micro-entity accounts)")+
       (es.turnover_mismatch_ratio?kv("Ratio",`<b>${es.turnover_mismatch_ratio}×</b>`):"")+
-      (es.turnover_mismatch_ratio>=1.5?'<div class="muted">Insurance Act 2015 duty of fair presentation — EL/PL rating basis and BI sums affected.</div>':"")+
+      (es.turnover_mismatch_ratio>=1.5?'<div class="muted">Insurance Act 2015 duty of fair presentation — PL/Products rating basis and BI sums affected; EL wageroll to be confirmed.</div>':"")+
       (es.sic_mismatch?'<div class="muted">⚠ declared trade differs from registered SIC code</div>':""))}
   </div>
   <div class="grid g2" style="margin-top:16px">
     <div class="card"><h3>Technical price build-up <span class="muted">(full GLM engine → Pricing Workbench)</span></h3>
       ${kv("Property",money(prc.property_component))}${kv("Business interruption",money(prc.bi_component))}
-      ${kv("EL",money(prc.el_component))}${kv("Products/PL",money(prc.pl_component))}
+      ${kv("EL",money(prc.el_component))}${kv("Public &amp; Products Liability",money(prc.pl_component))}
       ${kv("<b>Base</b>","<b>"+money(prc.base_premium)+"</b>")}
       ${kv("+ Theft &amp; malicious damage <span class='muted'>(police.uk crime evidence)</span>",money(prc.crime_theft_loading))}
       ${kv("+ Flood <span class='muted'>(EA RoFRS High-band share)</span>",money(prc.flood_loading))}
@@ -388,7 +388,7 @@ async function subView(sid){
       <div class="muted" style="margin-top:8px">${esc(prc.basis||"")}</div></div>
     <div class="card"><h3>Evidence &amp; documents</h3>
       ${kv("Flood",`${esc(es.flood_band||"—")} — ${esc(es.flood_rivers||"no named EA areas")}`)}
-      ${kv("Crime (police.uk)",num(es.crime_count)+(es.crime_imputed?" "+pill("GMP gap — imputed","amber"):""))}
+      ${kv("Theft/mal-damage loading evidence (police.uk)",num(es.crime_count)+(es.crime_imputed?" "+pill("GMP gap — imputed","amber"):""))}
       ${kv("ML P(bind)",sc.bind_propensity_pct!=null?sc.bind_propensity_pct+"%":"—")}
       ${kv("ML large-loss propensity",sc.large_loss_propensity_pct!=null?sc.large_loss_propensity_pct+"%":"—")}
       ${(es.doc_hazards||[]).length?`<div style="margin:8px 0 4px"><b>Extracted hazards</b> <span class="muted">(Document AI)</span></div>`+(es.doc_hazards||[]).map(h=>pill(esc(h),"amber")).join(" "):""}
@@ -493,9 +493,10 @@ async function runWhatif(){
   $("#w_out").innerHTML=`<h3>Result — ${esc(p.appetite_status||"")} appetite, hazard ${p.hazard_grade??"—"}</h3>
     ${p.appetite_status==="excluded"?'<div class="rec RED">Excluded trade — this would be a coded decline.</div>':""}
     ${kv("Property",money(p.property_component))}${kv("BI",money(p.bi_component))}${kv("EL",money(p.el_component))}${kv("PL",money(p.pl_component))}
-    ${kv("+ Theft/mal-damage (crime)",money(p.crime_theft_loading))}${kv("+ Flood ("+esc(p.flood_band||"")+")",money(p.flood_loading))}
+    ${kv("+ Theft/mal-damage (crime)",money(p.crime_theft_loading))}${kv("+ Flood (EA RoFRS, England — "+esc(p.flood_band||"")+")",money(p.flood_loading))}
     ${kv("<b>Technical premium</b>","<b>"+money(p.technical_premium)+"</b>")}${kv("IPT 12%",money(p.ipt_amount))}
     ${kv("<b>Total payable</b>","<b>"+money(p.total_inc_ipt)+"</b>")}
+    ${kv("Commission","22.5% SME · 20% mid-market (rate guide)")}
     ${p.adequacy_pct!=null?kv("Target adequacy",pct(p.adequacy_pct)):""}
     <h3 style="margin-top:14px">Accumulation in ${esc(a.postcode_district||"")}</h3>
     ${kv("Utilisation",pct(a.current_util_pct)+" → "+pct(a.post_util_pct)+" "+ragPill(a.status==="ok"?"green":a.status==="referral"?"amber":"red"))}
@@ -722,10 +723,10 @@ async function oneBook(){
 let SLIDE=0;
 const SLIDES=[
  ["What a commercial underwriting desk does","An underwriter accepts, prices and shapes risks on behalf of the carrier's capital. For SME (shops, offices, small firms) business arrives via e-trade portals and should flow untouched; mid-market (£2m–£50m turnover) arrives as an email + proposal form + risk schedule and needs judgement. The desk lives or dies by speed (first quote usually wins), consistency (same risk, same answer) and portfolio discipline (appetite, accumulation)."],
- ["The submission lifecycle","received → extracted → triaged → enriched → assessed → referred → quoted → awaiting broker → bound / declined / NTU / lost. NTU ('not taken up') means we quoted and the client walked — tracked separately from lost-to-competitor because the fixes differ. SLA clocks differ by channel: minutes for e-trade, days for email."],
+ ["The submission lifecycle","received → extracted → triaged → enriched → assessed → referred → quoted → awaiting broker → bound / declined / NTU / lost. NTU ('not taken up') means we quoted and the client walked — tracked separately from lost-to-competitor because the fixes differ. SLA clocks differ by channel: hours for e-trade (4.5h in this book), days for email (124h)."],
  ["Appetite & authority","Appetite = which trades we want (core / selective / excluded), written in the underwriting guide with coded sections. Authority = who may sign what: each grade carries limits (total sum insured, premium, hazard grade, flood permission). Anything above limits refers UP a named route. This workbench encodes both as Unity Catalog reference tables and checks them per submission."],
  ["Accumulation","One street can hold many of our risks. Districts carry a capacity appetite for total property sum insured; every submission's marginal exposure is checked BEFORE quoting (most insurers reconcile quarterly in a spreadsheet, after the fact). ≥80% = referral, ≥100% = breach. Watch HX7 — Calder Valley — in the referral hero."],
- ["Technical price","Rate guide (per-trade rates on property/BI, per-capita EL, per-turnover PL) + the book's own burning cost + NAMED loadings: theft/malicious-damage evidenced by real police.uk counts, flood by the EA RoFRS band. Then IPT at 12% and commission. Adequacy = broker target ÷ technical. The full frequency/severity GLM engine is the sibling Pricing Workbench — deliberately not duplicated."],
+ ["Technical price","Rate guide (per-trade rates on property/BI, EL on wageroll (headcount proxy in this demo), per-turnover PL) + the book's own burning cost + NAMED loadings: theft/malicious-damage evidenced by real police.uk counts, flood by the EA RoFRS band. Then IPT at 12% and commission. Adequacy = broker target ÷ technical. The full frequency/severity GLM engine is the sibling Pricing Workbench — deliberately not duplicated."],
  ["Fair presentation (Insurance Act 2015)","Commercial insureds owe a duty of fair presentation. Filed accounts showing £24m turnover against £8m stated is not a typo — it corrupts the EL/PL rating basis and the BI sums. The workbench surfaces the mismatch from the Companies-House-shaped profile and turns it into a subjectivity: audited turnover confirmation within 14 days."],
  ["Screening — done properly","Every submission screens the entity + directors against the REAL OFSI consolidated list (bundled, 12k names) plus the internal watchlist. Most matches are FALSE positives — resolved on DOB/nationality and logged; that resolution trail is the real work. A true OFSI match freezes the file and escalates to compliance. Watchlist reasons NEVER appear in broker letters."],
  ["Terms & subjectivities","A quote is rarely 'yes': it is 'yes, if'. Terms shape the risk (£100k flood excess at High-band sites). Subjectivities are conditions to satisfy (satisfactory survey in 60 days; composite-panel percentage confirmed; audited turnover in 14 days). The workbench builds them from the checks and the comms agent writes them into the letter verbatim."],

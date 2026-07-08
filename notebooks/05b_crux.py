@@ -323,7 +323,7 @@ RETURN SELECT named_struct(
      CASE WHEN coalesce(acc.worst_status, 'a_ok') = 'breach' THEN concat('Accumulation BREACH in ', acc.worst_district, ' - post-bind ', acc.worst_post_util_pct, ' percent of capacity') END,
      CASE WHEN coalesce(acc.worst_status, 'a_ok') = 'referral' THEN concat('Accumulation in ', acc.worst_district, ' reaches ', acc.worst_post_util_pct, ' percent of district capacity (referral line = 80)') END,
      CASE WHEN auth.required_grade IN ('senior_underwriter', 'head_of_underwriting') THEN concat('Requires ', auth.required_grade, ' authority: ', array_join(auth.triggers, '; ')) END,
-     CASE WHEN coalesce(es.turnover_mismatch_ratio, 1.0) >= 1.5 THEN concat('Fair presentation concern (Insurance Act 2015): filed accounts show turnover ', format_number(es.filed_turnover, 0), ' vs ', format_number(es.turnover_stated, 0), ' stated - EL/PL rating basis and BI sums affected') END,
+     CASE WHEN coalesce(es.turnover_mismatch_ratio, 1.0) >= 1.5 THEN concat('Fair presentation concern (Insurance Act 2015): filed accounts show turnover ', format_number(es.filed_turnover, 0), ' vs ', format_number(es.turnover_stated, 0), ' stated - PL/Products rating basis and BI sums affected; EL wageroll to be confirmed') END,
      CASE WHEN prc.verdict = 'target_materially_below_technical' THEN concat('Broker target ', format_number(prc.target_premium, 0), ' is ', prc.adequacy_pct, ' percent of technical ', format_number(prc.technical_premium, 0)) END,
      CASE WHEN NOT es.data_complete THEN 'Core facts incomplete - query back to broker' END,
      CASE WHEN app.in_appetite AND scr.status = 'clear' AND coalesce(acc.worst_status, 'a_ok') = 'a_ok'
@@ -337,7 +337,7 @@ RETURN SELECT named_struct(
      ), x -> x IS NOT NULL) ELSE array() END,
   'subjectivities', CASE WHEN app.in_appetite THEN filter(array(
      CASE WHEN coalesce(es.turnover_mismatch_ratio, 1.0) >= 1.5
-          THEN 'Subject to audited turnover confirmation and revised EL/PL/BI estimates within 14 days (Insurance Act 2015 fair presentation)' END,
+          THEN 'Subject to audited turnover confirmation and revised PL/Products and BI estimates (and EL wageroll) within 14 days (Insurance Act 2015 fair presentation)' END,
      CASE WHEN app.hazard_grade >= 4 OR es.total_property_si > 2000000
           THEN 'Subject to satisfactory risk survey of principal site(s) within 60 days of inception' END,
      CASE WHEN exists(es.doc_hazards, h -> lower(h) LIKE '%composite%' OR lower(h) LIKE '%panel%')

@@ -19,12 +19,12 @@ insurer, real Databricks services, real OGL open data).
 - Four vital signs: GWP vs plan, **retention % + rate change** (a real book is 70–80% renewals),
   rate adequacy, accumulation hot districts.
 - **Prove it's real**: click the accumulation tile → reconciling district rows → "show the SQL".
-- Funnel by channel: e-trade converts in minutes, email in days — "the 40% never quoted problem".
+- Funnel by channel: e-trade quotes in hours (4.5h), email in days (124h) — "the 40% never quoted problem".
 
 ## Beat 2 · Inbox → the fast-track hero (3 min)
 - Inbox is ranked by **P(bind)** (batch-scored model) with SLA clocks and why-chips.
 - Open **★ sub:900001 Fenwick & Moss** (Altrincham shop package, e-trade):
-  - all checks green; **straight-through eligible** under the e-trade authority row;
+  - all checks clear — the amber screening card IS the point: a resolved near-miss; **straight-through eligible** under the e-trade authority row;
   - screening panel: a REAL near-miss — director "Emran Ali" vs OFSI-listed "Emraan ALI" —
     resolved on DOB/nationality and logged. *False-positive handling is where screening lives.*
   - price shows **IPT 12%** and commission — a UK quote without IPT is fake.
@@ -37,7 +37,7 @@ proposal + risk schedule):
    *composite panels unconfirmed* and *frying line suppression unconfirmed* — THE UK food-manufacturing
    questions. The schedule arrived twice: v1 with drifted columns sits in **quarantine** (show later).
 2. **Fair presentation**: broker states £8m turnover; filed accounts show **£24m** → Insurance
-   Act 2015 flag; EL/PL basis + BI sums affected.
+   Act 2015 flag; PL/Products basis + BI sums affected (EL wageroll to be confirmed).
 3. **Accumulation**: the two Calder Valley sites take HX7 from 67% → **87% of the £25m capacity** —
    over the 80% referral line, live, at point of quote. "Most carriers reconcile this quarterly
    in a spreadsheet."
