@@ -278,6 +278,13 @@ async function controlTower(){
       <div class="big">${(accum.amber||0)+(accum.red||0)} <span style="font-size:14px">hot districts</span></div>
       <div class="muted">${accum.red||0} breach · ${accum.amber||0} referral-zone · ${accum.green||0} ok</div></div>
   </div>
+  <div class="grid g3" style="margin-top:16px">
+    <div class="card drill" onclick="ctDrill('forecast')"><h3>Pipeline forecast (weighted)</h3>
+      <div class="big">${money((d.forecast||{}).expected_gwp)}</div>
+      <div class="muted">Σ premium × P(bind) over ${num((d.forecast||{}).open_subs)} open submissions · unweighted ceiling ${money((d.forecast||{}).max_gwp)}</div></div>
+    <div class="card" id="worthcard"><h3>What this is worth</h3><div class="muted">…</div></div>
+    <div class="card" id="briefcard"><h3>☕ Morning brief</h3><div class="muted">…</div></div>
+  </div>
   <div class="grid g2" style="margin-top:16px">
     <div class="card drill" onclick="ctDrill('funnel')"><h3>Funnel by channel — straight-through is the headline</h3>
       <table><thead><tr><th>channel</th><th>received</th><th>quoted</th><th>bound</th><th>time-to-quote</th><th>conversion</th></tr></thead>

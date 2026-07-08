@@ -63,6 +63,12 @@ def control_tower():
                                sum(CASE WHEN lifecycle_state='referred' THEN 1 ELSE 0 END) referred,
                                sum(total_si) open_si
                         FROM {F('gold_submission_lifecycle')}""",
+        "forecast": f"""SELECT round(sum(coalesce(l.target_premium, l.technical_base_premium)
+                                          * coalesce(p.bind_propensity_pct, 25) / 100), 0) expected_gwp,
+                               count(*) open_subs,
+                               sum(coalesce(l.target_premium, l.technical_base_premium)) max_gwp
+                        FROM {F('gold_submission_lifecycle')} l
+                        LEFT JOIN {F('gold_inbox_priority')} p USING (submission_public_id)""",
         "meta": f"""SELECT current_timestamp() queried_at,
                            (SELECT max(scored_at) FROM {F('gold_inbox_priority')}) scored_at""",
     })
@@ -75,17 +81,21 @@ DRILLS = {
     "accumulation": "SELECT postcode_district, in_force_property_si, property_capacity_gbp, utilisation_pct, rag, flood_band, rivers FROM {t} ORDER BY utilisation_pct DESC",
     "adequacy": "SELECT trade_group, quotes_12m, adequacy_pct, avg_technical_premium, avg_quoted_premium, loss_ratio_3y_pct, renewal_rate_change_pct FROM {t} ORDER BY adequacy_pct ASC",
     "funnel": "SELECT month, channel, received, quoted, bound, declined, ntu, lost, quote_expired, avg_hours_to_quote FROM {t} ORDER BY month DESC, channel LIMIT 36",
+    "forecast": ("SELECT l.submission_public_id, l.company_name, l.trade_group, l.lifecycle_state, "
+                 "coalesce(l.target_premium, l.technical_base_premium) premium, p.bind_propensity_pct, "
+                 "round(coalesce(l.target_premium, l.technical_base_premium) * coalesce(p.bind_propensity_pct, 25) / 100, 0) expected_value "
+                 "FROM {t} l LEFT JOIN {p} p USING (submission_public_id) ORDER BY expected_value DESC LIMIT 60"),
 }
 DRILL_TABLE = {"gwp": "gold_portfolio_position", "retention": "gold_renewals",
                "accumulation": "gold_accumulation", "adequacy": "gold_rate_adequacy",
-               "funnel": "gold_pipeline_funnel"}
+               "funnel": "gold_pipeline_funnel", "forecast": "gold_submission_lifecycle"}
 
 
 @app.get("/api/control-tower/drill")
 def ct_drill(key: str):
     if key not in DRILLS:
         return JSONResponse({"error": "unknown drill"}, status_code=400)
-    stmt = DRILLS[key].format(t=F(DRILL_TABLE[key]))
+    stmt = DRILLS[key].format(t=F(DRILL_TABLE[key]), p=F("gold_inbox_priority"))
     return {"rows": sql.query(stmt), "sql": stmt, "table": F(DRILL_TABLE[key])}
 
 
