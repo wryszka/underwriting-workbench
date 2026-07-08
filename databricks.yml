@@ -42,7 +42,8 @@ targets:
     variables:
       catalog: lr_dev_aws_us_catalog
       warehouse_id: "a3b61648ea4809e3"
-      # app_service_principal_id / genie_space_id / dashboard_id captured after first create.
+      genie_space_id: "01f17afafb6d1309bcff27506395be54"
+      # app_service_principal_id / dashboard_id captured after first create.
 
   # CENTRAL / SHAREABLE deployment — assets in /Workspace/Shared, production mode strips the
   # dev_<user>_ prefix. Migration recipe mirrors reinsurance_workbench databricks.yml comments.
