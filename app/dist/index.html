@@ -26,7 +26,7 @@
   .nav a:hover{background:rgba(255,255,255,.06);color:#fff}
   .nav a.on{background:linear-gradient(135deg,#2563eb,#3b82f6);color:#fff;font-weight:600;box-shadow:0 2px 8px rgba(37,99,235,.35)}
   .learn{padding:4px 12px 8px}
-  .learn a{display:flex;align-items:center;gap:11px;padding:9px 11px;border-radius:9px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.03);color:#94a3b8;text-decoration:none;transition:.12s;cursor:pointer}
+  .learn a{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.03);color:#94a3b8;text-decoration:none;transition:.12s;cursor:pointer;font-size:12px}
   .learn a:hover{border-color:rgba(16,185,129,.4);color:#6ee7b7;background:rgba(16,185,129,.06)}
   .learn a.on{background:rgba(16,185,129,.14);border-color:rgba(16,185,129,.45);color:#a7f3d0}
   .learn b{font-size:12.5px;display:block;line-height:1.2;font-weight:600}
@@ -124,17 +124,41 @@
   iframe.embed{width:100%;border:1px solid var(--line);border-radius:12px;background:#fff}
   input.f,select.f{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:13px;margin-top:3px}
   label.f{font-size:11px;color:var(--mut);font-weight:600;text-transform:uppercase;letter-spacing:.04em;display:block;margin-top:10px}
-  .lhero{text-align:center;padding:34px 20px 26px}
-  .lhero .eyebrow{font-size:12px}
-  .lhero h1{font-size:32px;margin:6px 0 10px}
-  .lhero p{color:var(--mut);max-width:720px;margin:0 auto 20px;font-size:14.5px;line-height:1.6}
-  .lstages{display:grid;grid-template-columns:repeat(7,1fr);gap:9px;margin:24px 0}
-  .lstage{border:1.5px solid var(--line);border-radius:11px;padding:11px 9px;text-align:center;cursor:pointer;background:#fff;transition:.12s}
-  .lstage:hover{border-color:var(--blue);transform:translateY(-2px)}
-  .lstage .n{width:22px;height:22px;border-radius:50%;background:var(--blue);color:#fff;font-size:11px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;margin-bottom:6px}
-  .lstage b{display:block;font-size:11.5px;margin-bottom:3px}
-  .lstage span{font-size:10px;color:var(--mut);line-height:1.3;display:block}
-  .about{background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:16px 20px;font-size:12.5px;color:#92400e;line-height:1.6;text-align:left;max-width:860px;margin:0 auto}
+  .lhero{text-align:center;max-width:780px;margin:6px auto 0}
+  .lhero .eyebrow{display:block}
+  .lhero h1{font-size:38px;line-height:1.08;letter-spacing:-.02em;margin:10px 0 0}
+  .lhero .lead{color:var(--mut);font-size:15px;line-height:1.6;margin:14px auto 0;max-width:680px}
+  .lcta{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:24px}
+  .lcta a{display:inline-flex;align-items:center;gap:8px;padding:12px 18px;border-radius:10px;font-size:13.5px;font-weight:700;text-decoration:none;transition:.12s;cursor:pointer}
+  .lcta .primary{background:var(--blue);color:#fff;box-shadow:0 4px 16px rgba(37,99,235,.32)}
+  .lcta .primary:hover{background:#1d4ed8}
+  .lcta .ghost{background:#fff;border:1px solid var(--line);color:var(--ink)}
+  .lcta .ghost:hover{background:#f8fafc}
+  .about{max-width:900px;margin:26px auto 0;background:var(--ambbg);border:1px solid #fde68a;border-radius:14px;padding:16px 20px;font-size:13px;color:#92400e;line-height:1.65}
+  .lsec{margin-top:32px}
+  .lsec .lh{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+  .lsec .lh h2{font-size:16px;margin:0}
+  .lsec .lhsub{font-size:13px;color:var(--mut);line-height:1.55;max-width:820px;margin:0 0 16px}
+  .lstages{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+  .lstage{display:flex;flex-direction:column;border:1px solid var(--line);border-top:3px solid #2563eb;border-radius:11px;background:#fff;padding:12px;text-decoration:none;transition:.12s;cursor:pointer}
+  .lstage:hover{box-shadow:0 8px 22px rgba(15,23,42,.1);transform:translateY(-2px)}
+  .lstage .sn{font-size:10px;font-weight:800;color:#94a3b8;text-transform:uppercase;letter-spacing:.04em}
+  .lstage .st{font-size:13.5px;font-weight:700;color:var(--ink);margin-top:2px}
+  .lstage .sb{font-size:11px;color:var(--mut);line-height:1.45;margin-top:6px;flex:1}
+  .lstage .so{font-size:11px;font-weight:700;color:var(--blue);margin-top:8px}
+  .lpillars{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .lpillar{border:1px solid var(--line);border-top:3px solid #2563eb;border-radius:14px;background:#fff;padding:18px;text-decoration:none;display:flex;flex-direction:column;transition:.12s;cursor:pointer}
+  .lpillar:hover{box-shadow:0 8px 22px rgba(15,23,42,.1)}
+  .lpillar .pe{font-size:26px}
+  .lpillar h3{font-size:15px;margin:11px 0 0;color:var(--ink)}
+  .lpillar p{font-size:13px;color:var(--mut);line-height:1.55;margin:6px 0 0;flex:1}
+  .lpillar .po{font-size:13px;font-weight:700;margin-top:10px}
+  .startbanner{display:flex;align-items:center;gap:20px;background:linear-gradient(135deg,#1e293b,#0f172a);border-radius:16px;padding:20px 24px;margin-top:32px;text-decoration:none;cursor:pointer}
+  .startbanner h3{color:#fff;font-size:18px;margin:4px 0 3px}
+  .startbanner p{color:#cbd5e1;font-size:13px;margin:0;max-width:640px}
+  .startbanner .go{margin-left:auto;background:var(--blue);color:#fff;padding:12px 18px;border-radius:10px;font-weight:700;font-size:13.5px;white-space:nowrap}
+  .lfoot{text-align:center;font-size:11.5px;color:#94a3b8;margin:24px 0 8px;display:flex;gap:18px;justify-content:center;flex-wrap:wrap}
+  .lfoot a{color:#94a3b8;text-decoration:none;cursor:pointer}.lfoot a:hover{color:var(--blue)}
   .soon{opacity:.75;border-style:dashed}
   .soonpill{background:#f1f5f9;color:#64748b;font-size:9.5px;font-weight:700;letter-spacing:.05em;padding:2px 7px;border-radius:999px;text-transform:uppercase}
   .slides .slide{display:none}.slides .slide.on{display:block}
@@ -149,7 +173,7 @@
       <div class="btxt"><b>Bricksurance SE</b><span>Underwriting Workbench</span></div>
     </a>
     <nav class="nav" id="nav"></nav>
-    <div class="learn"><a id="learnLink" onclick="go('learn')"><svg viewBox="0 0 24 24"><path d="M22 10 12 5 2 10l10 5 10-5v6"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg><span><b>Learn</b><span class="lsub">How commercial underwriting works</span></span></a></div>
+    <div class="learn"><a id="learnLink" onclick="go('learn')"><svg viewBox="0 0 24 24"><path d="M22 10 12 5 2 10l10 5 10-5v6"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg><span><b style="font-size:12px">Learn</b> <span class="lsub">· Underwriting 101</span></span></a></div>
     <div class="cachetog"><button id="cacheBtn" onclick="toggleCache()"></button><div class="csub">AI narration only — checks &amp; prices always live</div></div>
     <div class="foot">
       <button class="rbtn" id="resetBtn" onclick="resetDemo()">↺ Reset demo</button>
@@ -226,35 +250,62 @@ async function resetDemo(){
 }
 
 /* ---------- landing ---------- */
+const L_STAGES=[
+ {n:"1 · Every channel",t:"Ingest",b:"E-trade, portal, email, scanned PDFs, drifting schedules, call transcripts, PAS, real open data — one governed front door.",to:"ingestion",c:"#2563eb"},
+ {n:"2 · Document AI",t:"Extract",b:"ai_parse_document + LLM entity extraction with a confidence gate — the illegible fax quarantines, never guesses.",to:"ingestion",c:"#0891b2"},
+ {n:"3 · Worth working",t:"Triage",b:"The inbox ranked by expected value — premium × modelled P(bind) — with SLA clocks per channel.",to:"inbox",c:"#2563eb"},
+ {n:"4 · THE CHECKS",t:"Appetite · Authority · Accumulation · Screening",b:"Every gate an underwriter must defend, computed live per submission — including marginal accumulation vs district capacity BEFORE quoting.",to:"sub/sub:900002",c:"#6d28d9"},
+ {n:"5 · THE PRICE",t:"Technical price",b:"Rate guide + the book's own burning cost + named loadings evidenced by real open data, with IPT and commission shown.",to:"sub/sub:900002",c:"#6d28d9"},
+ {n:"6 · A human signs",t:"Decide",b:"Quote with terms & subjectivities, refer, decline (coded), or query back — recorded with the full as-at dossier snapshot.",to:"governance",c:"#16a34a"},
+ {n:"7 · Steer the book",t:"Committee",b:"The underwriting guide is data: propose a rate change, see the pipeline reprice live, apply it — governed and attributable.",to:"committee",c:"#d97706"},
+];
+const L_PILLARS=[
+ {e:"🏛️",t:"One platform — one source of truth",b:"Submissions, enrichment, checks, price, decisions, renewals and the committee all read the same governed Delta tables. One platform instead of six systems and a swivel chair.",to:"tower",c:"#2563eb"},
+ {e:"🛡️",t:"Governance & control",b:"Real Unity Catalog lineage, dynamic masking, coded declinatures with external/internal separation, an SS1/23-shaped model register — and every decision reproducible exactly as the underwriter saw it.",to:"governance",c:"#6d28d9"},
+ {e:"🤖",t:"AI agents that assist",b:"A tool-calling supervisor and a bench of specialists — second opinions, contrarian challenge, letter drafting, the CUO morning brief — advising a named human who decides. Never binding.",to:"ai",c:"#16a34a"},
+];
 function landing(){
+  const stages=L_STAGES.map(st=>`<a class="lstage" onclick="go('${st.to.split("/")[0]}'${st.to.includes("/")?`,'${st.to.split("/").slice(1).join("/")}'`:""})" style="border-top-color:${st.c}">
+    <div class="sn">${st.n}</div><div class="st">${st.t}</div><div class="sb">${st.b}</div>
+    <div class="so" style="color:${st.c}">open →</div></a>`).join("");
+  const pillars=L_PILLARS.map(pl=>`<a class="lpillar" onclick="go('${pl.to}')" style="border-top-color:${pl.c}">
+    <div class="pe">${pl.e}</div><h3>${pl.t}</h3><p>${pl.b}</p><div class="po" style="color:${pl.c}">open →</div></a>`).join("");
   $("#m").innerHTML=`
   <div class="lhero">
-    <div class="eyebrow">Bricksurance SE · Commercial Lines</div>
+    <span class="eyebrow">Bricksurance SE · Underwriting Workbench</span>
     <h1>Every submission. One governed workbench.</h1>
-    <p>An SME &amp; mid-market desk drowns in broker submissions — emails, scanned proposal forms, drifting risk
-    schedules — while appetite lives in tribal knowledge and the first quote usually wins. This workbench lands every
-    source in one governed lakehouse, extracts, enriches with real open data, checks appetite · authority ·
-    accumulation · sanctions, prices, and puts a complete dossier in front of a named underwriter — minutes, not days.</p>
-    <div><button class="btn" onclick="go('sub','sub:900002')">Work the referral hero</button>
-    <button class="btn ghost" onclick="go('tower')">Portfolio Control Tower</button>
-    <button class="btn ghost" onclick="go('inbox')">Open the inbox</button></div>
+    <p class="lead">An SME &amp; mid-market desk drowns in broker emails, scanned proposals and drifting schedules while appetite lives in tribal knowledge — and the first quote usually wins. Here every source lands in one governed lakehouse and comes out as a complete dossier with a defensible recommendation, in minutes. Humans decide; everything is audited.</p>
+    <div class="lcta">
+      <a class="primary" onclick="go('tower')">▦ Open the Control Tower →</a>
+      <a class="ghost" onclick="go('sub','sub:900002')">⚡ Work the referral hero</a>
+      <a class="ghost" onclick="go('inbox')">☰ Open the inbox</a>
+    </div>
   </div>
-  <div class="lstages">
-    ${[["1","Ingest","emails · PDFs · schedules · portals · open data","ingestion"],
-       ["2","Extract","ai_parse_document + LLM entity extraction","ingestion"],
-       ["3","Triage","ML priority — work the winnable first","inbox"],
-       ["4","Check","appetite · authority · accumulation · sanctions","work"],
-       ["5","Price","technical build-up + named loadings + IPT","work"],
-       ["6","Decide","quote / refer / decline / query — human signs","work"],
-       ["7","Govern","every step audited in Unity Catalog","governance"]].map(([n,b,s,r])=>
-      `<div class="lstage" onclick="go('${r}')"><span class="n">${n}</span><b>${b}</b><span>${s}</span></div>`).join("")}
+  <div class="about"><b>About this demo.</b> This is <b>not a Databricks product</b>. It is an example of a real business process — <b>commercial underwriting, submission to decision</b> — built <b>purely on Databricks</b>: Unity Catalog, Lakeflow Declarative Pipelines, Auto Loader, Feature Engineering, MLflow Model Serving, Mosaic AI (Agent Framework · Document AI), AI/BI Genie &amp; Dashboards, the Foundation Model API (Claude) and Databricks Apps. <b>Bricksurance SE</b> is synthetic — no real customer data. Bundled open data is <b>real and OGL-licensed</b> (OFSI sanctions list, EA flood register, police.uk crime, EPC statistics). Rating logic is illustrative; the full GLM engine is the sibling Pricing Workbench.</div>
+
+  <div class="lsec">
+    <div class="lh">↻ <h2>What this is — a submission's journey, end to end</h2></div>
+    <p class="lhsub">A broker email lands; the platform reads it, enriches it with real open data, runs every check an underwriter must defend, prices it, and puts a complete dossier in front of the right named person — then feeds what the book learns back into the guide. <b>The checks and the price decide the deal</b>, so being book-aware at the moment of quote is the centre of gravity. Click any stage to jump to where it lives.</p>
+    <div class="lstages">${stages}</div>
   </div>
-  <div class="about"><b>About this demo.</b> Bricksurance SE is a synthetic insurer — no real customer data; this is not a
-  Databricks product. Everything on screen runs for real on Databricks: Lakeflow Declarative Pipelines with expectations
-  and quarantine, <b>ai_parse_document</b> Document AI, Unity Catalog functions for the decision engine, MLflow models on
-  serverless endpoints, a real tool-calling supervisor agent, AI/BI Genie and an embedded dashboard. Bundled open data is
-  REAL and OGL-licensed: the OFSI sanctions list, EA flood-area register, police.uk crime counts, EPC band statistics.
-  Rating logic is illustrative; the full GLM engine is the sibling Pricing Workbench.</div>`;
+
+  <div class="lsec">
+    <div class="eyebrow">The three things this platform makes possible</div>
+    <div class="lpillars" style="margin-top:10px">${pillars}</div>
+  </div>
+
+  <a class="startbanner" onclick="go('tower')">
+    <div><div class="eyebrow" style="color:#93c5fd">Start here</div>
+      <h3>The Portfolio Control Tower — the book at a glance</h3>
+      <p>GWP vs plan, retention and rate change, the weighted pipeline forecast, accumulation hot-spots, the morning brief and what it is all worth. Every tile drills to the rows it is computed from.</p></div>
+    <span class="go">▦ Open the Control Tower →</span>
+  </a>
+
+  <div class="about" style="background:#f0fdf4;border-color:#bbf7d0;color:#166534;margin-top:18px"><b>↺ Never demo stale data.</b> One click of <b>Reset demo</b> (sidebar) rebuilds the entire book to its original state — undoing anything changed on stage — and <b>re-anchors every date to today</b>: heroes arrive "this morning", renewals fall due from now, SLA clocks read fresh. Seed-42 deterministic, so the three hero stories are byte-identical every time. Takes ~20 minutes, then re-warms the AI cache itself.</div>
+
+  <div class="lfoot">
+    <a onclick="go('ingestion')">⇣ Ingestion</a><a onclick="go('renewals')">↻ Renewals</a><a onclick="go('committee')">⚖ Appetite &amp; Rates</a><a onclick="go('governance')">🛡 Governance</a><a onclick="go('ai')">✳ Underwriting AI</a><a onclick="go('onebook')">▣ One Book</a><a onclick="go('learn')">🎓 Learn</a>
+  </div>`;
 }
 
 /* ---------- control tower ---------- */
