@@ -1,0 +1,37 @@
+postcode_district,lat,lon,town_terms,named_area_count,named_warning_count,rivers,sample_areas
+B1,52.479,-1.908,Birmingham city,0,0,,
+B15,52.464,-1.928,Edgbaston,1,1,River Rea,River Rea at Edgbaston
+BL1,53.585,-2.435,Bolton,12,11,"Groundwater | Irish Sea | Kirk Beck, Skirden Beck | Kym | River Dearne | River Eden","Upper River Irwell catchment with Oldham, Bolton, Rochdale, Haslingden, Ramsbottom and Rawtenstall; River Wharfe at Bolton Bridge; River Eden at Bolton"
+BL3,53.567,-2.443,Bolton,12,11,"Groundwater | Irish Sea | Kirk Beck, Skirden Beck | Kym | River Dearne | River Eden","Upper River Irwell catchment with Oldham, Bolton, Rochdale, Haslingden, Ramsbottom and Rawtenstall; River Wharfe at Bolton Bridge; River Eden at Bolton"
+BS1,51.453,-2.597,Bristol city,0,0,,
+CB1,52.198,0.137,Cambridge,19,19,Alconbury Brook | Bin Brook | Bourn Brook | Bury Brook | Cottenham Lode | Ellington Brook,Lower River Cam in Cambridgeshire; Middle Level of the Fens in Cambridgeshire and Norfolk; River Kym in Bedford Borough and Cambridgeshire
+CF10,51.479,-3.176,Cardiff,0,0,,
+CO1,51.889,0.903,Colchester,3,3,Colne,"The River Colne from Great Yeldham to Colchester; The River Colne, through Colchester; Riverside properties on the River Colne in Colchester"
+CV1,52.408,-1.51,Coventry,4,4,Sherbourne | Sowe,"River Sowe at Manor House, Coventry; River Sherbourne at Coventry City Centre; River Sowe at Wyken and Stoke, Coventry"
+E1,51.516,-0.06,Whitechapel | Tower Hamlets,1,1,River Thames,"Tidal Thames in the boroughs of Tower Hamlets, City of London, City of Westminster, Ken and Chelsea"
+EC1,51.524,-0.099,Clerkenwell | Islington,3,3,Brislington Brook,"Brislington Brook, other properties set back from the river; Brislington Brook, riverside properties; Brislington Brook, low lying properties set back from the river"
+GL1,51.864,-2.238,Gloucester,11,11,River Severn | River Wye | Severn Estuary | Wye Estuary,Tributaries in Gloucester; River Severn in Gloucestershire; River Severn at Gloucester
+LE1,52.635,-1.132,Leicester,16,16,Braunstone Brook | Bushby Brook | Evington Brook | Melton Brook | River Devon | River Sence,"Rothley Brook, Quorn Brook and Sileby Brook in Leicestershire; Lower River Soar in Leicestershire; River Wreake in Leicestershire"
+LS1,53.797,-1.546,Leeds city,0,0,,
+LS6,53.819,-1.575,Headingley,1,1,Meanwood Beck,Meanwood Beck at Headingley and Weetwood
+M1,53.479,-2.236,Manchester city,1,1,River Medlock,River Medlock at Manchester City Centre
+M14,53.443,-2.222,Fallowfield,2,2,Cringle Brook,"Cringle Brook at Withington, Fallowfield and Burnage; Cringle Brook at Fallowfield"
+M20,53.413,-2.23,Didsbury,4,4,River Mersey,"River Mersey at East Didsbury, Millgate Lane and Stenner Lane areas; River Mersey at East Didsbury, from Tuscan Road to Wilmslow Road; River Mersey at West Didsbury, Northenden Golf Club and Palatine Road"
+N1,51.538,-0.103,Islington,3,3,Brislington Brook,"Brislington Brook, other properties set back from the river; Brislington Brook, riverside properties; Brislington Brook, low lying properties set back from the river"
+NE1,54.972,-1.613,Newcastle,3,3,Lyme Brook | River Tyne,"Lyme Brook at Newcastle under Lyme and Trent Vale; Tyne estuary at Newcastle Quayside, Low Walker, Lower Derwenthaugh Industrial Estate and Willington; Ashfield Brook at Newcastle-Under-Lyme"
+NG1,52.954,-1.149,Nottingham,11,11,"Golden Brook, Beauvale Brook, Bailey Brook, Boundary Brook, Golden Stream | River Devon | River Erewash | River Idle | River Leen, Day Brook, Tottle Brook | River Maun","River Trent in Nottinghamshire; River Erewash in Derbyshire and Nottinghamshire; River Leen, Day Brook and Tottle Brook in Nottinghamshire"
+OL1,53.546,-2.116,Oldham,1,1,River Irwell,"Upper River Irwell catchment with Oldham, Bolton, Rochdale, Haslingden, Ramsbottom and Rawtenstall"
+OL9,53.537,-2.139,Chadderton,1,1,River Irk,River Irk at Chadderton Fold
+OX1,51.75,-1.26,Oxford,12,12,"Box | Loxford Water | River Calder | River Cherwell, Marston Brook, Peasmoor Brook | River Cherwell, Woodeaton Brook, Bayswater Brook, Marston Brook, Peasmoor Brook | River Lambourn, Winterbourne Stream","River Cherwell from Lower Heyford down to and including Oxford; River Thames and tributaries in the Binsey, Osney and Osney Island areas in Oxford; River Thames and tributaries in the Oxford area"
+RG1,51.456,-0.969,Reading,4,4,River Kennet | River Thames,"River Kennet from Thatcham down to Reading; River Thames at Reading and Caversham; Properties closest to the River Thames from Scours Lane, Reading to Caversham Lakes"
+S1,53.38,-1.466,Sheffield city,0,0,,
+SE1,51.501,-0.091,Southwark | Lambeth,3,3,River Thames | River Wandle,"River Wandle area in the London Boroughs of Wandsworth, Merton, Lambeth, Croydon and Sutton; Tidal Thames in the boroughs of Greenwich, Lewisham, Southwark, Lambeth and Wandsworth; Tidal Thames at Deptford and Southwark Park"
+SW1,51.497,-0.137,Westminster,2,2,River Thames,"Tidal Thames in the boroughs of Tower Hamlets, City of London, City of Westminster, Ken and Chelsea; Tidal Thames at Westminster"
+WN3,53.535,-2.64,Wigan,3,3,Glaze Brook | River Douglas,"River Douglas at Wigan, between Scholes and Poolstock; River Glaze catchment including Leigh and East Wigan; River Douglas at Wigan, adjacent to River Douglas from Robin Park to Baker St. Poolstock"
+WN5,53.53,-2.668,Orrell | Wigan,4,4,Glaze Brook | Gorrell River | River Douglas,"River Douglas at Wigan, between Scholes and Poolstock; River Glaze catchment including Leigh and East Wigan; River Douglas at Wigan, adjacent to River Douglas from Robin Park to Baker St. Poolstock"
+WA14,53.387,-2.349,Altrincham,2,2,River Mersey | Timperley Brook,"Middle River Mersey catchment including areas near Bramhall, Stockport, Sale, Altrincham and Urmston; Timperley Brook at Altrincham"
+HX7,53.742,-2.012,Hebden Bridge | Mytholmroyd,5,5,Hebden Water | River Calder,River Calder and Cragg Brook at Mytholmroyd; River Calder at Central Mytholmroyd; River Calder at Hebden Bridge - Mytholm and Hebble End
+HX6,53.708,-1.907,Sowerby Bridge,3,3,Calder and Hebble Navigation | River Calder,River Calder and River Ryburn at Central Sowerby Bridge; River Calder and River Ryburn at Sowerby Bridge; River Calder between Sowerby Bridge and Copley
+WS2,52.59,-1.995,Walsall,1,1,Ford Brook,Ford Brook at Walsall
+HD1,53.646,-1.785,Huddersfield,4,4,River Colne | River Holme,River Colne at Huddersfield - Springbank Road and Queens Square; River Colne at Huddersfield - Syngenta Works; River Holme at Huddersfield - Primrose Hill and Lockwood
+PR1,53.759,-2.703,Preston,5,5,English Channel | Ribble Estuary | River Ribble | Wootton Brook,"Ribble estuary west of Preston; River Ribble at Samlesbury, between Brockholes and Preston New Road; Dorset coast at Preston Beach"

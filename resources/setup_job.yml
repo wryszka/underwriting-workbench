@@ -1,0 +1,27 @@
+resources:
+  jobs:
+    underwriting_00_setup:
+      name: underwriting_00_setup
+      description: "Synthetic universe + bundled open data → landing + reference tables (deterministic, rolling dates)"
+      tags:
+        project: underwriting_workbench
+      parameters:
+        - name: catalog
+          default: ${var.catalog}
+        - name: schema
+          default: ${var.schema}
+        - name: seed
+          default: "42"
+      environments:
+        - environment_key: default
+          spec:
+            client: "5"
+      tasks:
+        - task_key: data_gen
+          environment_key: default
+          notebook_task:
+            notebook_path: ../notebooks/00_setup_and_data_generation.py
+            base_parameters:
+              catalog: "{{job.parameters.catalog}}"
+              schema: "{{job.parameters.schema}}"
+              seed: "{{job.parameters.seed}}"
