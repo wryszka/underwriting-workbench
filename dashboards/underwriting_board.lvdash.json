@@ -1,0 +1,331 @@
+{
+ "datasets": [
+  {
+   "name": "ds_portfolio",
+   "displayName": "Portfolio by trade",
+   "queryLines": [
+    "SELECT trade_group, gwp, plan_gwp, loss_ratio_3y_pct, avg_rate_change_pct FROM lr_dev_aws_us_catalog.underwriting_workbench.gold_portfolio_position ORDER BY gwp DESC"
+   ]
+  },
+  {
+   "name": "ds_funnel",
+   "displayName": "Funnel by channel",
+   "queryLines": [
+    "SELECT channel, sum(received) received, sum(quoted) quoted, sum(bound) bound, sum(ntu) ntu, sum(lost) lost FROM lr_dev_aws_us_catalog.underwriting_workbench.gold_pipeline_funnel GROUP BY channel"
+   ]
+  },
+  {
+   "name": "ds_renewals",
+   "displayName": "Retention by month",
+   "queryLines": [
+    "SELECT month, round(sum(in_force)/(sum(in_force)+sum(lapsed))*100,1) retention_pct, round(avg(avg_rate_change_pct),1) rate_change_pct FROM lr_dev_aws_us_catalog.underwriting_workbench.gold_renewals GROUP BY month ORDER BY month"
+   ]
+  },
+  {
+   "name": "ds_adequacy",
+   "displayName": "Rate adequacy by trade",
+   "queryLines": [
+    "SELECT trade_group, adequacy_pct, quotes_12m FROM lr_dev_aws_us_catalog.underwriting_workbench.gold_rate_adequacy ORDER BY adequacy_pct"
+   ]
+  },
+  {
+   "name": "ds_accum",
+   "displayName": "Accumulation map",
+   "queryLines": [
+    "SELECT postcode_district, lat, lon, in_force_property_si, utilisation_pct, flood_band FROM lr_dev_aws_us_catalog.underwriting_workbench.gold_accumulation WHERE lat IS NOT NULL"
+   ]
+  }
+ ],
+ "pages": [
+  {
+   "name": "main",
+   "displayName": "Underwriting Portfolio",
+   "layout": [
+    {
+     "widget": {
+      "name": "w_gwp",
+      "queries": [
+       {
+        "name": "main_query",
+        "query": {
+         "datasetName": "ds_portfolio",
+         "fields": [
+          {
+           "name": "trade_group",
+           "expression": "`trade_group`"
+          },
+          {
+           "name": "gwp",
+           "expression": "`gwp`"
+          }
+         ],
+         "disaggregated": true
+        }
+       }
+      ],
+      "spec": {
+       "version": 3,
+       "widgetType": "bar",
+       "encodings": {
+        "x": {
+         "fieldName": "trade_group",
+         "scale": {
+          "type": "categorical"
+         }
+        },
+        "y": {
+         "fieldName": "gwp",
+         "scale": {
+          "type": "quantitative"
+         }
+        }
+       },
+       "frame": {
+        "title": "In-force GWP by trade",
+        "showTitle": true
+       }
+      }
+     },
+     "position": {
+      "x": 0,
+      "y": 0,
+      "width": 3,
+      "height": 6
+     }
+    },
+    {
+     "widget": {
+      "name": "w_funnel",
+      "queries": [
+       {
+        "name": "main_query",
+        "query": {
+         "datasetName": "ds_funnel",
+         "fields": [
+          {
+           "name": "channel",
+           "expression": "`channel`"
+          },
+          {
+           "name": "bound",
+           "expression": "`bound`"
+          }
+         ],
+         "disaggregated": true
+        }
+       }
+      ],
+      "spec": {
+       "version": 3,
+       "widgetType": "bar",
+       "encodings": {
+        "x": {
+         "fieldName": "channel",
+         "scale": {
+          "type": "categorical"
+         }
+        },
+        "y": {
+         "fieldName": "bound",
+         "scale": {
+          "type": "quantitative"
+         }
+        }
+       },
+       "frame": {
+        "title": "Bound by channel",
+        "showTitle": true
+       }
+      }
+     },
+     "position": {
+      "x": 3,
+      "y": 0,
+      "width": 3,
+      "height": 6
+     }
+    },
+    {
+     "widget": {
+      "name": "w_ret",
+      "queries": [
+       {
+        "name": "main_query",
+        "query": {
+         "datasetName": "ds_renewals",
+         "fields": [
+          {
+           "name": "month",
+           "expression": "`month`"
+          },
+          {
+           "name": "retention_pct",
+           "expression": "`retention_pct`"
+          }
+         ],
+         "disaggregated": true
+        }
+       }
+      ],
+      "spec": {
+       "version": 3,
+       "widgetType": "line",
+       "encodings": {
+        "x": {
+         "fieldName": "month",
+         "scale": {
+          "type": "categorical"
+         }
+        },
+        "y": {
+         "fieldName": "retention_pct",
+         "scale": {
+          "type": "quantitative"
+         }
+        }
+       },
+       "frame": {
+        "title": "Retention % by month",
+        "showTitle": true
+       }
+      }
+     },
+     "position": {
+      "x": 0,
+      "y": 6,
+      "width": 3,
+      "height": 6
+     }
+    },
+    {
+     "widget": {
+      "name": "w_adq",
+      "queries": [
+       {
+        "name": "main_query",
+        "query": {
+         "datasetName": "ds_adequacy",
+         "fields": [
+          {
+           "name": "trade_group",
+           "expression": "`trade_group`"
+          },
+          {
+           "name": "adequacy_pct",
+           "expression": "`adequacy_pct`"
+          }
+         ],
+         "disaggregated": true
+        }
+       }
+      ],
+      "spec": {
+       "version": 3,
+       "widgetType": "bar",
+       "encodings": {
+        "x": {
+         "fieldName": "trade_group",
+         "scale": {
+          "type": "categorical"
+         }
+        },
+        "y": {
+         "fieldName": "adequacy_pct",
+         "scale": {
+          "type": "quantitative"
+         }
+        }
+       },
+       "frame": {
+        "title": "Rate adequacy % by trade (quoted vs technical)",
+        "showTitle": true
+       }
+      }
+     },
+     "position": {
+      "x": 3,
+      "y": 6,
+      "width": 3,
+      "height": 6
+     }
+    },
+    {
+     "widget": {
+      "name": "w_accum_map",
+      "queries": [
+       {
+        "name": "main_query",
+        "query": {
+         "datasetName": "ds_accum",
+         "fields": [
+          {
+           "name": "lat",
+           "expression": "`lat`"
+          },
+          {
+           "name": "lon",
+           "expression": "`lon`"
+          },
+          {
+           "name": "in_force_property_si",
+           "expression": "`in_force_property_si`"
+          },
+          {
+           "name": "utilisation_pct",
+           "expression": "`utilisation_pct`"
+          },
+          {
+           "name": "postcode_district",
+           "expression": "`postcode_district`"
+          }
+         ],
+         "disaggregated": true
+        }
+       }
+      ],
+      "spec": {
+       "version": 2,
+       "widgetType": "symbol-map",
+       "encodings": {
+        "coordinates": {
+         "latitude": {
+          "fieldName": "lat"
+         },
+         "longitude": {
+          "fieldName": "lon"
+         }
+        },
+        "size": {
+         "fieldName": "in_force_property_si",
+         "scale": {
+          "type": "quantitative"
+         }
+        },
+        "color": {
+         "fieldName": "utilisation_pct",
+         "scale": {
+          "type": "quantitative"
+         }
+        }
+       },
+       "mark": {
+        "opacity": 0.75
+       },
+       "frame": {
+        "title": "Property accumulation vs capacity by district (size = SI, colour = utilisation %)",
+        "showTitle": true
+       }
+      }
+     },
+     "position": {
+      "x": 0,
+      "y": 12,
+      "width": 6,
+      "height": 9
+     }
+    }
+   ],
+   "pageType": "PAGE_TYPE_CANVAS"
+  }
+ ]
+}

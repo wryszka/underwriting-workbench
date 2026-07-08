@@ -56,21 +56,20 @@ class ProbaModel(mlflow.pyfunc.PythonModel):
 
 
 def log_and_champion(model, feats, name, run_name, metrics, training_set=None, example=None):
+    # Feature-VECTOR contract (claims_workbench gotcha): fe.log_model-packaged models do a
+    # feature lookup BY KEY at serving time, which requires an ONLINE store — absent here, the
+    # endpoint fails to build. So models are always logged as plain pyfunc taking the feature
+    # vector; the training run still records the Feature Store training set for lineage.
     with mlflow.start_run(run_name=run_name):
         mlflow.log_metrics(metrics)
-        sig = mlflow.models.infer_signature(example[feats], pd.Series([0.5]))
         if training_set is not None:
-            info = fe.log_model(model=ProbaModel(model, feats), artifact_path="model",
-                                flavor=mlflow.pyfunc, training_set=training_set,
-                                registered_model_name=f"{fqn}.{name}",
-                                signature=sig, input_example=example[feats].head(2),
-                                pip_requirements=["lightgbm", "pandas", "scikit-learn"])
-        else:
-            info = mlflow.pyfunc.log_model(artifact_path="model", python_model=ProbaModel(model, feats),
-                                           registered_model_name=f"{fqn}.{name}",
-                                           signature=sig, input_example=example[feats].head(2),
-                                           pip_requirements=["lightgbm", "pandas", "scikit-learn"])
-    v = (info.registered_model_version if hasattr(info, "registered_model_version") and info.registered_model_version
+            mlflow.log_param("feature_store_training_set", f"{fqn}.feature_submission")
+        sig = mlflow.models.infer_signature(example[feats], pd.Series([0.5]))
+        info = mlflow.pyfunc.log_model(artifact_path="model", python_model=ProbaModel(model, feats),
+                                       registered_model_name=f"{fqn}.{name}",
+                                       signature=sig, input_example=example[feats].head(2),
+                                       pip_requirements=["lightgbm", "pandas", "scikit-learn"])
+    v = (info.registered_model_version if getattr(info, "registered_model_version", None)
          else max(int(m.version) for m in w.model_versions.list(f"{fqn}.{name}")))
     w.registered_models.set_alias(full_name=f"{fqn}.{name}", alias="champion", version_num=int(v))
     print(f"  {name} v{v} @champion  {metrics}")

@@ -158,8 +158,8 @@ UNDERWRITERS = [
     ("UW-03", "Rachel Byrne", "sme_package", "underwriter"),
     ("UW-04", "Marcus Webb", "mid_market", "underwriter"),
     ("UW-05", "Aisha Rahman", "mid_market", "underwriter"),
-    ("UW-06", "Steven Doyle", "mid_market", "senior_underwriter"),
-    ("UW-07", "Helen Craddock", "mid_market", "senior_underwriter"),   # hero 900002's referral route
+    ("UW-06", "Helen Craddock", "mid_market", "senior_underwriter"),   # hero 900002's referral route
+    ("UW-07", "Steven Doyle", "mid_market", "senior_underwriter"),
     ("UW-08", "Josh Whittaker", "casualty", "underwriter"),
     ("UW-09", "Marta Kowalczyk", "casualty", "senior_underwriter"),
     ("UW-10", "Gareth Lloyd", "trading_desk", "assistant_underwriter"),
@@ -175,8 +175,8 @@ AUTHORITY = [
     ("system_etrade",        500_000,     2_500, 2, False, "underwriter"),
     ("assistant_underwriter", 1_000_000,  5_000, 2, False, "underwriter"),
     ("underwriter",           5_000_000, 50_000, 3, False, "senior_underwriter"),
-    ("senior_underwriter",   25_000_000, 250_000, 4, True,  "head_of_underwriting"),
-    ("head_of_underwriting", 100_000_000, 1_000_000, 5, True, "board"),
+    ("senior_underwriter",   50_000_000, 400_000, 4, True,  "head_of_underwriting"),
+    ("head_of_underwriting", 150_000_000, 1_500_000, 5, True, "board"),
 ]
 write(spark.createDataFrame(AUTHORITY,
       "grade string, max_total_si long, max_gross_premium long, max_hazard_grade int, flood_high_allowed boolean, escalate_to string"),
