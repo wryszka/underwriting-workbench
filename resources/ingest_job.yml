@@ -1,0 +1,49 @@
+resources:
+  jobs:
+    underwriting_01_ingest:
+      name: underwriting_01_ingest
+      description: "Landing files → Document AI extraction → medallion pipeline → DQ scorecard"
+      tags:
+        project: underwriting_workbench
+      parameters:
+        - name: catalog
+          default: ${var.catalog}
+        - name: schema
+          default: ${var.schema}
+      environments:
+        - environment_key: default
+          spec:
+            client: "5"
+      tasks:
+        - task_key: landing_files
+          environment_key: default
+          notebook_task:
+            notebook_path: ../notebooks/00b_landing_files.py
+            base_parameters:
+              catalog: "{{job.parameters.catalog}}"
+              schema: "{{job.parameters.schema}}"
+        - task_key: doc_extraction
+          depends_on:
+            - task_key: landing_files
+          environment_key: default
+          notebook_task:
+            notebook_path: ../notebooks/01c_doc_extraction.py
+            base_parameters:
+              catalog: "{{job.parameters.catalog}}"
+              schema: "{{job.parameters.schema}}"
+              fm_endpoint: ${var.fm_endpoint}
+        - task_key: medallion
+          depends_on:
+            - task_key: doc_extraction
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.underwriting_medallion.id}
+            full_refresh: true
+        - task_key: dq_scorecard
+          depends_on:
+            - task_key: medallion
+          environment_key: default
+          notebook_task:
+            notebook_path: ../notebooks/03b_dq_scorecard.py
+            base_parameters:
+              catalog: "{{job.parameters.catalog}}"
+              schema: "{{job.parameters.schema}}"
