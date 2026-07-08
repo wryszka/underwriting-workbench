@@ -97,37 +97,32 @@ RETURNS STRUCT<total_si BIGINT, technical_base_premium DOUBLE, hazard_grade INT,
                suggested_underwriter STRING, triggers ARRAY<STRING>>
 COMMENT 'Authority check vs ref_authority_matrix: the minimum grade whose limits (total SI, premium, hazard grade, flood-High permission) cover this submission, the referral route, and a suggested named underwriter on the right desk. Also whether it fits e-trade system authority (straight-through). Input: submission_public_id.'
 RETURN SELECT named_struct(
-  'total_si', s.tsi, 'technical_base_premium', s.tech, 'hazard_grade', s.hz, 'flood_band', s.fb,
-  'etrade_eligible',
-    s.tsi <= (SELECT any_value(m.max_total_si) FROM {F}.ref_authority_matrix m WHERE m.grade = 'system_etrade')
-    AND s.tech <= (SELECT any_value(m.max_gross_premium) FROM {F}.ref_authority_matrix m WHERE m.grade = 'system_etrade')
-    AND s.hz <= (SELECT any_value(m.max_hazard_grade) FROM {F}.ref_authority_matrix m WHERE m.grade = 'system_etrade')
-    AND (s.fb <> 'High' OR (SELECT any_value(m.flood_high_allowed) FROM {F}.ref_authority_matrix m WHERE m.grade = 'system_etrade')),
-  'required_grade',
-    (SELECT min_by(m.grade, m.max_total_si) FROM {F}.ref_authority_matrix m
-     WHERE m.grade <> 'system_etrade' AND m.max_total_si >= s.tsi AND m.max_gross_premium >= s.tech
-       AND m.max_hazard_grade >= s.hz AND (m.flood_high_allowed OR s.fb <> 'High')),
-  'escalate_to',
-    (SELECT any_value(m.escalate_to) FROM {F}.ref_authority_matrix m
-     WHERE m.grade = (SELECT min_by(m2.grade, m2.max_total_si) FROM {F}.ref_authority_matrix m2
-                      WHERE m2.grade <> 'system_etrade' AND m2.max_total_si >= s.tsi
-                        AND m2.max_gross_premium >= s.tech AND m2.max_hazard_grade >= s.hz
-                        AND (m2.flood_high_allowed OR s.fb <> 'High'))),
+  'total_si', any_value(s.tsi), 'technical_base_premium', any_value(s.tech),
+  'hazard_grade', any_value(s.hz), 'flood_band', any_value(s.fb),
+  'etrade_eligible', any_value(s.tsi <= et.si AND s.tech <= et.prem AND s.hz <= et.hz
+                               AND (s.fb <> 'High' OR et.fh)),
+  'required_grade', min_by(m.grade, m.max_total_si) FILTER (WHERE adequate),
+  'escalate_to', min_by(m.escalate_to, m.max_total_si) FILTER (WHERE adequate),
   'suggested_underwriter',
-    (SELECT min_by(u.underwriter_name, u.underwriter_id) FROM {F}.ref_underwriter u
-     WHERE u.grade = (SELECT min_by(m2.grade, m2.max_total_si) FROM {F}.ref_authority_matrix m2
-                      WHERE m2.grade <> 'system_etrade' AND m2.max_total_si >= s.tsi
-                        AND m2.max_gross_premium >= s.tech AND m2.max_hazard_grade >= s.hz
-                        AND (m2.flood_high_allowed OR s.fb <> 'High'))
-       AND u.desk = CASE WHEN s.seg = 'mid_market' THEN 'mid_market' ELSE 'sme_package' END),
-  'triggers', filter(array(
+     min_by(u.underwriter_name, concat(lpad(cast(m.max_total_si AS STRING), 12, '0'), u.underwriter_id))
+       FILTER (WHERE adequate AND u.underwriter_name IS NOT NULL),
+  'triggers', any_value(filter(array(
      CASE WHEN s.tsi > 5000000 THEN concat('Total SI GBP ', format_number(s.tsi, 0), ' above the GBP 5m underwriter band') END,
      CASE WHEN s.fb = 'High' THEN 'Flood band HIGH requires senior authority' END,
-     CASE WHEN s.hz >= 4 THEN concat('Hazard grade ', s.hz, ' requires senior authority') END), x -> x IS NOT NULL))
+     CASE WHEN s.hz >= 4 THEN concat('Hazard grade ', s.hz, ' requires senior authority') END), x -> x IS NOT NULL)))
 FROM (SELECT any_value(total_si) AS tsi, any_value(technical_base_premium) AS tech,
              any_value(hazard_grade) AS hz, coalesce(any_value(flood_band), 'Low') AS fb,
              any_value(segment) AS seg
       FROM {F}.silver_submissions WHERE submission_public_id = sid) s
+CROSS JOIN (SELECT any_value(max_total_si) AS si, any_value(max_gross_premium) AS prem,
+                   any_value(max_hazard_grade) AS hz, any_value(flood_high_allowed) AS fh
+            FROM {F}.ref_authority_matrix WHERE grade = 'system_etrade') et
+CROSS JOIN LATERAL (SELECT a.*, a.grade <> 'system_etrade' AND a.max_total_si >= s.tsi
+                           AND a.max_gross_premium >= s.tech AND a.max_hazard_grade >= s.hz
+                           AND (a.flood_high_allowed OR s.fb <> 'High') AS adequate
+                    FROM {F}.ref_authority_matrix a) m
+LEFT JOIN {F}.ref_underwriter u
+  ON u.grade = m.grade AND u.desk = CASE WHEN s.seg = 'mid_market' THEN 'mid_market' ELSE 'sme_package' END
 """)
 
 # COMMAND ----------
@@ -199,22 +194,24 @@ FROM (
   SELECT s.seg, s.target, s.prop_c, s.bi_c, s.el_c, s.pl_c,
          greatest(s.min_p, s.prop_c + s.bi_c + s.el_c + s.pl_c) AS base,
          (s.contents_stock * least(s.crime, 150) / 150.0) * 0.045 AS crime_l,
-         coalesce(h.high_share, 0) * s.prop_c * 0.25 AS flood_l,
+         coalesce(s.high_share, 0) * s.prop_c * 0.25 AS flood_l,
          CASE WHEN s.cohort_lr > 65 THEN (s.prop_c + s.bi_c) * 0.10
               WHEN s.cohort_lr < 35 THEN -(s.prop_c + s.bi_c) * 0.05 ELSE 0 END AS exp_l
-  FROM (SELECT any_value(segment) AS seg, any_value(target_premium) AS target,
-               any_value(total_property_si) * any_value(r.property_rate_permille) / 1000 AS prop_c,
-               any_value(bi_si) * any_value(r.bi_rate_permille) / 1000 AS bi_c,
-               any_value(employees) * any_value(r.el_rate_per_employee) AS el_c,
-               coalesce(any_value(turnover_stated), 0) / 1000 * any_value(r.pl_rate_per_1k_turnover) AS pl_c,
+  FROM (SELECT any_value(ss.segment) AS seg, any_value(ss.target_premium) AS target,
+               any_value(ss.total_property_si) * any_value(r.property_rate_permille) / 1000 AS prop_c,
+               any_value(ss.bi_si) * any_value(r.bi_rate_permille) / 1000 AS bi_c,
+               any_value(ss.employees) * any_value(r.el_rate_per_employee) AS el_c,
+               coalesce(any_value(ss.turnover_stated), 0) / 1000 * any_value(r.pl_rate_per_1k_turnover) AS pl_c,
                any_value(r.min_premium) AS min_p,
-               any_value(contents_si) + any_value(stock_si) AS contents_stock,
-               coalesce(any_value(crime_count), 0) AS crime,
-               coalesce(any_value(cohort_loss_ratio_pct), 50) AS cohort_lr
-        FROM {F}.silver_submissions ss JOIN {F}.ref_rate_guide r USING (trade_group)
+               any_value(ss.contents_si) + any_value(ss.stock_si) AS contents_stock,
+               coalesce(any_value(ss.crime_count), 0) AS crime,
+               coalesce(any_value(ss.cohort_loss_ratio_pct), 50) AS cohort_lr,
+               sum(CASE WHEN l.flood_band = 'High' THEN l.property_si ELSE 0 END)
+                 / nullif(sum(l.property_si), 0) AS high_share
+        FROM {F}.silver_submissions ss
+        JOIN {F}.ref_rate_guide r USING (trade_group)
+        LEFT JOIN {F}.silver_locations_enriched l ON l.submission_public_id = ss.submission_public_id
         WHERE ss.submission_public_id = sid) s
-  LEFT JOIN (SELECT sum(CASE WHEN flood_band = 'High' THEN property_si ELSE 0 END) / sum(property_si) AS high_share
-             FROM {F}.silver_locations_enriched WHERE submission_public_id = sid) h ON true
 ) x
 """)
 
@@ -358,13 +355,10 @@ RETURN SELECT named_struct(
   'straight_through', app.in_appetite AND scr.status = 'clear' AND coalesce(acc.worst_status, 'a_ok') = 'a_ok'
      AND es.channel = 'etrade' AND auth.etrade_eligible AND es.data_complete
      AND coalesce(es.turnover_mismatch_ratio, 1.0) < 1.5)
-FROM (SELECT {F}.fn_extract_summary(sid) AS es) t1
-CROSS JOIN (SELECT {F}.fn_appetite_check(sid) AS app) t2
-CROSS JOIN (SELECT {F}.fn_authority_check(sid) AS auth) t3
-CROSS JOIN (SELECT {F}.fn_accumulation_impact(sid) AS acc) t4
-CROSS JOIN (SELECT {F}.fn_sanctions_screen(sid) AS scr) t5
-CROSS JOIN (SELECT {F}.fn_technical_price(sid) AS prc) t6
-CROSS JOIN (SELECT {F}.fn_underinsurance_check(sid) AS ui) t7
+FROM (SELECT {F}.fn_extract_summary(sid) AS es, {F}.fn_appetite_check(sid) AS app,
+             {F}.fn_authority_check(sid) AS auth, {F}.fn_accumulation_impact(sid) AS acc,
+             {F}.fn_sanctions_screen(sid) AS scr, {F}.fn_technical_price(sid) AS prc,
+             {F}.fn_underinsurance_check(sid) AS ui) t
 """)
 
 # COMMAND ----------

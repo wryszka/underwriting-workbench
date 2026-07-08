@@ -255,24 +255,9 @@ WATCHLIST = [
 write(spark.createDataFrame(WATCHLIST, "watchlist_id string, name string, subject_type string, reason string, source string"),
       "ref_internal_watchlist", "reference")
 
-# District property capacity (accumulation appetite per postcode district, £ total property SI).
-# HX7 (Calder Valley) is deliberately tight: in-force is seeded to 67% and hero 900002's
-# marginal exposure takes it to 87% — over the 80% referral line, under the 100% breach line.
-random.seed(SEED + 1)
 CITY = {"EC1", "E1", "SE1", "SW1", "N1", "M1", "B1", "LS1", "BS1", "NE1", "CF10", "S1", "NG1", "LE1", "CV1"}
-cap_rows = []
-for d in DISTRICTS:
-    if d == "HX7":
-        cap = 25_000_000
-    elif d == "HX6":
-        cap = 30_000_000
-    elif d in CITY:
-        cap = random.choice([200, 250, 300, 350, 400]) * 1_000_000
-    else:
-        cap = random.choice([60, 80, 100, 120, 150]) * 1_000_000
-    cap_rows.append((d, cap))
-write(spark.createDataFrame(cap_rows, "postcode_district string, property_capacity_gbp long"),
-      "ref_district_capacity", "reference")
+# ref_district_capacity is written AFTER the PAS book below — capacity is calibrated to the
+# generated in-force exposure so utilisation is meaningful (HX7 pinned to £25m = 67%).
 
 # COMMAND ----------
 
@@ -457,6 +442,28 @@ pol_df = spark.createDataFrame(policies, pol_schema).withColumn(
                         "WHEN pmod(abs(hash(policy_number)),10)<=7 THEN 'BRK-001' "
                         "WHEN pmod(abs(hash(policy_number)),10)<=8 THEN 'BRK-002' ELSE 'DIRECT' END"))
 write(pol_df, "landing_pas_policies", "landing")
+
+# District property capacity (accumulation appetite): calibrated to the generated in-force book
+# so the Control Tower reads sensibly — most districts 45-70% (green), GL1/S1 deliberately amber
+# (~83-86%), HX7 (Calder Valley) pinned at £25m so the hand-seeded £16.75m = 67% and hero
+# 900002's marginal £5m lands at exactly 87% (over the 80% referral line, under breach).
+from collections import defaultdict
+
+_inforce = defaultdict(int)
+for p in policies:
+    if p[-1] == "in_force":
+        _inforce[p[4]] += p[11] + p[12] + p[13]   # district → buildings+contents+stock
+AMBER_TARGET = {"GL1": 0.83, "S1": 0.86}          # flood-High GL1 amber = a nice Control Tower story
+cap_rows = []
+for d in DISTRICTS:
+    if d == "HX7":
+        cap = 25_000_000
+    else:
+        util = AMBER_TARGET.get(d, 0.45 + (sum(ord(c) for c in d) % 26) / 100.0)
+        cap = int(round(_inforce[d] / util, -5)) if _inforce[d] else 20_000_000
+    cap_rows.append((d, cap))
+write(spark.createDataFrame(cap_rows, "postcode_district string, property_capacity_gbp long"),
+      "ref_district_capacity", "reference")
 
 # COMMAND ----------
 
