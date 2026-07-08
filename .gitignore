@@ -1,0 +1,7 @@
+.databricks/
+__pycache__/
+*.pyc
+.venv/
+app/.venv/
+.DS_Store
+*.bak
