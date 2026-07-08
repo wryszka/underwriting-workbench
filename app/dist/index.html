@@ -404,7 +404,7 @@ async function controlTower(){
       ${(d.accum_hot||[]).map(r=>`<div class="kv"><span>${esc(r.postcode_district)} ${r.flood_band==="High"?pill("flood HIGH","red"):""}</span><b>${pct(r.utilisation_pct)} ${ragPill(r.rag)}</b></div>`).join("")}
     </div>
   </div>
-  <div class="prov">⛁ Freshness: queried ${esc((d.meta||{}).queried_at||"")} · inbox batch-scored ${esc((d.meta||{}).scored_at||"")}. Tables: gold_portfolio_position · gold_renewals · gold_pipeline_funnel · gold_rate_adequacy · gold_accumulation · gold_submission_lifecycle.</div>`;
+  <div class="prov">⛁ Computed live from the governed marts — queried ${esc((d.meta||{}).queried_at||"")} · pipeline batch-scored ${esc((d.meta||{}).scored_at||"")}. Click any tile for its reconciling rows and the SQL behind it.</div>`;
   loadBrief();loadWorth();
 }
 async function loadBrief(){
@@ -459,7 +459,7 @@ async function inboxPage(){
   <p class="sub">The open pipeline ranked by <b>expected value</b> — premium × modelled P(bind) — so the desk works what is winnable <i>and worth winning</i>. Heroes pinned. Click a row to work it.</p>
   ${present("What it is: the desk's triage queue. What it shows: every open submission ranked by expected premium value (not gut feel, not inbox order), with the model's win-likelihood and risk quality alongside, SLA clocks per channel, and why-chips (flood / fair presentation / appetite) before you open the file. Straight-through eligibility is a COST decision within appetite — deliberately independent of P(bind).")}
   <div class="card"><table><thead><tr><th>submission</th><th>trade</th><th>channel</th><th>expected value</th><th>P(bind) · risk</th><th>total SI</th><th>state</th><th>SLA</th><th>flags</th></tr></thead><tbody>${rows}</tbody></table></div>
-  <div class="prov">Scores are batch inference (ai_query over the champion model) refreshed by the pipeline — the app never blocks on a cold model endpoint. ${esc(d.note||"")}</div>`;
+  <div class="prov">Scores are refreshed in batch by the pipeline — the queue is instant, never waiting on a model to wake. ${esc(d.note||"")}</div>`;
 }
 
 /* ---------- renewals desk ---------- */
@@ -490,7 +490,7 @@ async function renewalsDesk(){
     <div class="card"><h3>Due in 30 days</h3><div class="big">${num(k.due_30d)}</div></div>
   </div>
   <div class="card" style="margin-top:16px"><table><thead><tr><th>policy</th><th>expiry</th><th>premium</th><th>last rate chg</th><th>claims 3y</th><th>trade adequacy</th><th>suggested stance</th><th>retention</th></tr></thead><tbody>${rows}</tbody></table></div>
-  <div class="prov">Computed live from the PAS book (bronze_pas_policies + bronze_pas_claims) and gold_rate_adequacy. Renewal invitation workflow (pre-renewal survey chase, broker pack) = roadmap on One Book.</div>`;
+  <div class="prov">Computed live from the policy book and its claims experience. Renewal invitation workflow (pre-renewal survey chase, broker pack) = roadmap on One Book.</div>`;
 }
 
 /* ---------- work a submission ---------- */
@@ -617,7 +617,7 @@ async function subView(sid){
       <div style="display:flex;gap:8px"><input class="f" id="supq" style="margin:0" placeholder="Should we quote this? What would you change?">
       <button class="btn" onclick="askSup('${sid}')">Ask</button></div><div id="supslot"></div></div>
   </div>
-  <div class="prov">⌘ Every panel above is a live UC function call: ${Object.values(d.fns||{}).map(f=>`<span class="mono">${esc(f.split("(")[0].split(".").pop())}</span>`).join(" · ")} — inspect them in Catalog Explorer. Decisions write to gold_decision_audit with the full as-at dossier snapshot.</div>`;
+  <div class="prov">⌘ Nothing on this page is hardcoded: every panel is a live call to a governed Unity Catalog function, inspectable in Catalog Explorer. Decisions are recorded with the full as-at dossier snapshot.</div>`;
   loadDecisionHistory(sid);
 }
 async function recordDecision(sid,action){
@@ -708,7 +708,7 @@ async function tryIt(){
       <div><label class="f">Turnover</label><input class="f" id="w_t" value="2500000"></div>
       <div><label class="f">Broker target £ (optional)</label><input class="f" id="w_tp" value=""></div></div>
     <div style="margin-top:14px"><button class="btn" onclick="runWhatif()">Price it live →</button></div></div>
-  <div class="card" id="w_out"><h3>Result</h3><div class="muted">Fill the facts and price it. Calls fn_price_whatif + fn_accumulation_whatif live.</div></div></div>`;
+  <div class="card" id="w_out"><h3>Result</h3><div class="muted">Fill the facts and price it — the same governed pricing and accumulation checks the workbench uses, called live.</div></div></div>`;
 }
 async function runWhatif(){
   $("#w_out").innerHTML='<div class="loading">Calling the UC functions…</div>';
@@ -868,11 +868,10 @@ async function ingestionPage(){
       return `<div class="srcrow ${open?"open":""}" onclick="ingToggle('${key}')">
         <span class="dot ${fails>0?"warn":"ok"}"></span>
         <div class="sname"><b>${esc(x.source)} ${sim?pill("simulated data","slatep"):pill("real data","green")}</b>
-          <span>${esc(x.system)} · ${esc(x.format)} · <span class="mono">${esc(x.databricks_tool)}</span></span></div>
+          <span>${esc(x.system)} · ${esc(x.format)}</span></div>
         <div class="smeta">
           <span>rows <b>${x.row_count!=null?num(x.row_count):"—"}</b></span>
           <span>quality <b>${rp!=null?rp.toFixed(1)+"%":"—"}</b></span>
-          ${x.table_name?`<span class="mono" style="color:#1d4ed8;background:#eff6ff;border:1px solid #dbeafe;border-radius:6px;padding:1px 7px">${esc(x.table_name)}</span>`:""}
         </div><span class="chev">▶</span></div>
         ${open?`<div class="srcdetail" onclick="event.stopPropagation()">${ingDetail(x,rules)}</div>`:""}`;
     }).join("");
@@ -1018,7 +1017,7 @@ async function aiPage(){
     ["tone-blue","model","Risk quality model","LightGBM large-loss propensity trained on the PAS book's claims experience.","📉",d.models?.["underwriting-risk"]],
   ].map(([tone,role,nm,desc,ic,ep])=>`<a class="atile ${tone}" ${ep&&ep.url?`href="${esc(ep.url)}" target="${ep.url.startsWith("#")?"_self":"_blank"}"`:""}>
       <div class="ic">${ic}</div><div class="role">${role}</div><b class="nm">${nm}</b><div class="d">${desc}</div>
-      <div class="ep">${esc(ep&&ep.endpoint||"")}</div></a>`).join("");
+      ${ep&&ep.url?`<div class="ep" title="${esc(ep.endpoint||"")}" style="font-family:inherit;color:inherit;opacity:.65">open the live endpoint ↗</div>`:""}</a>`).join("");
   m.innerHTML=`
   <div class="eyebrow">Platform</div><h1>Underwriting AI</h1>
   <p class="sub">One supervisor. A bench of specialists. Models decide scores, rules decide checks, agents reason and draft — <b>a named human signs</b>. Every call audited.</p>
