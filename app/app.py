@@ -7,6 +7,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse
 
 from server import agents, config, sql
+from server.packs import build_pack
 
 app = FastAPI(title="Underwriting Workbench — Bricksurance SE")
 
@@ -286,7 +287,34 @@ async def decision(req: Request):
         {f"'{sql.esc(b['external_reason'])}'" if b.get("external_reason") else "NULL"},
         {arr("internal_notes")}, {b.get("quoted_premium") or "NULL"},
         {str(bool(b.get("straight_through"))).lower()}, '{who}', 'app', current_timestamp(), {ev_sql})""")
-    return {"decision_id": did, "recorded_by": who, "evidence_recorded": bool(evidence)}
+    pack = _write_pack({**b, "decision_id": did, "submission_public_id": b.get("sid", ""),
+                        "decided_by": who, "decided_via": "app", "decision_ts": "now"},
+                       b.get("evidence") or {})
+    return {"decision_id": did, "recorded_by": who, "evidence_recorded": bool(evidence), "pack": pack}
+
+
+def _write_pack(audit_like: dict, evidence: dict):
+    """Compile the audit-pack PDF into the comms_out Volume + register it. Best-effort."""
+    try:
+        sid = audit_like.get("submission_public_id", "")
+        fname = sid.replace(":", "-") + "_decision_pack.pdf"
+        path = f"/Volumes/{config.CATALOG}/{config.SCHEMA}/comms_out/{fname}"
+        pdf = build_pack(audit_like, evidence)
+        import io
+
+        config.get_workspace_client().files.upload(path, io.BytesIO(pdf), overwrite=True)
+        sql.query(f"""CREATE TABLE IF NOT EXISTS {F('gold_decision_packs')} (
+            submission_public_id STRING, decision_id STRING, file_name STRING,
+            path STRING, bytes BIGINT, generated_at TIMESTAMP) USING DELTA""")
+        sql.query(f"""MERGE INTO {F('gold_decision_packs')} t
+            USING (SELECT '{sql.esc(sid)}' sid) s ON t.submission_public_id = s.sid
+            WHEN MATCHED THEN UPDATE SET decision_id='{sql.esc(audit_like.get("decision_id", ""))}',
+                 file_name='{fname}', path='{path}', bytes={len(pdf)}, generated_at=current_timestamp()
+            WHEN NOT MATCHED THEN INSERT VALUES ('{sql.esc(sid)}', '{sql.esc(audit_like.get("decision_id", ""))}',
+                 '{fname}', '{path}', {len(pdf)}, current_timestamp())""")
+        return {"file_name": fname, "bytes": len(pdf)}
+    except Exception as e:  # noqa: BLE001 — the decision record must never fail on the pack
+        return {"error": str(e)[:150]}
 
 
 @app.get("/api/decisions")
@@ -299,6 +327,19 @@ def decisions(sid: str = None):
                                          (decision_evidence IS NOT NULL) AS has_evidence
                                   FROM {F('gold_decision_audit')} {where}
                                   ORDER BY decision_ts DESC LIMIT 50""")}
+
+
+@app.get("/api/decision/pack")
+def decision_pack(sid: str):
+    """Stream the audit-pack PDF for a decided submission from the comms_out Volume."""
+    from fastapi.responses import Response
+    row = sql.query_one(f"""SELECT path, file_name FROM {F('gold_decision_packs')}
+                            WHERE submission_public_id='{sql.esc(sid)}' LIMIT 1""")
+    if not row:
+        return JSONResponse({"error": "no pack for this submission yet"}, status_code=404)
+    data = config.get_workspace_client().files.download(row["path"]).contents.read()
+    return Response(content=data, media_type="application/pdf",
+                    headers={"Content-Disposition": f"inline; filename={row['file_name']}"})
 
 
 @app.get("/api/decision/evidence")

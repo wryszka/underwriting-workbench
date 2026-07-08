@@ -630,7 +630,7 @@ async function recordDecision(sid,action){
     decline_code:rec.decline_code_external,external_reason:rec.external_reason,
     internal_notes:rec.internal_notes||[],quoted_premium:prc.technical_premium,
     straight_through:!!rec.straight_through,evidence});
-  $("#decmsg").innerHTML=`✓ Recorded <span class="mono">${esc(r.decision_id)}</span> by ${esc(r.recorded_by)} — with the full as-at dossier snapshot → gold_decision_audit`;
+  $("#decmsg").innerHTML=`✓ Recorded <span class="mono">${esc(r.decision_id)}</span> by ${esc(r.recorded_by)} — with the full as-at dossier snapshot${r.pack&&r.pack.file_name?` · <a class="lnk" href="/api/decision/pack?sid=${encodeURIComponent(sid)}" target="_blank">📦 audit pack (PDF)</a>`:""}`;
   loadDecisionHistory(sid);
 }
 function editedList(id,fallback){
@@ -645,7 +645,7 @@ async function loadDecisionHistory(sid){
   el.innerHTML=rows.length?`<h3 style="margin-top:18px">Decision history — negotiation rounds</h3>`+
     rows.map((r,i)=>`<div class="kv"><span>v${rows.length-i} · ${pill(r.action,r.action==="quote"?"green":r.action==="decline"?"red":"amber")} ${esc(r.decision_ts)}<br>
       <span class="muted">${esc(r.decided_by)} · terms: ${(r.terms||[]).length} · subjectivities: ${(r.subjectivities||[]).length}</span></span>
-      <b>${String(r.has_evidence)==="true"?`<a class="lnk" onclick="evidenceModal('${esc(r.decision_id)}')">dossier as-at ↗</a>`:""}</b></div>`).join(""):"";
+      <b>${String(r.has_evidence)==="true"?`<a class="lnk" onclick="evidenceModal('${esc(r.decision_id)}')">dossier as-at ↗</a> · `:""}<a class="lnk" href="/api/decision/pack?sid=${encodeURIComponent(r.submission_public_id)}" target="_blank">📦 PDF</a></b></div>`).join(""):"";
 }
 async function evidenceModal(did){
   openModal('<div class="loading">Loading the as-at dossier snapshot…</div>');
@@ -971,7 +971,7 @@ async function governancePage(){
       <td>${pill(r.action,r.action==="quote"?"green":r.action==="decline"?"red":"amber")}</td>
       <td>${esc(r.refer_to_grade||"—")}</td><td>${esc(r.decided_by)}</td><td>${esc(r.decided_via)}</td>
       <td>${esc(r.decline_code_external||"—")}</td>
-      <td>${String(r.has_evidence)==="true"?`<a class="lnk" onclick="evidenceModal('${esc(r.decision_id)}')">as-at dossier ↗</a>`:'<span class="muted">seed</span>'}</td></tr>`).join("");
+      <td>${String(r.has_evidence)==="true"?`<a class="lnk" onclick="evidenceModal('${esc(r.decision_id)}')">as-at dossier ↗</a> · `:""}<a class="lnk" href="/api/decision/pack?sid=${encodeURIComponent(r.submission_public_id)}" target="_blank">📦 PDF</a></td></tr>`).join("");
     b.innerHTML=`<div class="card"><h3>Decision audit — every quote / refer / decline / query</h3>
       <div class="muted" style="margin-bottom:8px">"Show me exactly what the underwriter saw" — decisions recorded in the app carry the full dossier snapshot as-at decision time. Click one.</div>
       <table><thead><tr><th>when</th><th>submission</th><th>action</th><th>refer to</th><th>by</th><th>via</th><th>code</th><th>reproducibility</th></tr></thead><tbody>${audRows}</tbody></table></div>

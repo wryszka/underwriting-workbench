@@ -72,8 +72,14 @@ resources:
           notebook_task:
             notebook_path: ../notebooks/07_governance.py
             base_parameters: {catalog: "{{job.parameters.catalog}}", schema: "{{job.parameters.schema}}"}
-        - task_key: cache_reset
+        - task_key: decision_packs
           depends_on: [{task_key: governance_reseed}]
+          environment_key: default
+          notebook_task:
+            notebook_path: ../notebooks/12_decision_packs.py
+            base_parameters: {catalog: "{{job.parameters.catalog}}", schema: "{{job.parameters.schema}}"}
+        - task_key: cache_reset
+          depends_on: [{task_key: decision_packs}]
           environment_key: default
           notebook_task:
             notebook_path: ../notebooks/99_reset.py
