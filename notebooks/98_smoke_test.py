@@ -53,7 +53,7 @@ TABLES = ["landing_pas_policies", "landing_pas_claims", "landing_submissions_fee
           "silver_locations_enriched", "gold_pipeline_funnel", "gold_portfolio_position", "gold_accumulation",
           "gold_broker_scorecard", "gold_rate_adequacy", "gold_renewals", "gold_underinsurance",
           "gold_submission_lifecycle", "gold_dq_scorecard", "gold_ingestion_sources", "gold_inbox_priority",
-          "gold_decision_audit", "gold_comms_drafts", "gold_ai_activity", "gov_data_inventory",
+          "gold_decision_audit", "gold_comms_drafts", "gold_ai_activity", "gov_data_inventory", "gov_guide_changes",
           "feature_submission", "medallion_event_log"]
 FUNCTIONS = ["fn_extract_summary", "fn_appetite_check", "fn_authority_check", "fn_accumulation_impact",
              "fn_technical_price", "fn_sanctions_screen", "fn_underinsurance_check", "fn_recommendation",
@@ -62,7 +62,7 @@ VIEWS = ["gov_watchlist_secure", "gov_conduct_declines"]
 VOLUMES = ["submission_inbox", "open_data", "ingest_checkpoints", "comms_out"]
 MODELS = ["model_triage_priority", "model_risk_quality", "model_underwriting_agent", "underwriting_agent"]
 ENDPOINT_SUBSTRS = ["underwriting-triage", "underwriting-risk", "underwriting-riskprofile", "underwriting-appetite",
-                    "underwriting-adequacy", "underwriting-comms", "underwriting-challenge"]
+                    "underwriting-adequacy", "underwriting-comms", "underwriting-challenge", "underwriting-brief"]
 
 
 def _tables():
@@ -202,6 +202,11 @@ check("C2 hero 900002 referral", _hero2)
 check("C3 hero 900003 decline", _hero3)
 check("C4 what-if fns", lambda: (lambda p: f"HX7 whatif flood loading £{p['flood_loading']:.0f} > 0" if p["flood_loading"] > 0 else (_ for _ in ()).throw(AssertionError("no flood loading in HX7")))(
       json.loads(q(f"SELECT to_json({fqn}.fn_price_whatif('food_manufacturing','HX7',2000000,500000,0,300000,1000000,50,4000000,NULL)) AS r").first().r)))
+check("C4b call transcripts through the pipeline", lambda: (lambda n, t: (_ for _ in ()).throw(AssertionError(f"transcripts n={n} fd_turnover={t}")) if (n < 3 or t != 24_000_000) else f"{n} transcripts · FD call turnover £24m extracted")(
+      q(f"SELECT count(*) c FROM {fqn}.bronze_doc_extractions WHERE doc_type='call_transcript'").first().c,
+      q(f"SELECT turnover_stated_gbp t FROM {fqn}.bronze_doc_extractions WHERE file_name='sub-900002_call_fd.txt'").first().t))
+check("C4c decision evidence column", lambda: (lambda cols: "decision_evidence present" if "decision_evidence" in cols else (_ for _ in ()).throw(AssertionError("missing")))(
+      [c.name for c in spark.table(f"{fqn}.gold_decision_audit").schema.fields]))
 check("C5 inbox batch-scored", lambda: (lambda n: f"{n} open submissions scored" if n > 100 else (_ for _ in ()).throw(AssertionError(f"only {n}")))(
       q(f"SELECT count(*) c FROM {fqn}.gold_inbox_priority").first().c))
 

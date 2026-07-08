@@ -681,16 +681,21 @@ def reset_status(run_id: int):
 
 
 @app.post("/api/warm-cache")
-def warm_cache():
-    warmed = []
-    for sid in ("sub:900001", "sub:900002", "sub:900003"):
+def warm_cache(scope: str = None):
+    """Warm the narration cache. Chunked via ?scope=sub:NNN|book so each call stays inside
+    the Apps gateway timeout (a full warm after reset used to exceed it)."""
+    warmed = 0
+    sids = [scope] if scope and scope.startswith("sub:") else         ([] if scope == "book" else ["sub:900001", "sub:900002", "sub:900003"])
+    for sid in sids:
         for role in ("risk_profile", "appetite", "pricing_adequacy", "challenge"):
             submission_narrate(sid, role=role, cache=1)
-            warmed.append(f"{sid}:{role}")
-    brief(cache=1)
-    agents.ask_agent("Should we quote this? Give the call, terms and who signs.",
-                     {"submission_public_id": "sub:900002"}, use_cache=True)
-    return {"warmed": len(warmed) + 2}
+            warmed += 1
+    if scope in (None, "book"):
+        brief(cache=1)
+        agents.ask_agent("Should we quote this? Give the call, terms and who signs.",
+                         {"submission_public_id": "sub:900002"}, use_cache=True)
+        warmed += 2
+    return {"warmed": warmed, "scope": scope or "all"}
 
 
 # ---------------------------------------------------------------- static SPA

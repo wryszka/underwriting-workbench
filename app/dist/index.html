@@ -219,7 +219,9 @@ async function resetDemo(){
   const r=await post("/reset");if(r.error){b.textContent="reset job not installed";return}
   const poll=setInterval(async()=>{const s=await api("/reset/status?run_id="+r.run_id);
     if(["TERMINATED","INTERNAL_ERROR","SKIPPED"].includes(s.life_cycle)){clearInterval(poll);
-      if(s.result==="SUCCESS"){await post("/warm-cache");b.textContent="✓ Reset complete"}else b.textContent="⚠ Reset "+(s.result||s.life_cycle);
+      if(s.result==="SUCCESS"){b.textContent="↺ Warming AI cache…";
+        for(const sc of["sub:900001","sub:900002","sub:900003","book"]){try{await post("/warm-cache?scope="+sc)}catch(e){}}
+        b.textContent="✓ Reset complete"}else b.textContent="⚠ Reset "+(s.result||s.life_cycle);
       b.disabled=false}},8000);
 }
 
@@ -943,6 +945,7 @@ function learnPage(){
   m.innerHTML=`
   <div class="eyebrow">Learn</div><h1>Commercial underwriting, in ten slides</h1>
   <p class="sub">For colleagues showing this demo: the domain, the vocabulary, and where each beat lives.</p>
+  ${present("What it is: a ten-slide primer for presenters who are not underwriters. What it shows: the desk's world (appetite, authority, accumulation, fair presentation, terms & subjectivities, decline conduct) and how each concept maps to a screen in this workbench — plus the suggested demo run at the bottom.")}
   <div class="card slides">
     ${SLIDES.map(([t,b],i)=>`<div class="slide ${i===SLIDE?"on":""}"><h2 style="margin-top:0">${i+1} · ${t}</h2><p style="line-height:1.7;font-size:14px">${b}</p></div>`).join("")}
     <div style="display:flex;justify-content:space-between;margin-top:14px">
