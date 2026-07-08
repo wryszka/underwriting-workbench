@@ -47,7 +47,7 @@ NTU (not taken up) is distinct from lost-to-competitor — it is a reported KPI.
 *Fenwick & Moss Homewares Ltd*, homeware retailer, Altrincham **WA14**, tenant (no buildings).
 Shop package: contents & stock £120,000 · BI (gross profit, **12-month indemnity**) £180,000 ·
 money £2,500 · glass · **EL £10m** (compulsory cover; £10m market standard) · PL £2m.
-Premium **~£1,450 + IPT 12%**, commission 22.5%.
+Premium **~£1,850 + IPT 12%** (live-verified £1,856), commission 22.5%.
 Straight-through because: in-appetite trade, under the e-trade threshold, clean 3-year loss run,
 RoFRS low, sanctions clear — including a **resolved near-miss/false-positive** on the director
 screen (false-positive handling is where real screening lives).
@@ -63,7 +63,7 @@ signature). Broker states turnover **£8m**; Companies-House-style full accounts
 **Insurance Act 2015 duty-of-fair-presentation issue** corrupting the EL/PL rating basis and BI
 sums. Referral triggers: SI above the £10m authority band · RoFRS **high** at 2 locations ·
 fair-presentation turnover mismatch · postcode-sector accumulation **87% of £25m capacity**.
-Technical price **~£185k vs broker target £140k** (adequacy ~76%).
+Technical price **~£192k vs broker target £140k** (adequacy ~73% — live-verified 72.9%).
 Senior underwriter quotes with terms: **£100k flood excess** at the 2 affected sites;
 subjectivities — (1) audited turnover + revised EL/PL/BI figures within 14 days, (2) satisfactory
 **risk survey** of both manufacturing sites within 60 days of inception, (3) confirmation of

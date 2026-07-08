@@ -40,7 +40,7 @@ proposal + risk schedule):
    over the 80% referral line, live, at point of quote. "Most carriers reconcile this quarterly
    in a spreadsheet."
 4. **Price build-up**: named loadings — theft/malicious damage (real police.uk counts), flood
-   (EA RoFRS High band), claims experience; IPT; broker target £140k vs technical → adequacy %.
+   (EA RoFRS High band), claims experience; IPT; broker target £140k vs technical ~£192k → adequacy ~73%.
 5. **Recommendation: REFER** to a senior underwriter with the exact terms (£100k flood excess) and
    subjectivities (audited turnover 14 days · survey 60 days · composite panel confirmation).
 6. HITL: click **Refer** → audit row. Draft the letter → the comms agent writes the
