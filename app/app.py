@@ -92,14 +92,24 @@ def ct_drill(key: str):
 # ---------------------------------------------------------------- inbox
 @app.get("/api/inbox")
 def inbox():
+    # Expected value = premium × P(bind): work the WINNABLE-AND-WORTH-IT business first
+    # (P(bind) alone drives a desk to small easy risks). Risk quality shown alongside.
     rows = sql.query(f"""
-        SELECT l.*, p.bind_propensity_pct, p.large_loss_propensity_pct
+        SELECT l.*, p.bind_propensity_pct, p.large_loss_propensity_pct,
+               round(coalesce(l.target_premium, l.technical_base_premium)
+                     * coalesce(p.bind_propensity_pct, 25) / 100, 0) AS expected_value_gbp,
+               CASE WHEN coalesce(l.target_premium, l.technical_base_premium) >= 50000 THEN 'size'
+                    WHEN coalesce(p.bind_propensity_pct, 0) >= 50 THEN 'winnable'
+                    WHEN p.large_loss_propensity_pct <= 15 THEN 'quality'
+                    ELSE 'balance' END AS ev_driver
         FROM {F('gold_submission_lifecycle')} l
         LEFT JOIN {F('gold_inbox_priority')} p USING (submission_public_id)
         ORDER BY CASE WHEN l.submission_public_id LIKE 'sub:9000%' THEN 0 ELSE 1 END,
-                 p.bind_propensity_pct DESC NULLS LAST
+                 expected_value_gbp DESC NULLS LAST
         LIMIT 120""")
-    return {"rows": rows, "note": "priority = batch-scored bind propensity (model_triage_priority); heroes pinned"}
+    return {"rows": rows,
+            "note": ("ranked by EXPECTED VALUE (premium × batch-scored P(bind)) — winnable AND worth it; "
+                     "risk quality shown alongside; heroes pinned")}
 
 
 # ---------------------------------------------------------------- work a submission

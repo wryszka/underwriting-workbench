@@ -305,22 +305,24 @@ async function ctDrill(key){
 async function inboxPage(){
   const m=$("#m");m.innerHTML='<div class="loading">Loading inbox…</div>';
   const d=await api("/inbox");
+  const EVDRV={size:"£ size",winnable:"winnable",quality:"clean risk",balance:"balanced"};
   const rows=(d.rows||[]).map(r=>{
     const hero=r.submission_public_id.startsWith("sub:9000");
     return `<tr class="click" onclick="go('sub','${r.submission_public_id}')">
       <td>${hero?"★ ":""}<b>${esc(r.submission_public_id)}</b><br><span class="muted">${esc(r.company_name)}</span></td>
       <td>${esc(r.trade_group)}<br><span class="muted">${esc(r.segment)} · ${esc(r.postcode_district)}</span></td>
       <td>${pill(r.channel,"slatep")}</td>
+      <td><b>${money(r.expected_value_gbp)}</b> ${pill(EVDRV[r.ev_driver]||"","bluep")}</td>
+      <td>${r.bind_propensity_pct!=null?`${r.bind_propensity_pct}%`:"—"}<br><span class="muted">risk ${r.large_loss_propensity_pct!=null?r.large_loss_propensity_pct+"%":"—"}</span></td>
       <td>${money(r.total_si)}</td>
-      <td>${r.bind_propensity_pct!=null?`<b>${r.bind_propensity_pct}%</b>`:"—"}</td>
       <td>${pill(r.lifecycle_state,"bluep")}</td>
       <td>${pill(r.sla_status,r.sla_status==="breached"?"red":r.sla_status==="at_risk"?"amber":"green")}<br><span class="muted">${r.hours_since_received}h / ${r.sla_target_hours}h</span></td>
       <td>${r.flood_band==="High"?pill("flood","red"):""} ${r.turnover_mismatch_ratio>=1.5?pill("fair-presentation","amber"):""} ${r.appetite_status==="excluded"?pill("out of appetite","red"):""}</td></tr>`}).join("");
   m.innerHTML=`
   <div class="eyebrow">Underwriter</div><h1>Submission Inbox</h1>
-  <p class="sub">The open pipeline, priority-ranked by batch-scored bind propensity (model_triage_priority) — work the winnable business first. Heroes pinned. Click a row to work it.</p>
-  ${present("Real desks triage by gut and by inbox order. Here the queue is ranked by a defensible model score with SLA clocks per channel — and why-chips flag flood, fair-presentation and appetite before you open the file.")}
-  <div class="card"><table><thead><tr><th>submission</th><th>trade</th><th>channel</th><th>total SI</th><th>P(bind)</th><th>state</th><th>SLA</th><th>flags</th></tr></thead><tbody>${rows}</tbody></table></div>
+  <p class="sub">The open pipeline ranked by <b>expected value</b> — premium × modelled P(bind) — so the desk works what is winnable <i>and worth winning</i>. Heroes pinned. Click a row to work it.</p>
+  ${present("What it is: the desk's triage queue. What it shows: every open submission ranked by expected premium value (not gut feel, not inbox order), with the model's win-likelihood and risk quality alongside, SLA clocks per channel, and why-chips (flood / fair presentation / appetite) before you open the file. Straight-through eligibility is a COST decision within appetite — deliberately independent of P(bind).")}
+  <div class="card"><table><thead><tr><th>submission</th><th>trade</th><th>channel</th><th>expected value</th><th>P(bind) · risk</th><th>total SI</th><th>state</th><th>SLA</th><th>flags</th></tr></thead><tbody>${rows}</tbody></table></div>
   <div class="prov">Scores are batch inference (ai_query over the champion model) refreshed by the pipeline — the app never blocks on a cold model endpoint. ${esc(d.note||"")}</div>`;
 }
 
