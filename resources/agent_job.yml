@@ -1,0 +1,32 @@
+resources:
+  jobs:
+    underwriting_06b_agent:
+      name: underwriting_06b_agent
+      description: "Deploy the REAL tool-calling Underwriting AI supervisor (ChatAgent + agents.deploy)"
+      tags:
+        project: underwriting_workbench
+      parameters:
+        - name: catalog
+          default: ${var.catalog}
+        - name: schema
+          default: ${var.schema}
+      environments:
+        - environment_key: default
+          spec:
+            client: "5"
+            dependencies:
+              - databricks-agents
+              - mlflow
+              - databricks-sdk
+              - requests
+      tasks:
+        - task_key: supervisor_agent
+          environment_key: default
+          notebook_task:
+            notebook_path: ../notebooks/06b_supervisor_agent.py
+            base_parameters:
+              catalog: "{{job.parameters.catalog}}"
+              schema: "{{job.parameters.schema}}"
+              fm_endpoint: ${var.fm_endpoint}
+              warehouse_id: ${var.warehouse_id}
+              genie_space_id: ${var.genie_space_id}

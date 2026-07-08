@@ -1,0 +1,57 @@
+resources:
+  jobs:
+    underwriting_05_ml:
+      name: underwriting_05_ml
+      description: "Feature store → models + serving endpoints → crux decision functions → what-if functions"
+      tags:
+        project: underwriting_workbench
+      parameters:
+        - name: catalog
+          default: ${var.catalog}
+        - name: schema
+          default: ${var.schema}
+      environments:
+        - environment_key: default
+          spec:
+            client: "5"
+            dependencies:
+              - databricks-feature-engineering
+              - lightgbm
+              - scikit-learn
+              - mlflow
+              - databricks-sdk
+      tasks:
+        - task_key: features
+          environment_key: default
+          notebook_task:
+            notebook_path: ../notebooks/04_features.py
+            base_parameters:
+              catalog: "{{job.parameters.catalog}}"
+              schema: "{{job.parameters.schema}}"
+        - task_key: models
+          depends_on:
+            - task_key: features
+          environment_key: default
+          notebook_task:
+            notebook_path: ../notebooks/05_models.py
+            base_parameters:
+              catalog: "{{job.parameters.catalog}}"
+              schema: "{{job.parameters.schema}}"
+        - task_key: crux
+          depends_on:
+            - task_key: features
+          environment_key: default
+          notebook_task:
+            notebook_path: ../notebooks/05b_crux.py
+            base_parameters:
+              catalog: "{{job.parameters.catalog}}"
+              schema: "{{job.parameters.schema}}"
+        - task_key: whatif
+          depends_on:
+            - task_key: crux
+          environment_key: default
+          notebook_task:
+            notebook_path: ../notebooks/05c_whatif.py
+            base_parameters:
+              catalog: "{{job.parameters.catalog}}"
+              schema: "{{job.parameters.schema}}"

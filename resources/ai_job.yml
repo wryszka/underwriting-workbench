@@ -1,0 +1,47 @@
+resources:
+  jobs:
+    underwriting_06_ai:
+      name: underwriting_06_ai
+      description: "Model-backed UC tool functions + narrate-only role agents + governance"
+      tags:
+        project: underwriting_workbench
+      parameters:
+        - name: catalog
+          default: ${var.catalog}
+        - name: schema
+          default: ${var.schema}
+      environments:
+        - environment_key: default
+          spec:
+            client: "5"
+            dependencies:
+              - mlflow
+              - databricks-sdk
+              - pandas
+      tasks:
+        - task_key: agent_tools
+          environment_key: default
+          notebook_task:
+            notebook_path: ../notebooks/06_agent_tools.py
+            base_parameters:
+              catalog: "{{job.parameters.catalog}}"
+              schema: "{{job.parameters.schema}}"
+        - task_key: agents
+          depends_on:
+            - task_key: agent_tools
+          environment_key: default
+          notebook_task:
+            notebook_path: ../notebooks/06a_agents.py
+            base_parameters:
+              catalog: "{{job.parameters.catalog}}"
+              schema: "{{job.parameters.schema}}"
+              fm_endpoint: ${var.fm_endpoint}
+        - task_key: governance
+          depends_on:
+            - task_key: agent_tools
+          environment_key: default
+          notebook_task:
+            notebook_path: ../notebooks/07_governance.py
+            base_parameters:
+              catalog: "{{job.parameters.catalog}}"
+              schema: "{{job.parameters.schema}}"
