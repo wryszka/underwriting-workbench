@@ -42,7 +42,7 @@ resources:
           environment_key: default
           notebook_task:
             notebook_path: ../notebooks/01c_doc_extraction.py
-            base_parameters: {catalog: "{{job.parameters.catalog}}", schema: "{{job.parameters.schema}}", fm_endpoint: ${var.fm_endpoint}}
+            base_parameters: {catalog: "{{job.parameters.catalog}}", schema: "{{job.parameters.schema}}", fm_endpoint: "${var.fm_endpoint}"}
         - task_key: medallion
           depends_on: [{task_key: doc_extraction}]
           pipeline_task:

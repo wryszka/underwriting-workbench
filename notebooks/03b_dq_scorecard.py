@@ -24,9 +24,10 @@ from pyspark.sql import functions as F
 # COMMAND ----------
 
 ev = spark.table(f"{fqn}.medallion_event_log")
+EXP_SCHEMA = "array<struct<name:string,dataset:string,passed_records:long,failed_records:long>>"
 flow = (ev.filter("event_type = 'flow_progress'")
         .select(F.col("origin.flow_name").alias("dataset"),
-                F.explode(F.expr("details:flow_progress:data_quality:expectations::array<struct<name:string,dataset:string,passed_records:long,failed_records:long>>")).alias("e"),
+                F.explode(F.from_json(F.expr("details:flow_progress:data_quality:expectations"), EXP_SCHEMA)).alias("e"),
                 F.col("timestamp")))
 score = (flow.groupBy(F.col("e.dataset").alias("dataset"), F.col("e.name").alias("expectation"))
          .agg(F.max("timestamp").alias("last_seen"),
