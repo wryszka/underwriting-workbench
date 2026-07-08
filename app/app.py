@@ -382,6 +382,42 @@ def brokers():
     return {"rows": sql.query(f"SELECT * FROM {F('gold_broker_scorecard')} ORDER BY gwp_bound DESC")}
 
 
+@app.get("/api/renewals/due")
+def renewals_due():
+    # The desk's real book: renewals due in the next 90 days with claims experience,
+    # last rate movement, adequacy-informed stance and a retention-risk flag.
+    rows = sql.query(f"""
+        WITH clm AS (
+          SELECT policy_number, count(*) claims_3y, sum(incurred) incurred_3y
+          FROM {F('bronze_pas_claims')} GROUP BY policy_number)
+        SELECT p.policy_number, p.trade_group, p.segment, p.postcode_district, p.broker_id,
+               p.expiry_date, datediff(p.expiry_date, current_date()) AS days_to_expiry,
+               p.gross_premium, round(p.rate_change_pct * 100, 1) AS last_rate_change_pct,
+               coalesce(c.claims_3y, 0) AS claims_3y, coalesce(c.incurred_3y, 0) AS incurred_3y,
+               round(coalesce(c.incurred_3y, 0) / 3 / p.gross_premium * 100, 0) AS loss_ratio_pct,
+               a.adequacy_pct AS trade_adequacy_pct,
+               CASE WHEN coalesce(c.incurred_3y,0) / 3 / p.gross_premium > 0.8 THEN 'increase_or_restructure'
+                    WHEN a.adequacy_pct < 90 THEN 'increase_to_technical'
+                    WHEN coalesce(c.claims_3y,0) = 0 AND a.adequacy_pct >= 100 THEN 'hold_and_retain'
+                    ELSE 'review' END AS suggested_stance,
+               (coalesce(c.incurred_3y,0) / 3 / p.gross_premium > 0.5 OR a.adequacy_pct < 85
+                OR p.rate_change_pct > 0.08) AS retention_risk
+        FROM {F('bronze_pas_policies')} p
+        LEFT JOIN clm c USING (policy_number)
+        LEFT JOIN {F('gold_rate_adequacy')} a USING (trade_group)
+        WHERE p.policy_status = 'in_force'
+          AND p.expiry_date BETWEEN current_date() AND date_add(current_date(), 90)
+        ORDER BY p.expiry_date, p.gross_premium DESC
+        LIMIT 150""")
+    kpi = sql.query_one(f"""
+        SELECT count(*) due, sum(gross_premium) gwp_due,
+               sum(CASE WHEN expiry_date <= date_add(current_date(), 30) THEN 1 ELSE 0 END) due_30d
+        FROM {F('bronze_pas_policies')}
+        WHERE policy_status = 'in_force'
+          AND expiry_date BETWEEN current_date() AND date_add(current_date(), 90)""")
+    return {"rows": rows, "kpi": kpi}
+
+
 @app.get("/api/renewals")
 def renewals():
     return {"rows": sql.query(f"""SELECT month, sum(in_force) in_force, sum(lapsed) lapsed,

@@ -190,7 +190,7 @@ function cacheBadge(c){return c==="hit"?pill("cached","amber"):c==="live"||c==="
 const NAV=[
  {sec:"", items:[["home","Overview","◇"]]},
  {sec:"Head of Underwriting", items:[["tower","Portfolio Control Tower","▦"],["insight","Insight & Ask the Book","◉"]]},
- {sec:"Underwriter", items:[["inbox","Submission Inbox","☰"],["work","Work a submission","✎"],["tryit","Try a submission","✚"]]},
+ {sec:"Underwriter", items:[["inbox","Submission Inbox","☰"],["renewals","Renewals desk","↻"],["work","Work a submission","✎"],["tryit","Try a submission","✚"]]},
  {sec:"Distribution", items:[["brokers","Brokers","🤝"]]},
  {sec:"Platform", items:[["ingestion","Ingestion","⇣"],["governance","Governance","🛡"],["ai","Underwriting AI","✳"],["onebook","One Book","▣"]]},
 ];
@@ -205,7 +205,7 @@ function route(){closeModal();
   const h=(location.hash||"#home").slice(1); const [r,...rest]=h.split("/"); const arg=rest.join("/");
   CUR=r==="sub"?"work":r; renderNav();
   const map={home:landing,tower:controlTower,insight:insight,inbox:inboxPage,work:()=>subView(CUR_SID),
-             sub:()=>subView(arg||CUR_SID),tryit:tryIt,brokers:brokersPage,ingestion:ingestionPage,
+             sub:()=>subView(arg||CUR_SID),tryit:tryIt,brokers:brokersPage,ingestion:ingestionPage,renewals:renewalsDesk,
              governance:governancePage,ai:aiPage,onebook:oneBook,learn:learnPage};
   (map[r]||landing)();
   if(r==="sub"&&arg)CUR_SID=arg;
@@ -324,6 +324,37 @@ async function inboxPage(){
   ${present("What it is: the desk's triage queue. What it shows: every open submission ranked by expected premium value (not gut feel, not inbox order), with the model's win-likelihood and risk quality alongside, SLA clocks per channel, and why-chips (flood / fair presentation / appetite) before you open the file. Straight-through eligibility is a COST decision within appetite — deliberately independent of P(bind).")}
   <div class="card"><table><thead><tr><th>submission</th><th>trade</th><th>channel</th><th>expected value</th><th>P(bind) · risk</th><th>total SI</th><th>state</th><th>SLA</th><th>flags</th></tr></thead><tbody>${rows}</tbody></table></div>
   <div class="prov">Scores are batch inference (ai_query over the champion model) refreshed by the pipeline — the app never blocks on a cold model endpoint. ${esc(d.note||"")}</div>`;
+}
+
+/* ---------- renewals desk ---------- */
+async function renewalsDesk(){
+  const m=$("#m");m.innerHTML='<div class="loading">Loading renewals…</div>';
+  const d=await api("/renewals/due");
+  const k=d.kpi||{};
+  const STANCE={hold_and_retain:["hold & retain","green"],increase_to_technical:["increase to technical","amber"],
+                increase_or_restructure:["increase / restructure","red"],review:["review","slatep"]};
+  const rows=(d.rows||[]).map(r=>{
+    const st=STANCE[r.suggested_stance]||[r.suggested_stance,"slatep"];
+    return `<tr>
+      <td><b>${esc(r.policy_number)}</b><br><span class="muted">${esc(r.trade_group)} · ${esc(r.postcode_district)} · ${esc(r.broker_id)}</span></td>
+      <td>${r.days_to_expiry}d<br><span class="muted">${esc(r.expiry_date)}</span></td>
+      <td>${money(r.gross_premium)}</td>
+      <td>${pct(r.last_rate_change_pct)}</td>
+      <td>${num(r.claims_3y)} · ${money(r.incurred_3y)}<br><span class="muted">LR ${pct(r.loss_ratio_pct)}</span></td>
+      <td>${pct(r.trade_adequacy_pct)}</td>
+      <td>${pill(st[0],st[1])}</td>
+      <td>${String(r.retention_risk)==="true"?pill("retention risk","red"):pill("stable","green")}</td></tr>`}).join("");
+  m.innerHTML=`
+  <div class="eyebrow">Underwriter</div><h1>Renewals desk</h1>
+  <p class="sub">A commercial book is 75–80% renewals by GWP — this is the desk's real workload: what falls due, what it has cost us, and the rate stance the book's own experience suggests.</p>
+  ${present("What it is: every in-force policy expiring in the next 90 days. What it shows: premium at stake, the policy's own 3-year claims experience, the trade's rate adequacy, a suggested stance (hold / increase-to-technical / restructure) and a retention-risk flag — the renewal conversation prepared before the broker calls.")}
+  <div class="grid g3">
+    <div class="card"><h3>Due in 90 days</h3><div class="big">${num(k.due)}</div></div>
+    <div class="card"><h3>GWP at stake</h3><div class="big">${money(k.gwp_due)}</div></div>
+    <div class="card"><h3>Due in 30 days</h3><div class="big">${num(k.due_30d)}</div></div>
+  </div>
+  <div class="card" style="margin-top:16px"><table><thead><tr><th>policy</th><th>expiry</th><th>premium</th><th>last rate chg</th><th>claims 3y</th><th>trade adequacy</th><th>suggested stance</th><th>retention</th></tr></thead><tbody>${rows}</tbody></table></div>
+  <div class="prov">Computed live from the PAS book (bronze_pas_policies + bronze_pas_claims) and gold_rate_adequacy. Renewal invitation workflow (pre-renewal survey chase, broker pack) = roadmap on One Book.</div>`;
 }
 
 /* ---------- work a submission ---------- */
