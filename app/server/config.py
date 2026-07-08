@@ -49,9 +49,16 @@ def get_workspace_client() -> WorkspaceClient:
 @lru_cache(maxsize=16)
 def resolve_endpoint(substr: str) -> str:
     try:
-        for e in get_workspace_client().serving_endpoints.list():
-            if substr in e.name:
-                return e.name
+        names = [e.name for e in get_workspace_client().serving_endpoints.list()]
+        for n in names:
+            if substr in n:
+                return n
+        if substr == EP_AGENT_SUBSTR:
+            # agents.deploy auto-names `agents_<catalog>-<schema>-<model>` TRUNCATED to 63 chars —
+            # the model name may be cut (e.g. "...-underwritin"), so match on the schema instead.
+            for n in names:
+                if n.startswith("agents_") and SCHEMA in n:
+                    return n
     except Exception:
         pass
     return substr

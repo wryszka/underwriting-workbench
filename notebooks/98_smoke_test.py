@@ -62,7 +62,7 @@ VIEWS = ["gov_watchlist_secure", "gov_conduct_declines"]
 VOLUMES = ["submission_inbox", "open_data", "ingest_checkpoints", "comms_out"]
 MODELS = ["model_triage_priority", "model_risk_quality", "model_underwriting_agent", "underwriting_agent"]
 ENDPOINT_SUBSTRS = ["underwriting-triage", "underwriting-risk", "underwriting-riskprofile", "underwriting-appetite",
-                    "underwriting-adequacy", "underwriting-comms", "underwriting-challenge", "underwriting_agent"]
+                    "underwriting-adequacy", "underwriting-comms", "underwriting-challenge"]
 
 
 def _tables():
@@ -103,7 +103,9 @@ def _endpoints():
     names = [e.name for e in w.serving_endpoints.list()]
     missing = [s for s in ENDPOINT_SUBSTRS if not any(s in n for n in names)]
     assert not missing, f"missing endpoints: {missing}"
-    return f"{len(ENDPOINT_SUBSTRS)} endpoints resolved"
+    # agents.deploy auto-name is truncated to 63 chars — match schema, not the model name
+    assert any(n.startswith("agents_") and schema in n for n in names), "tool-calling supervisor endpoint missing"
+    return f"{len(ENDPOINT_SUBSTRS)} + supervisor endpoints resolved"
 
 
 def _app():
@@ -220,7 +222,8 @@ def _agent_live():
     from databricks.sdk import WorkspaceClient
     import requests
     w = WorkspaceClient()
-    ep = next(e.name for e in w.serving_endpoints.list() if "underwriting_agent" in e.name)
+    ep = next(e.name for e in w.serving_endpoints.list()
+              if "underwriting_agent" in e.name or (e.name.startswith("agents_") and schema in e.name))
     host = w.config.host.rstrip("/")
     r = requests.post(f"{host}/serving-endpoints/{ep}/invocations",
                       headers={**w.config._header_factory(), "Content-Type": "application/json"},
