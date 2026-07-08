@@ -167,6 +167,41 @@
   .soon{opacity:.75;border-style:dashed}
   .soonpill{background:#f1f5f9;color:#64748b;font-size:9.5px;font-weight:700;letter-spacing:.05em;padding:2px 7px;border-radius:999px;text-transform:uppercase}
   .slides .slide{display:none}.slides .slide.on{display:block}
+  /* ingestion source-assets accordion */
+  .ingkpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+  .ingkpi{border-radius:12px;padding:13px 15px;border:1px solid var(--line);background:#fff}
+  .ingkpi .k{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--mut)}
+  .ingkpi .v{font-size:22px;font-weight:800;margin-top:3px}
+  .ingkpi.blue{background:#eff6ff;border-color:#bfdbfe}.ingkpi.blue .v{color:#1d4ed8}
+  .ingkpi.green{background:#f0fdf4;border-color:#bbf7d0}.ingkpi.green .v{color:#15803d}
+  .ingkpi.amber{background:#fffbeb;border-color:#fde68a}.ingkpi.amber .v{color:#b45309}
+  .ingkpi.violet{background:#faf5ff;border-color:#ddd6fe}.ingkpi.violet .v{color:#6d28d9}
+  .inggroup{margin-bottom:16px;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#fff}
+  .inggroup .gh{padding:9px 16px;font-size:12px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;display:flex;justify-content:space-between;align-items:center}
+  .gh.g-blue{background:linear-gradient(90deg,#eff6ff,#fff);color:#1d4ed8;border-bottom:1px solid #dbeafe}
+  .gh.g-violet{background:linear-gradient(90deg,#faf5ff,#fff);color:#6d28d9;border-bottom:1px solid #ede9fe}
+  .gh.g-green{background:linear-gradient(90deg,#f0fdf4,#fff);color:#15803d;border-bottom:1px solid #dcfce7}
+  .srcrow{display:flex;align-items:center;gap:12px;padding:11px 16px;border-bottom:1px solid #f1f5f9;cursor:pointer;transition:background .1s}
+  .srcrow:hover{background:#f8fafc}
+  .srcrow:last-child{border-bottom:0}
+  .srcrow .dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+  .dot.ok{background:#16a34a;box-shadow:0 0 0 3px rgba(22,163,74,.15)}
+  .dot.warn{background:#d97706;box-shadow:0 0 0 3px rgba(217,119,6,.15)}
+  .srcrow .sname{flex:1;min-width:0}
+  .srcrow .sname b{font-size:13.5px;display:block}
+  .srcrow .sname span{font-size:11px;color:var(--mut)}
+  .srcrow .smeta{display:flex;gap:14px;align-items:center;font-size:12px;color:var(--mut);flex-shrink:0}
+  .srcrow .smeta b{color:var(--ink)}
+  .srcrow .chev{color:#94a3b8;transition:transform .15s;font-size:12px}
+  .srcrow.open .chev{transform:rotate(90deg)}
+  .srcdetail{background:#f8fafc;border-bottom:1px solid #f1f5f9;padding:14px 18px}
+  .srctabs{display:flex;gap:6px;margin-bottom:12px}
+  .srctabs button{padding:5px 12px;border-radius:999px;border:1px solid var(--line);background:#fff;cursor:pointer;font-size:11.5px;font-weight:600}
+  .srctabs button.on{background:var(--slate);border-color:var(--slate);color:#fff}
+  .rulebar{height:6px;border-radius:4px;background:#e2e8f0;overflow:hidden;flex:1;max-width:140px}
+  .rulebar>i{display:block;height:100%;background:#16a34a}
+  .rulerow{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid #eef2f7;font-size:12.5px}
+  .rulerow:last-child{border-bottom:0}
   .mono{font-family:ui-monospace,SFMono-Regular,monospace;font-size:11.5px}
 </style>
 </head>
@@ -809,67 +844,107 @@ async function brokersPage(){
 }
 
 /* ---------- ingestion ---------- */
+let ING=null, ING_OPEN=null, ING_TAB="overview";
+const QUAR_SRC={bronze_submissions:"submissions",bronze_schedule_locations:"schedules",bronze_doc_extractions:"extractions"};
+const GROUP_TONE={"Broker submissions":"g-blue","System of record":"g-violet","Enrichment — open data":"g-green"};
 async function ingestionPage(){
   const m=$("#m");m.innerHTML='<div class="loading">Loading source assets…</div>';
-  const d=await api("/ingestion/assets");
-  const live=(d.sources||[]).filter(s=>s.status==="live"),road=(d.sources||[]).filter(s=>s.status!=="live");
-  const score={};(d.scorecard||[]).forEach(r=>{(score[r.dataset]=score[r.dataset]||[]).push(r)});
-  const srcRows=live.map(s=>{
-    const sim=(s.production_connector||"").startsWith("SIMULATED");
-    return `<tr class="click" onclick="sampleTable('${esc(s.table_name)}')">
-    <td><b>${esc(s.source)}</b> ${sim?pill("simulated","slatep"):pill("real data","green")}<br><span class="muted">${esc(s.system)}</span></td>
-    <td>${esc(s.format)}</td><td class="mono">${esc(s.databricks_tool)}</td>
-    <td>${s.row_count!=null?num(s.row_count):"—"}</td>
-    <td class="muted">${esc(s.note)}<br><span style="color:#3730a3">↳ ${esc(s.production_connector||"")}</span></td></tr>`}).join("");
-  const scoreBlocks=Object.entries(score).map(([ds,rows])=>{
-    const allPass=rows.every(r=>Number(r.failed)===0);
-    return `<div style="border:1px solid var(--line);border-radius:10px;margin-bottom:10px;overflow:hidden">
-      <div style="padding:8px 12px;background:${allPass?"var(--greenbg)":"var(--ambbg)"};font-weight:700;font-size:12.5px">${esc(ds)} — ${rows.filter(r=>Number(r.failed)===0).length}/${rows.length} passing</div>
-      <table><tbody>${rows.map(r=>`<tr><td>${esc(r.expectation)}</td><td>${pill(r.action==="drop_to_quarantine"?"drop→quarantine":"track","slatep")}</td>
-        <td>${num(r.passed)} ✓</td><td>${Number(r.failed)?`<b class="red" style="background:none">${num(r.failed)} ✗</b>`:"0"}</td><td>${pct(r.pass_pct)}</td></tr>`).join("")}</tbody></table></div>`}).join("");
-  const quar=(d.quarantine||[]).map(q=>`<tr class="click" onclick="quarDrill('${esc(q.src)}')"><td>${esc(q.src)}</td><td class="mono">${esc(q.quarantine_reason)}</td><td><b>${num(q.n)}</b></td></tr>`).join("");
-  const docs=(d.docs||[]).map(x=>`<tr><td>${esc(x.file_name)}</td><td>${pill(x.doc_type,"slatep")}</td><td>${esc(x.submission_public_id)}</td>
-    <td>${pill(Number(x.extraction_confidence).toFixed(2),Number(x.extraction_confidence)>=0.6?"green":"red")}</td><td class="mono muted">${esc(x.source_tool)}</td></tr>`).join("");
+  ING=await api("/ingestion/assets");
+  const live=(ING.sources||[]).filter(x=>x.status==="live"),road=(ING.sources||[]).filter(x=>x.status!=="live");
+  const score=ING.scorecard||[],quar=ING.quarantine||[];
+  const totRows=live.reduce((a,x)=>a+(Number(x.row_count)||0),0);
+  const totQ=quar.reduce((a,x)=>a+(Number(x.n)||0),0);
+  const passed=score.reduce((a,r)=>a+Number(r.passed||0),0),failed=score.reduce((a,r)=>a+Number(r.failed||0),0);
+  const passPct=passed+failed?Math.round(passed/(passed+failed)*10000)/100:100;
+  const groups={};live.forEach(x=>{(groups[x.source_group]=groups[x.source_group]||[]).push(x)});
+  const groupHtml=Object.entries(groups).map(([g,items])=>{
+    const rows=items.map(x=>{
+      const rules=score.filter(r=>r.dataset===x.table_name);
+      const fails=rules.reduce((a,r)=>a+Number(r.failed||0),0);
+      const rp=rules.length?(rules.reduce((a,r)=>a+Number(r.passed||0),0)/(Math.max(1,rules.reduce((a,r)=>a+Number(r.passed||0)+Number(r.failed||0),0)))*100):null;
+      const sim=(x.production_connector||"").startsWith("SIMULATED");
+      const key=x.source.replace(/[^a-z0-9]/gi,"_");
+      const open=ING_OPEN===key;
+      return `<div class="srcrow ${open?"open":""}" onclick="ingToggle('${key}')">
+        <span class="dot ${fails>0?"warn":"ok"}"></span>
+        <div class="sname"><b>${esc(x.source)} ${sim?pill("simulated data","slatep"):pill("real data","green")}</b>
+          <span>${esc(x.system)} · ${esc(x.format)} · <span class="mono">${esc(x.databricks_tool)}</span></span></div>
+        <div class="smeta">
+          <span>rows <b>${x.row_count!=null?num(x.row_count):"—"}</b></span>
+          <span>quality <b>${rp!=null?rp.toFixed(1)+"%":"—"}</b></span>
+          ${x.table_name?`<span class="mono" style="color:#1d4ed8;background:#eff6ff;border:1px solid #dbeafe;border-radius:6px;padding:1px 7px">${esc(x.table_name)}</span>`:""}
+        </div><span class="chev">▶</span></div>
+        ${open?`<div class="srcdetail" onclick="event.stopPropagation()">${ingDetail(x,rules)}</div>`:""}`;
+    }).join("");
+    return `<div class="inggroup"><div class="gh ${GROUP_TONE[g]||"g-blue"}"><span>${esc(g)}</span><span>${items.length} sources</span></div>${rows}</div>`;
+  }).join("");
   m.innerHTML=`
   <div class="eyebrow">Platform</div><h1>Ingestion — every channel into one governed lakehouse</h1>
-  <p class="sub">Structured feeds, an email inbox, scanned PDFs through Document AI, schedules that drift, the PAS book, and real bundled open data — all through expectations, nothing silently lost.</p>
-  ${present("Click a live source to preview its real rows. The quality contract is the DLT event log; the drifted schedule and the illegible fax are IN quarantine right now — that is the no-silent-loss story.")}
-  <div class="card"><h3>Live sources (${live.length})</h3>
-    <div class="muted" style="margin-bottom:8px">Every source states honestly what is simulated in this demo and what the production connector is — the pipeline from the landing drop onward is identical either way.</div>
-    <table><thead><tr><th>source</th><th>format</th><th>databricks tool</th><th>rows</th><th>note · production connector</th></tr></thead><tbody>${srcRows}</tbody></table></div>
-  <div class="grid g2" style="margin-top:16px">
-    <div class="card"><h3>Quality contract — DLT expectations (event log)</h3>${scoreBlocks}</div>
-    <div>
-      <div class="card"><h3>Quarantine — nothing silently lost</h3>
-        <table><thead><tr><th>feed</th><th>reason</th><th>rows</th></tr></thead><tbody>${quar}</tbody></table>
-        <div class="muted" style="margin-top:8px">Click a reason to inspect the actual quarantined rows (incl. the drifted schedule's _rescued_data).</div></div>
-      <div class="card" style="margin-top:16px"><h3>Document AI spotlight</h3>
-        <table><thead><tr><th>file</th><th>type</th><th>submission</th><th>confidence</th><th>tool</th></tr></thead><tbody>${docs}</tbody></table>
-        <div class="muted" style="margin-top:8px">ai_parse_document (layout-aware) + ai_query entity extraction; &lt;0.6 confidence → quarantined for human review — the fax scan proves the gate.</div></div>
-    </div>
+  <p class="sub">Structured feeds, an email inbox, scanned PDFs, schedules that drift, call transcripts, the PAS book, and real bundled open data — every source through the same quality contract.</p>
+  ${present("What it is: the register of every data source feeding the desk. What it shows: click any source to open its panel — what it is, what cleansing and quality rules it passes through (with live pass/fail counts and its quarantine), a preview of its real rows, and honestly what is simulated here versus the production connector.")}
+  <div class="ingkpis">
+    <div class="ingkpi blue"><div class="k">Live sources</div><div class="v">${live.length}</div></div>
+    <div class="ingkpi violet"><div class="k">Rows landed</div><div class="v">${num(totRows)}</div></div>
+    <div class="ingkpi ${passPct>=99?"green":"amber"}"><div class="k">Quality pass rate</div><div class="v">${passPct}%</div></div>
+    <div class="ingkpi amber"><div class="k">In quarantine</div><div class="v">${num(totQ)}</div></div>
   </div>
+  ${groupHtml}
   <div class="grid g2" style="margin-top:16px">
-    <div class="card"><h3>How this lands in YOUR estate</h3>
-      ${kv("Mailbox","M365 Graph / Power Automate → the same Volume drop")}
-      ${kv("PAS (PolicyCenter/Acturis)","CDC in via Lakeflow Connect · quote/bind write-back = deliberate roadmap (overlay, not replacement)")}
-      ${kv("Rating engine (Radar/Earnix)","consumed via API — integration pattern proven in the sibling Pricing Workbench")}
-      ${kv("Screening vendor (WorldCheck…)","kept — its results become another governed source in the decision record")}
-      ${kv("Open data","bundled real OGL extracts (OFSI · EA flood · police.uk · EPC) — see PROVENANCE.md")}
-      <div class="muted" style="margin-top:8px">The demo never depends on an external API at show time — by design, not limitation.</div></div>
-    <div class="card"><h3>Roadmap sources (${road.length})</h3>
-      ${road.map(s=>`<div class="kv"><span>${esc(s.source)} <span class="soonpill">roadmap</span></span><b class="muted">${esc(s.note)}</b></div>`).join("")}
-      <div class="muted" style="margin-top:8px">Live Companies House API example ships as notebook 91 — off the demo's critical path by design (reliability).</div></div>
+    <div class="card"><h3>📄 Document AI spotlight</h3>
+      <div class="muted" style="margin-bottom:8px">Every file in the inbox, parsed and entity-extracted with a self-reported confidence. Below the 0.6 gate → quarantined for human review, never silently used.</div>
+      <table><thead><tr><th>file</th><th>type</th><th>submission</th><th>confidence</th></tr></thead><tbody>
+      ${(ING.docs||[]).map(x=>`<tr><td>${esc(x.file_name)}</td><td>${pill(x.doc_type,"slatep")}</td><td>${esc(x.submission_public_id||"—")}</td>
+        <td>${pill(Number(x.extraction_confidence).toFixed(2),Number(x.extraction_confidence)>=0.6?"green":"red")}</td></tr>`).join("")}</tbody></table></div>
+    <div class="card"><h3>🗺 Roadmap sources</h3>
+      <div class="muted" style="margin-bottom:8px">Named honestly, not faked. The pattern for each is the same folder-drop + quality contract you see above.</div>
+      ${road.map(x=>`<div class="kv"><span>${esc(x.source)} <span class="soonpill">roadmap</span></span><b class="muted" style="max-width:55%;text-align:right">${esc(x.note)}</b></div>`).join("")}
+      <div class="prov" style="margin-top:12px">A new source is a folder drop + one extraction prompt — the call transcripts above were added exactly that way. Governance, quarantine and audit come for free.</div></div>
   </div>`;
 }
-async function sampleTable(t){
-  if(!t)return;openModal('<div class="loading">Loading sample…</div>');
+function ingToggle(key){ING_OPEN=ING_OPEN===key?null:key;ING_TAB="overview";ingestionPage()}
+function ingSetTab(t){ING_TAB=t;ingestionPage()}
+function ingDetail(x,rules){
+  const tabs=[["overview","Overview"],["quality","Cleansing & quality"],["preview","Data preview"]];
+  const tabBtns=tabs.map(([k,l])=>`<button class="${ING_TAB===k?"on":""}" onclick="event.stopPropagation();ingSetTab('${k}')">${l}</button>`).join("");
+  let body="";
+  if(ING_TAB==="overview"){
+    const sim=(x.production_connector||"").startsWith("SIMULATED");
+    body=kv("What it is",esc(x.note))+
+         kv("Cadence",esc(x.cadence))+
+         kv("Databricks tool",`<span class="mono">${esc(x.databricks_tool)}</span>`)+
+         kv("Lands in",x.table_name?`<span class="mono">${esc(x.table_name)}</span>`:"—")+
+         `<div style="margin-top:10px;padding:10px 12px;border-radius:9px;font-size:12.5px;line-height:1.55;${sim?"background:#f8fafc;border:1px solid var(--line);color:#334155":"background:#f0fdf4;border:1px solid #bbf7d0;color:#166534"}">
+           <b>${sim?"In this demo vs your estate:":"Real data:"}</b> ${esc(x.production_connector||"")}</div>`;
+  }else if(ING_TAB==="quality"){
+    const qsrc=QUAR_SRC[x.table_name];
+    const qrows=(ING.quarantine||[]).filter(q=>q.src===qsrc);
+    body=(rules.length?rules.map(r=>{
+        const tot=Number(r.passed||0)+Number(r.failed||0);
+        const pct=tot?Number(r.passed)/tot*100:100;
+        return `<div class="rulerow"><span class="mono" style="min-width:210px">${esc(r.expectation)}</span>
+          ${pill(r.action==="drop_to_quarantine"?"fail → quarantine":"track & retain",r.action==="drop_to_quarantine"?"red":"slatep")}
+          <div class="rulebar"><i style="width:${pct}%;${pct<100?"background:#d97706":""}"></i></div>
+          <span style="min-width:130px;text-align:right">${num(r.passed)} ✓ ${Number(r.failed)?`· <b style="color:#dc2626">${num(r.failed)} ✗</b>`:""}</span></div>`;
+      }).join(""):'<div class="muted">No cleansing needed at this gate — this source is reference data validated at build time (provenance in data/open/PROVENANCE.md).</div>')+
+      (qrows.length?`<div style="margin-top:12px"><b style="font-size:12.5px">Its quarantine — nothing silently lost</b>
+        ${qrows.map(q=>`<div class="kv"><span class="mono">${esc(q.quarantine_reason)}</span>
+          <b>${num(q.n)} rows · <a class="lnk" onclick="event.stopPropagation();quarDrill('${esc(q.src)}')">inspect ↗</a></b></div>`).join("")}</div>`:"");
+  }else{
+    body=`<div id="ingprev"><div class="loading">Loading preview…</div></div>`;
+    setTimeout(()=>ingPreview(x.table_name),30);
+  }
+  return `<div class="srctabs">${tabBtns}</div>${body}`;
+}
+async function ingPreview(t){
+  if(!t){const e=document.getElementById("ingprev");if(e)e.innerHTML='<div class="muted">no table</div>';return}
   const d=await api("/ingestion/sample?table="+encodeURIComponent(t));
-  openModal(`<div class="eyebrow">Data preview</div><h2 style="margin:0 0 8px" class="mono">${esc(d.table||t)}</h2>${tbl(d.rows)}`);
+  const e=document.getElementById("ingprev");
+  if(e)e.innerHTML=d.rows?tbl(d.rows):'<div class="muted">preview unavailable</div>';
 }
 async function quarDrill(src){
   openModal('<div class="loading">Loading quarantine rows…</div>');
   const d=await api("/ingestion/quarantine?src="+encodeURIComponent(src));
-  openModal(`<div class="eyebrow">Quarantine</div><h2 style="margin:0 0 8px">${esc(src)} — ${esc(d.table||"")}</h2>${tbl(d.rows)}`);
+  openModal(`<div class="eyebrow">Quarantine — the rows that failed, kept with their reason</div><h2 style="margin:0 0 8px">${esc(src)} — ${esc(d.table||"")}</h2>${tbl(d.rows)}`);
 }
 
 /* ---------- governance ---------- */
