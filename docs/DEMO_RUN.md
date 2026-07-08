@@ -15,14 +15,19 @@ Open the app → landing page. Read the pain paragraph. Point at the 7-stage lif
 "this is the whole demo in one line". Point at the **About this demo** honesty box (synthetic
 insurer, real Databricks services, real OGL open data).
 
-## Beat 1 · Portfolio Control Tower (3 min) — the Head of Underwriting
-- Four vital signs: GWP vs plan, **retention % + rate change** (a real book is 70–80% renewals),
-  rate adequacy, accumulation hot districts.
+## Beat 1 · Portfolio Control Tower (4 min) — the Head of Underwriting
+- Vital signs: GWP written vs plan, **retention % + rate change** (a real book is 70–80% renewals),
+  rate adequacy, accumulation hot districts, declinature mix, broker & trade concentration.
+- **☕ Morning brief** — the agent narrates today's numbers into three actions (cached; flip to LIVE to prove it).
+- **Pipeline forecast (weighted)** — Σ premium × P(bind) = a live month-end GWP forecast. Drill it.
+- **💷 What this is worth** — the business case computed from THIS book's funnel (click "how this is computed").
 - **Prove it's real**: click the accumulation tile → reconciling district rows → "show the SQL".
 - Funnel by channel: e-trade quotes in hours (4.5h), email in days (124h) — "the 40% never quoted problem".
 
 ## Beat 2 · Inbox → the fast-track hero (3 min)
-- Inbox is ranked by **P(bind)** (batch-scored model) with SLA clocks and why-chips.
+- Inbox is ranked by **expected value** (premium × batch-scored P(bind)) — winnable AND worth
+  winning — with SLA clocks and why-chips. Optional: **Renewals desk** — the other 80% of a real
+  book: due-in-90-days with claims experience and a suggested rate stance.
 - Open **★ sub:900001 Fenwick & Moss** (Altrincham shop package, e-trade):
   - all checks clear — the amber screening card IS the point: a resolved near-miss; **straight-through eligible** under the e-trade authority row;
   - screening panel: a REAL near-miss — director "Emran Ali" vs OFSI-listed "Emraan ALI" —
@@ -33,7 +38,9 @@ insurer, real Databricks services, real OGL open data).
 ## Beat 3 · The referral hero (6 min) — the centrepiece
 Open **★ sub:900002 Calder Valley Fine Foods** (mid-market Commercial Combined, email + scanned
 proposal + risk schedule):
-1. **Documents**: proposal PDF read by `ai_parse_document`; extracted hazards include
+1. **Documents & calls**: proposal PDF read by `ai_parse_document`; the **FD's phone call**
+   (transcript through the SAME pipeline) volunteers a second production shift and "about
+   twenty-four million now" — material facts on no form. Extracted hazards include
    *composite panels unconfirmed* and *frying line suppression unconfirmed* — THE UK food-manufacturing
    questions. The schedule arrived twice: v1 with drifted columns sits in **quarantine** (show later).
 2. **Fair presentation**: broker states £8m turnover; filed accounts show **£24m** → Insurance
@@ -45,8 +52,10 @@ proposal + risk schedule):
    (EA RoFRS High band), claims experience; IPT; broker target £140k vs technical ~£192k → adequacy ~73%.
 5. **Recommendation: REFER** to a senior underwriter with the exact terms (£100k flood excess) and
    subjectivities (audited turnover 14 days · survey 60 days · composite panel confirmation).
-6. HITL: click **Refer** → audit row. Draft the letter → the comms agent writes the
-   subjectivities verbatim → **Approve & record**.
+6. HITL: terms and subjectivities are **editable** — revise and re-record to run a negotiation
+   round (each version audited). Click **Refer** → audit row **with the full as-at dossier
+   snapshot**. Draft the letter → the comms agent writes the subjectivities verbatim →
+   **Approve & record**.
 7. Optional: **Ask the supervisor** — watch the tool trace (real UC function calls).
 
 ## Beat 4 · Decline with dignity (2 min)
@@ -64,14 +73,23 @@ Source-assets map (live counts, honest roadmap rows) → quality contract from t
 **quarantine drill**: the drifted schedule rows with `_rescued_data`, and the illegible fax below
 the extraction-confidence gate. "Nothing silently lost."
 
-## Beat 7 · Governance (2 min)
-Decisions & audit (the rows you just wrote) → Models & AI activity → **the UC mask**: this app's
+## Beat 7 · Governance (3 min)
+Decisions & audit → click your decision → **"exactly what the underwriter saw"** (the as-at
+dossier snapshot — the auditor's question answered). Models & AI activity: the **SS1/23-shaped
+model risk register** (owner, purpose, validation, monitoring — live from Unity Catalog) and the
+activity log now records **every live agent interaction**. Then **the UC mask**: this app's
 service principal is outside `underwriting_conduct_readers`, so watchlist reasons are redacted by
 Unity Catalog itself.
 
 ## Beat 8 · Underwriting AI + Insight (2 min)
 Agent bench (tiles open real endpoints) → ask the supervisor about the book → Insight: the
 **embedded** AI/BI dashboard + Genie answering with its SQL shown.
+
+## Beat 8b · Appetite & Rate Committee (3 min) — the one nobody else has
+The underwriting guide is DATA here. Pick food_manufacturing (adequacy ~73%) → propose 6.0‰ →
+the open pipeline **reprices live** (Δ premium, new adequacy) → record to the committee register
+(attributable, with the impact archived) → **Apply**: new quotes price on the new guide
+immediately. "Your guide today is a PDF; here it's a governed table with an audit trail."
 
 ## Close · One Book (1 min)
 The consolidation argument: live commercial lane + labelled placeholders (personal ×claims,
