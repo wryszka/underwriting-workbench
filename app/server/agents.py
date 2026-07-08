@@ -29,6 +29,17 @@ def _write(key: str, endpoint: str, response: str):
                   VALUES ('{key}', '{sql.esc(endpoint)}', '{r}', current_timestamp())""")
 
 
+def _log_activity(sid, agent, activity, tools, signal, reasoning):
+    """Live AI-activity record — every agent interaction lands in the governed audit table."""
+    try:
+        sql.query(f"""INSERT INTO {config.fqn('gold_ai_activity')} VALUES (
+            '{sql.esc(sid or 'book_level')}', '{sql.esc(agent)}', '{sql.esc(activity)}',
+            '{sql.esc(tools)[:900]}', '{sql.esc(signal)}', '{sql.esc(reasoning)[:900]}',
+            current_timestamp())""")
+    except Exception:
+        pass
+
+
 def ask_agent(question: str, custom_inputs: dict = None, use_cache: bool = None) -> dict:
     """Call the REAL tool-calling supervisor agent (ChatAgent). It autonomously calls the UC-function tools.
     Returns the grounded answer + the list of tools it actually called (proof of real tool use)."""
@@ -43,6 +54,9 @@ def ask_agent(question: str, custom_inputs: dict = None, use_cache: bool = None)
             hit = _read(key)
             if hit is not None:
                 d = json.loads(hit)
+                _log_activity((custom_inputs or {}).get("submission_public_id"), "supervisor",
+                              "supervisor_ask (cache hit)", " → ".join(d.get("tools", [])), "cache_hit",
+                              d.get("text", ""))
                 return {"text": d.get("text", ""), "tools": d.get("tools", []), "cache": "hit", "endpoint": endpoint}
         except Exception:
             pass
@@ -69,6 +83,8 @@ def ask_agent(question: str, custom_inputs: dict = None, use_cache: bool = None)
         _write(key, endpoint, json.dumps({"text": text, "tools": tools}))
     except Exception:
         pass
+    _log_activity((custom_inputs or {}).get("submission_public_id"), "supervisor", "supervisor_ask (live)",
+                  " → ".join(tools), "live", text)
     return {"text": text, "tools": tools, "cache": ("miss" if use_cache else "live"), "endpoint": endpoint}
 
 
@@ -102,4 +118,6 @@ def narrate(role: str, question: str, data: dict, use_cache: bool = None) -> dic
         _write(key, endpoint, text)
     except Exception:
         pass
+    _log_activity((data or {}).get("dossier", {}).get("submission_public_id") if isinstance(data, dict) else None,
+                  role, "narration (live)", "(narrate-only — structured findings passed in)", "live", text)
     return {"text": text, "cache": ("miss" if use_cache else "live"), "endpoint": endpoint}
