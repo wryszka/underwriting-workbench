@@ -29,7 +29,7 @@ def run_sql(stmt):
 def extract_creates(path):
     src = open(path).read()
     return [m.format(F=fqn) for m in re.findall(r'create_fn\("""(.*?)"""\)', src, re.S)] or \
-           [m.format(fqn=fqn) for m in re.findall(r'spark\.sql\(f"""(CREATE OR REPLACE FUNCTION.*?)"""\)', src, re.S)]
+           [m.format(fqn=fqn) for m in re.findall(r'spark\.sql\(f"""\s*(CREATE OR REPLACE FUNCTION.*?)"""\)', src, re.S)]
 
 
 for path in ("notebooks/05b_crux.py", "notebooks/05c_whatif.py"):

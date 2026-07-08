@@ -68,10 +68,10 @@ COMMENT 'What-if accumulation: add a hypothetical marginal property SI to a dist
 RETURN SELECT named_struct(
   'postcode_district', any_value(postcode_district), 'in_force_si', any_value(in_force_property_si),
   'capacity', any_value(property_capacity_gbp), 'current_util_pct', any_value(utilisation_pct),
-  'post_util_pct', round(any_value(in_force_property_si + p_marginal_si) / any_value(property_capacity_gbp) * 100, 1),
-  'headroom_gbp', any_value(property_capacity_gbp - in_force_property_si - p_marginal_si),
-  'status', CASE WHEN any_value((in_force_property_si + p_marginal_si) / property_capacity_gbp) >= 1.0 THEN 'breach'
-                 WHEN any_value((in_force_property_si + p_marginal_si) / property_capacity_gbp) >= 0.8 THEN 'referral'
+  'post_util_pct', round((any_value(in_force_property_si) + p_marginal_si) / any_value(property_capacity_gbp) * 100, 1),
+  'headroom_gbp', any_value(property_capacity_gbp) - any_value(in_force_property_si) - p_marginal_si,
+  'status', CASE WHEN (any_value(in_force_property_si) + p_marginal_si) / any_value(property_capacity_gbp) >= 1.0 THEN 'breach'
+                 WHEN (any_value(in_force_property_si) + p_marginal_si) / any_value(property_capacity_gbp) >= 0.8 THEN 'referral'
                  ELSE 'ok' END,
   'flood_band', any_value(flood_band))
 FROM {fqn}.gold_accumulation WHERE postcode_district = p_district
