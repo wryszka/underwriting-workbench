@@ -224,6 +224,13 @@ def _agent_live():
     w = WorkspaceClient()
     ep = next(e.name for e in w.serving_endpoints.list()
               if "underwriting_agent" in e.name or (e.name.startswith("agents_") and schema in e.name))
+    # A rolling config update transiently lacks the auto-provisioned EXECUTE grants (claims gotcha)
+    # → wait for NOT_UPDATING before invoking (fresh deploys hit this).
+    for _ in range(60):
+        st = w.serving_endpoints.get(ep).state
+        if st.config_update.value == "NOT_UPDATING" and st.ready.value == "READY":
+            break
+        time.sleep(20)
     host = w.config.host.rstrip("/")
     r = requests.post(f"{host}/serving-endpoints/{ep}/invocations",
                       headers={**w.config._header_factory(), "Content-Type": "application/json"},
