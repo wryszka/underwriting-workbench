@@ -525,11 +525,40 @@ def gov_masking():
             "view": F("gov_watchlist_secure")}
 
 
+MODEL_REGISTER = {
+    # SS1/23-shaped model risk register metadata (owner/purpose/validation/monitoring)
+    "model_triage_priority": {
+        "tier": "Tier 2 — decision-support", "owner": "Head of Underwriting Operations",
+        "purpose": "Ranks the submission inbox by P(bind); never accepts or declines risk",
+        "training_data": "12 months closed submissions via UC Feature Store (feature_submission)",
+        "validation": "Challenger review pending; AUC tracked per training run in MLflow",
+        "monitoring": "Batch-rescored on every pipeline run; smoke-tested on every reset"},
+    "model_risk_quality": {
+        "tier": "Tier 2 — decision-support", "owner": "Portfolio Underwriting Manager",
+        "purpose": "Large-loss propensity feeding rate adequacy and referral judgement",
+        "training_data": "PAS book claims experience (3y, large-loss >= GBP 25k label)",
+        "validation": "Challenger review pending; AUC + base rate logged per run",
+        "monitoring": "Batch-rescored on every pipeline run; smoke-tested on every reset"},
+    "model_underwriting_agent": {
+        "tier": "Tier 3 — narrative only", "owner": "Chief Underwriting Officer (accountable executive)",
+        "purpose": "Narrate-only role agents (risk profile, appetite, adequacy, comms, challenge, brief)",
+        "training_data": "None — FM-backed; receives structured findings, never decides",
+        "validation": "Hard prompt rules (decline letters cite appetite only) asserted in the smoke test",
+        "monitoring": "Every interaction logged to gold_ai_activity; HITL approval on all letters"},
+    "underwriting_agent": {
+        "tier": "Tier 3 — advisory with tool audit", "owner": "Chief Underwriting Officer (accountable executive)",
+        "purpose": "Tool-calling supervisor over the governed UC decision functions",
+        "training_data": "None — FM-backed; every tool call traced and returned",
+        "validation": "Tool-trace asserted live in the smoke test",
+        "monitoring": "Tool trace + answer logged to gold_ai_activity per interaction"},
+}
+
+
 @app.get("/api/governance/models")
 def gov_models():
     w = config.get_workspace_client()
     out = []
-    for m in ("model_triage_priority", "model_risk_quality", "model_underwriting_agent", "underwriting_agent"):
+    for m, meta in MODEL_REGISTER.items():
         full = f"{config.CATALOG}.{config.SCHEMA}.{m}"
         try:
             versions = list(w.model_versions.list(full))
@@ -538,11 +567,15 @@ def gov_models():
                 champ = w.model_versions.get_by_alias(full, "champion").version
             except Exception:
                 pass
+            latest = max(versions, key=lambda v: int(v.version), default=None)
             out.append({"model": full, "versions": len(versions),
-                        "latest": max((int(v.version) for v in versions), default=0), "champion": champ})
+                        "latest": int(latest.version) if latest else 0,
+                        "last_updated": str(getattr(latest, "created_at", "") or "")[:10] if latest else "",
+                        "champion": champ, **meta})
         except Exception:
             continue
-    return {"models": out}
+    return {"models": out,
+            "note": "Register shaped on PRA SS1/23 (model risk management): tier, accountable owner, purpose, data, validation, monitoring — read live from the UC registry."}
 
 
 @app.get("/api/governance/ai-activity")

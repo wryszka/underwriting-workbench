@@ -820,8 +820,17 @@ async function governancePage(){
       <div class="card"><h3>Broker letters (HITL trail)</h3>${tbl(d.comms)}</div></div>`;
   }else if(GOV_TAB==="ai"){
     const [mo,act]=await Promise.all([api("/governance/models"),api("/governance/ai-activity")]);
-    b.innerHTML=`<div class="card"><h3>Model registry (Unity Catalog, live)</h3>${tbl(mo.models)}</div>
-      <div class="card" style="margin-top:16px"><h3>AI activity log</h3>${tbl((act.rows||[]).map(r=>({submission:r.submission_public_id,agent:r.agent,activity:r.activity,signal:r.signal,tools:r.tools_used,reasoning:r.reasoning})))}</div>`;
+    const mrows=(mo.models||[]).map(x=>`<div style="border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <b class="mono" style="font-size:12.5px">${esc((x.model||"").split(".").pop())}</b>
+        <span>${pill(x.tier,"bluep")} ${x.champion?pill("champion v"+x.champion,"green"):""}</span></div>
+      ${kv("Accountable owner",esc(x.owner))}${kv("Purpose",esc(x.purpose))}
+      ${kv("Training data",esc(x.training_data))}${kv("Validation",esc(x.validation))}
+      ${kv("Monitoring",esc(x.monitoring))}${kv("Versions",num(x.versions)+" · latest v"+x.latest+(x.last_updated?" ("+esc(x.last_updated)+")":""))}
+    </div>`).join("");
+    b.innerHTML=`<div class="card"><h3>Model risk register — SS1/23-shaped, read live from Unity Catalog</h3>
+      <div class="muted" style="margin-bottom:8px">${esc(mo.note||"")}</div>${mrows}</div>
+      <div class="card" style="margin-top:16px"><h3>AI activity log — every live agent interaction recorded</h3>${tbl((act.rows||[]).map(r=>({when:r.recorded_at,submission:r.submission_public_id,agent:r.agent,activity:r.activity,signal:r.signal,tools:r.tools_used,reasoning:r.reasoning})))}</div>`;
   }else{
     const mk=await api("/governance/masking");
     b.innerHTML=`<div class="card"><h3>Watchlist through the UC dynamic mask <span class="mono muted">${esc(mk.view||"")}</span></h3>
