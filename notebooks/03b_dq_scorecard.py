@@ -54,41 +54,56 @@ def cnt(t):
         return None
 
 SRC_MAP = [
-    # group, source, system, format, cadence, databricks_tool, table, status, note
+    # group, source, system, format, cadence, databricks_tool, table, status, note, production_connector
     ("Broker submissions", "E-trade gateway", "Broker portals (Acturis-shaped)", "structured JSON", "real-time",
-     "Lakeflow Declarative Pipelines", "bronze_submissions", "live", "55% of SME flow — straight-through eligible"),
+     "Lakeflow Declarative Pipelines", "bronze_submissions", "live", "55% of SME flow — straight-through eligible",
+     "SIMULATED here as a landing table. Production: software-house gateway (Acturis/Applied/CDL) webhook or file drop → Lakeflow Connect / Volume; same pipeline from there."),
     ("Broker submissions", "Broker portal feed", "Bricksurance broker extranet", "structured", "real-time",
-     "Lakeflow Declarative Pipelines", "bronze_submissions", "live", "Structured but manual-keyed"),
+     "Lakeflow Declarative Pipelines", "bronze_submissions", "live", "Structured but manual-keyed",
+     "SIMULATED as a landing table. Production: portal backend emits JSON to a Volume/queue; identical bronze contract."),
     ("Broker submissions", "Email inbox", "newbusiness@ mailbox", "unstructured text", "continuous",
-     "Auto Loader on UC Volume", "bronze_documents", "live", "The messy 20% that eats underwriter time"),
+     "Auto Loader on UC Volume", "bronze_documents", "live", "The messy 20% that eats underwriter time",
+     "SIMULATED as files in the Volume. Production: M365 Graph API or Power Automate rule drops the mailbox to the same Volume — everything you see runs from the drop onward."),
     ("Broker submissions", "Proposal forms & loss runs (PDF)", "Broker attachments", "scanned PDF", "continuous",
-     "ai_parse_document + ai_query", "bronze_doc_extractions", "live", "Document AI with a 0.6 confidence gate"),
+     "ai_parse_document + ai_query", "bronze_doc_extractions", "live", "Document AI with a 0.6 confidence gate",
+     "REAL Document AI on real PDF bytes. 'Will it misread a form?' — below-gate extractions quarantine for human review; nothing low-confidence is silently used."),
     ("Broker submissions", "Risk schedules / SOVs", "Broker BMS exports", "CSV/XLSX, schema drifts", "continuous",
-     "Auto Loader rescuedDataColumn", "bronze_schedule_locations", "live", "Drifted exports quarantine — nothing silently lost"),
+     "Auto Loader rescuedDataColumn", "bronze_schedule_locations", "live", "Drifted exports quarantine — nothing silently lost",
+     "REAL file ingestion incl. the drift handling. Production: same Volume drop from email attachments or SFTP."),
+    ("Broker submissions", "Call transcripts", "Call platform export", "text transcripts", "continuous",
+     "Auto Loader + ai_query insights", "bronze_doc_extractions", "live", "Material facts said on calls that never reach a form",
+     "SIMULATED transcripts in the Volume. Production: NICE/Genesys/Teams transcript export → same folder drop — a NEW SOURCE IS A FOLDER DROP + ONE EXTRACTION PROMPT."),
     ("System of record", "Policy admin system (book)", "PAS", "Delta", "daily",
-     "Lakeflow Declarative Pipelines", "bronze_pas_policies", "live", "In-force + lapsed (retention)"),
+     "Lakeflow Declarative Pipelines", "bronze_pas_policies", "live", "In-force + lapsed (retention)",
+     "SIMULATED book. Production: CDC from the PAS (Guidewire CDA-style / JDBC) via Lakeflow Connect. Quote/bind WRITE-BACK to the PAS is deliberately roadmap — this overlays, it does not replace."),
     ("System of record", "Claims history", "Claims system", "Delta", "daily",
-     "Lakeflow Declarative Pipelines", "bronze_pas_claims", "live", "Burning-cost basis for technical price"),
+     "Lakeflow Declarative Pipelines", "bronze_pas_claims", "live", "Burning-cost basis for technical price",
+     "SIMULATED claims. Production: same CDC pattern — see the sibling Claims Workbench for the full Guidewire CDA landing."),
     ("Enrichment — open data", "Companies House profiles", "Synthetic (live API = notebook 91)", "API JSON", "on submission",
-     "Simulated API call (labelled)", "bronze_company_profiles", "live", "Incorporation, SIC, accounts status, directors, filed turnover"),
+     "Simulated API call (labelled)", "bronze_company_profiles", "live", "Incorporation, SIC, accounts status, directors, filed turnover", "SIMULATED profiles (synthetic insureds). Production: live Companies House REST API — working example in notebook 91 (free API key)."),
     ("Enrichment — open data", "OFSI consolidated sanctions list", "HM Treasury OFSI (REAL, OGL)", "CSV", "monthly refresh",
-     "Bundled real extract", "ref_sanctions_ofsi", "live", "12k primary names — screened at point of quote"),
+     "Bundled real extract", "ref_sanctions_ofsi", "live", "12k primary names — screened at point of quote", "REAL OFSI consolidated list (bundled monthly). Does NOT replace WorldCheck/LexisNexis — it puts screening evidence + resolutions INTO the decision record; a vendor feed is just another source."),
     ("Enrichment — open data", "EA flood areas (RoFRS evidence)", "Environment Agency (REAL, OGL)", "API/CSV", "quarterly",
-     "Bundled real extract", "ref_flood_open", "live", "England only; banding curated from RoFRS statistics"),
+     "Bundled real extract", "ref_flood_open", "live", "England only; banding curated from RoFRS statistics", "REAL EA register extract (bundled quarterly). Production: full property-level RoFRS + surface water via the EA APIs."),
     ("Enrichment — open data", "police.uk crime counts", "Home Office police.uk (REAL, OGL)", "API/CSV", "monthly",
-     "Bundled real extract", "ref_crime_open", "live", "GMP data gap flagged + imputed — honest sourcing"),
+     "Bundled real extract", "ref_crime_open", "live", "GMP data gap flagged + imputed — honest sourcing", "REAL police.uk counts (bundled monthly). Production: scheduled refresh job against data.police.uk."),
     ("Enrichment — open data", "EPC band mix (MEES lens)", "MHCLG EPC statistics (curated)", "CSV", "quarterly",
-     "Bundled curated extract", "ref_epc_mix_open", "live", "MEES letting-ban/ESG lens — never a rating factor"),
+     "Bundled curated extract", "ref_epc_mix_open", "live", "MEES letting-ban/ESG lens — never a rating factor", "CURATED from MHCLG statistics. Production: EPC register bulk download (free registration)."),
     ("Enrichment — roadmap", "Full RoFRS property-level flood", "Environment Agency", "GIS", "quarterly", "—", None, "roadmap", "Property-level flood banding + surface water"),
     ("Enrichment — roadmap", "Live Companies House API", "Companies House", "REST API", "on submission", "—", None, "roadmap", "Real API demo in notebook 91 (off critical path)"),
     ("Enrichment — roadmap", "Credit reference (Experian/D&B)", "Credit bureau", "API", "on submission", "—", None, "roadmap", "Financial resilience score"),
     ("Enrichment — roadmap", "Perils/cat aggregation feed", "Cat modeller", "YELT/Delta", "quarterly", "—", None, "roadmap", "See reinsurance workbench for the treaty view"),
     ("Enrichment — roadmap", "Survey & risk engineering reports", "Survey panel", "PDF", "post-quote", "—", None, "roadmap", "Post-bind obligations tracking"),
 ]
-rows = [(g, s, sys, fmt, cad, tool, tbl, st, note, cnt(tbl) if st == "live" and tbl else None)
-        for g, s, sys, fmt, cad, tool, tbl, st, note in SRC_MAP]
+rows = []
+for item in SRC_MAP:
+    g, src, sys_, fmt, cad, tool, tbl, st, note = item[:9]
+    connector = item[9] if len(item) > 9 else "Roadmap — connector named per source when built."
+    rows.append((g, src, sys_, fmt, cad, tool, tbl, st, note, connector,
+                 cnt(tbl) if st == "live" and tbl else None))
 df = spark.createDataFrame(rows, "source_group string, source string, system string, format string, cadence string, "
-                                 "databricks_tool string, table_name string, status string, note string, row_count long")
+                                 "databricks_tool string, table_name string, status string, note string, "
+                                 "production_connector string, row_count long")
 df.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"{fqn}.gold_ingestion_sources")
 spark.sql(f"ALTER TABLE {fqn}.gold_ingestion_sources SET TBLPROPERTIES ('layer'='gold','demo'='underwriting_workbench')")
 live_rows = df.filter("status='live'").count()

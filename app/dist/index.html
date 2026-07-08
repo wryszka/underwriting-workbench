@@ -652,10 +652,13 @@ async function ingestionPage(){
   const d=await api("/ingestion/assets");
   const live=(d.sources||[]).filter(s=>s.status==="live"),road=(d.sources||[]).filter(s=>s.status!=="live");
   const score={};(d.scorecard||[]).forEach(r=>{(score[r.dataset]=score[r.dataset]||[]).push(r)});
-  const srcRows=live.map(s=>`<tr class="click" onclick="sampleTable('${esc(s.table_name)}')">
-    <td><b>${esc(s.source)}</b><br><span class="muted">${esc(s.system)}</span></td>
-    <td>${esc(s.source_group)}</td><td>${esc(s.format)}</td><td class="mono">${esc(s.databricks_tool)}</td>
-    <td>${s.row_count!=null?num(s.row_count):"—"}</td><td class="muted">${esc(s.note)}</td></tr>`).join("");
+  const srcRows=live.map(s=>{
+    const sim=(s.production_connector||"").startsWith("SIMULATED");
+    return `<tr class="click" onclick="sampleTable('${esc(s.table_name)}')">
+    <td><b>${esc(s.source)}</b> ${sim?pill("simulated","slatep"):pill("real data","green")}<br><span class="muted">${esc(s.system)}</span></td>
+    <td>${esc(s.format)}</td><td class="mono">${esc(s.databricks_tool)}</td>
+    <td>${s.row_count!=null?num(s.row_count):"—"}</td>
+    <td class="muted">${esc(s.note)}<br><span style="color:#3730a3">↳ ${esc(s.production_connector||"")}</span></td></tr>`}).join("");
   const scoreBlocks=Object.entries(score).map(([ds,rows])=>{
     const allPass=rows.every(r=>Number(r.failed)===0);
     return `<div style="border:1px solid var(--line);border-radius:10px;margin-bottom:10px;overflow:hidden">
@@ -670,7 +673,8 @@ async function ingestionPage(){
   <p class="sub">Structured feeds, an email inbox, scanned PDFs through Document AI, schedules that drift, the PAS book, and real bundled open data — all through expectations, nothing silently lost.</p>
   ${present("Click a live source to preview its real rows. The quality contract is the DLT event log; the drifted schedule and the illegible fax are IN quarantine right now — that is the no-silent-loss story.")}
   <div class="card"><h3>Live sources (${live.length})</h3>
-    <table><thead><tr><th>source</th><th>group</th><th>format</th><th>databricks tool</th><th>rows</th><th>note</th></tr></thead><tbody>${srcRows}</tbody></table></div>
+    <div class="muted" style="margin-bottom:8px">Every source states honestly what is simulated in this demo and what the production connector is — the pipeline from the landing drop onward is identical either way.</div>
+    <table><thead><tr><th>source</th><th>format</th><th>databricks tool</th><th>rows</th><th>note · production connector</th></tr></thead><tbody>${srcRows}</tbody></table></div>
   <div class="grid g2" style="margin-top:16px">
     <div class="card"><h3>Quality contract — DLT expectations (event log)</h3>${scoreBlocks}</div>
     <div>
@@ -683,12 +687,13 @@ async function ingestionPage(){
     </div>
   </div>
   <div class="grid g2" style="margin-top:16px">
-    <div class="card"><h3>Open data provenance (bundled, real, OGL)</h3>
-      ${kv("OFSI consolidated list","12k+ primary names · HM Treasury · screened at quote")}
-      ${kv("EA flood areas","full register match by town · RoFRS-curated band · England only")}
-      ${kv("police.uk crime","monthly counts · GMP gap flagged + imputed honestly")}
-      ${kv("EPC band mix","MEES/ESG lens only — never a rating factor")}
-      <div class="muted" style="margin-top:8px">Bundled at build time so the demo never depends on an external API. See data/open/PROVENANCE.md.</div></div>
+    <div class="card"><h3>How this lands in YOUR estate</h3>
+      ${kv("Mailbox","M365 Graph / Power Automate → the same Volume drop")}
+      ${kv("PAS (PolicyCenter/Acturis)","CDC in via Lakeflow Connect · quote/bind write-back = deliberate roadmap (overlay, not replacement)")}
+      ${kv("Rating engine (Radar/Earnix)","consumed via API — integration pattern proven in the sibling Pricing Workbench")}
+      ${kv("Screening vendor (WorldCheck…)","kept — its results become another governed source in the decision record")}
+      ${kv("Open data","bundled real OGL extracts (OFSI · EA flood · police.uk · EPC) — see PROVENANCE.md")}
+      <div class="muted" style="margin-top:8px">The demo never depends on an external API at show time — by design, not limitation.</div></div>
     <div class="card"><h3>Roadmap sources (${road.length})</h3>
       ${road.map(s=>`<div class="kv"><span>${esc(s.source)} <span class="soonpill">roadmap</span></span><b class="muted">${esc(s.note)}</b></div>`).join("")}
       <div class="muted" style="margin-top:8px">Live Companies House API example ships as notebook 91 — off the demo's critical path by design (reliability).</div></div>
