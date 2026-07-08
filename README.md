@@ -27,7 +27,8 @@ Unity Catalog.
    the workbench UI with human-in-the-loop decisions. Agents advise; humans bind.
 
 Build spec: `UNDERWRITING_WORKBENCH_BUILD_BRIEF.md` · Conventions: `CONVENTIONS.md` ·
-Deployment: `docs/DEPLOY.md` (asset inventory + fresh-workspace runbook).
+Deployment: `docs/DEPLOY.md` (asset inventory + fresh-workspace runbook) ·
+Demo run: `docs/DEMO_RUN.md` + [Google Doc](https://docs.google.com/document/d/1-J6OfcRAekJUEwmA3kWD3GpBZx7OoNT0LbDLA7j-jRY/edit).
 
 ## Quick start
 

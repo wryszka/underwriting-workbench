@@ -1,5 +1,7 @@
 # DEMO_RUN.md — step-by-step demo (≈20 min + optional beats)
 
+**Canonical presenter copy (Google Doc):** https://docs.google.com/document/d/1-J6OfcRAekJUEwmA3kWD3GpBZx7OoNT0LbDLA7j-jRY/edit
+
 Audience: insurance practitioners (underwriters, heads of underwriting, COO/ops, data leaders).
 Presenter prep: app RUNNING · smoke test all-PASS · AI toggle on **CACHED** (flip to LIVE to prove
 it) · this doc mirrors the Google Doc (canonical for presenters).
