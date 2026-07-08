@@ -99,9 +99,10 @@ COMMENT 'Authority check vs ref_authority_matrix: the minimum grade whose limits
 RETURN SELECT named_struct(
   'total_si', s.tsi, 'technical_base_premium', s.tech, 'hazard_grade', s.hz, 'flood_band', s.fb,
   'etrade_eligible',
-    (SELECT any_value(s.tsi <= m.max_total_si AND s.tech <= m.max_gross_premium AND s.hz <= m.max_hazard_grade
-            AND (m.flood_high_allowed OR s.fb <> 'High'))
-     FROM {F}.ref_authority_matrix m WHERE m.grade = 'system_etrade'),
+    s.tsi <= (SELECT any_value(m.max_total_si) FROM {F}.ref_authority_matrix m WHERE m.grade = 'system_etrade')
+    AND s.tech <= (SELECT any_value(m.max_gross_premium) FROM {F}.ref_authority_matrix m WHERE m.grade = 'system_etrade')
+    AND s.hz <= (SELECT any_value(m.max_hazard_grade) FROM {F}.ref_authority_matrix m WHERE m.grade = 'system_etrade')
+    AND (s.fb <> 'High' OR (SELECT any_value(m.flood_high_allowed) FROM {F}.ref_authority_matrix m WHERE m.grade = 'system_etrade')),
   'required_grade',
     (SELECT min_by(m.grade, m.max_total_si) FROM {F}.ref_authority_matrix m
      WHERE m.grade <> 'system_etrade' AND m.max_total_si >= s.tsi AND m.max_gross_premium >= s.tech
