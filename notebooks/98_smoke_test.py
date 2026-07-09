@@ -53,12 +53,12 @@ TABLES = ["landing_pas_policies", "landing_pas_claims", "landing_submissions_fee
           "silver_locations_enriched", "gold_pipeline_funnel", "gold_portfolio_position", "gold_accumulation",
           "gold_broker_scorecard", "gold_rate_adequacy", "gold_renewals", "gold_underinsurance",
           "gold_submission_lifecycle", "gold_dq_scorecard", "gold_ingestion_sources", "gold_inbox_priority",
-          "gold_decision_audit", "gold_comms_drafts", "gold_ai_activity", "gov_data_inventory", "gov_guide_changes", "gold_auto_bound", "gold_subjectivity_tracker", "ref_client", "landing_lossrun_claims",
+          "gold_decision_audit", "gold_comms_drafts", "gold_ai_activity", "gov_data_inventory", "gov_guide_changes", "gold_auto_bound", "gold_subjectivity_tracker", "ref_client", "landing_lossrun_claims", "landing_mta_feed",
           "feature_submission", "medallion_event_log"]
 FUNCTIONS = ["fn_extract_summary", "fn_appetite_check", "fn_authority_check", "fn_accumulation_impact",
              "fn_technical_price", "fn_sanctions_screen", "fn_underinsurance_check", "fn_recommendation",
              "fn_triage_score", "fn_risk_score", "fn_price_whatif", "fn_accumulation_whatif",
-             "fn_treaty_check", "mask_watchlist"]
+             "fn_treaty_check", "fn_mta_check", "mask_watchlist"]
 VIEWS = ["gov_watchlist_secure", "gov_conduct_declines"]
 VOLUMES = ["submission_inbox", "open_data", "ingest_checkpoints", "comms_out"]
 MODELS = ["model_triage_priority", "model_risk_quality", "model_underwriting_agent", "underwriting_agent"]
@@ -208,6 +208,8 @@ check("C4b call transcripts through the pipeline", lambda: (lambda n, t: (_ for 
       q(f"SELECT turnover_stated_gbp t FROM {fqn}.bronze_doc_extractions WHERE file_name='sub-900002_call_fd.txt'").first().t))
 check("C4c decision evidence column", lambda: (lambda cols: "decision_evidence present" if "decision_evidence" in cols else (_ for _ in ()).throw(AssertionError("missing")))(
       [c.name for c in spark.table(f"{fqn}.gold_decision_audit").schema.fields]))
+check("C4i MTA delta checks", lambda: (lambda r: f"hero MTA {r['recommendation']} — HX7 {r['district_util_before_pct']}%→{r['district_util_after_pct']}% (AP £{r['pro_rata_additional_premium']:,.0f})" if r["recommendation"] == "refer" and r["district_util_after_pct"] >= 80 else (_ for _ in ()).throw(AssertionError(r)))(
+      scalar_fn("fn_mta_check", "mta:900010")))
 check("C4h loss-run gauntlet", lambda: (lambda n, ho: f"{n} claims normalised · {ho} ambiguous doc held out" if (n >= 12 and ho >= 1) else (_ for _ in ()).throw(AssertionError(f"n={n} held_out={ho}")))(
       q(f"SELECT count(*) c FROM {fqn}.gold_claims_experience").first().c,
       q(f"SELECT count(*) c FROM {fqn}.gold_lossrun_recon WHERE held_out").first().c))

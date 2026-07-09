@@ -657,6 +657,36 @@ for i in range(N_SUBS):
                  quote_ts.isoformat() if quote_ts else None,
                  decided_ts.isoformat() if decided_ts else None, decline_code))
 
+# ---- MTA / endorsement feed (70% of operational leakage lives here) ---------------------
+random.seed(SEED + 9)
+MTA_TYPES = ["increase_si", "add_location", "add_cover", "change_of_use", "vehicle_change"]
+mtas = []
+_inforce_pols = [p for p in policies if p[-1] == "in_force"]
+for i in range(600):
+    pol = random.choice(_inforce_pols)
+    days_ago = random.randint(0, 364)
+    req = datetime.datetime.combine(TODAY - datetime.timedelta(days=days_ago), datetime.time(random.randint(8, 17), 0))
+    mtype = random.choice(MTA_TYPES)
+    d_b = random.choice([50, 100, 150, 250, 400]) * 1000 if mtype in ("increase_si", "add_location") else 0
+    d_c = random.choice([10, 25, 50]) * 1000 if mtype in ("increase_si", "add_cover") else 0
+    is_open = days_ago <= 12
+    mtas.append((f"mta:{300001 + i}", pol[0], req.isoformat(), mtype,
+                 d_b, d_c, pol[4],
+                 f"{mtype.replace('_', ' ')} requested by broker",
+                 "open" if is_open else "processed"))
+# HERO MTA-900010: cold-store extension on the hand-seeded HX7 policy — the ACCUMULATION DELTA beat:
+# +£4m buildings in HX7 takes the district from 67% to 83% → the endorsement itself needs a referral.
+mtas.append(("mta:900010", "BSE-C-0090000",
+             (datetime.datetime.now() - datetime.timedelta(hours=1)).isoformat(),
+             "increase_si", 4_000_000, 0, "HX7",
+             "New cold-store extension at the mill - buildings SI increase GBP 4m, effective next month",
+             "open"))
+write(spark.createDataFrame(mtas,
+      "mta_id string, policy_number string, requested_ts string, mta_type string, "
+      "delta_buildings_si long, delta_contents_si long, postcode_district string, "
+      "description string, status string"),
+      "landing_mta_feed", "landing")
+
 # ---- SACRED HEROES ----------------------------------------------------------------------
 # Heroes arrive "this morning" RELATIVE TO NOW (SLA clocks read fresh at any demo hour)
 _NOW = datetime.datetime.now()

@@ -451,6 +451,46 @@ def whatif_options():
     return q
 
 
+# ---------------------------------------------------------------- MTAs / endorsements
+@app.get("/api/mtas")
+def mtas():
+    rows = sql.query(f"""
+        SELECT m.*, p.trade_group, p.gross_premium, p.client_id
+        FROM {F('landing_mta_feed')} m
+        JOIN {F('landing_pas_policies')} p USING (policy_number)
+        WHERE m.status = 'open'
+        ORDER BY CASE WHEN m.mta_id LIKE 'mta:9000%' THEN 0 ELSE 1 END,
+                 (m.delta_buildings_si + m.delta_contents_si) DESC
+        LIMIT 60""")
+    kpi = sql.query_one(f"""
+        SELECT count(*) open_mtas, sum(delta_buildings_si + delta_contents_si) delta_si
+        FROM {F('landing_mta_feed')} WHERE status = 'open'""")
+    return {"rows": rows, "kpi": kpi,
+            "note": "Read from the landing feed (bronze governance for MTAs = roadmap); delta checks are live UC-function calls."}
+
+
+@app.get("/api/mta/{mid:path}")
+def mta_detail(mid: str):
+    return _struct("fn_mta_check", mid)
+
+
+@app.post("/api/mta/decide")
+async def mta_decide(req: Request):
+    b = await req.json()
+    mid = sql.esc(b.get("mta_id", ""))
+    who = sql.esc(req.headers.get("x-forwarded-email", "demo-user"))
+    did = "ME-" + uuid.uuid4().hex[:10]
+    chk = _struct("fn_mta_check", mid)
+    sql.query(f"""INSERT INTO {F('gold_decision_audit')} VALUES (
+        '{did}', '{mid}', 'mta_{sql.esc(b.get("action", "approve"))}',
+        {f"'{sql.esc(chk.get('required_grade', ''))}'" if b.get("action") == "refer" else "NULL"}, NULL,
+        array({','.join(chr(39) + sql.esc(r) + chr(39) for r in chk.get('reasons', []))}),
+        array(), array(), NULL, NULL, array('endorsement on {sql.esc(chk.get("policy_number", ""))}'),
+        {chk.get('pro_rata_additional_premium') or 'NULL'}, false, '{who}', 'app',
+        current_timestamp(), '{sql.esc(json.dumps({"mta_check": chk}))[:180000]}')""")
+    return {"decision_id": did, "recorded_by": who, "check": chk}
+
+
 # ---------------------------------------------------------------- subjectivity diary
 @app.get("/api/diary")
 def diary():

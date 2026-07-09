@@ -255,7 +255,7 @@ function cacheBadge(c){return c==="hit"?pill("cached","amber"):c==="live"||c==="
 const NAV=[
  {sec:"", items:[["home","Overview","◇"]]},
  {sec:"Head of Underwriting", items:[["tower","Portfolio Control Tower","▦"],["committee","Appetite & Rates","⚖"],["insight","Insight & Ask the Book","◉"]]},
- {sec:"Underwriter", items:[["inbox","Submission Inbox","☰"],["renewals","Renewals desk","↻"],["work","Work a submission","✎"],["tryit","Try a submission","✚"]]},
+ {sec:"Underwriter", items:[["inbox","Submission Inbox","☰"],["renewals","Renewals desk","↻"],["mtas","MTAs","±"],["work","Work a submission","✎"],["tryit","Try a submission","✚"]]},
  {sec:"Distribution", items:[["brokers","Brokers","🤝"]]},
  {sec:"Platform", items:[["ingestion","Ingestion","⇣"],["governance","Governance","🛡"],["ai","Underwriting AI","✳"],["onebook","One Book","▣"]]},
 ];
@@ -270,7 +270,7 @@ function route(){closeModal();
   const h=(location.hash||"#home").slice(1); const [r,...rest]=h.split("/"); const arg=rest.join("/");
   CUR=r==="sub"?"work":r; renderNav();
   const map={home:landing,tower:controlTower,insight:insight,inbox:inboxPage,work:()=>subView(CUR_SID),
-             sub:()=>subView(arg||CUR_SID),tryit:tryIt,brokers:brokersPage,ingestion:ingestionPage,renewals:renewalsDesk,committee:committeePage,
+             sub:()=>subView(arg||CUR_SID),tryit:tryIt,brokers:brokersPage,ingestion:ingestionPage,renewals:renewalsDesk,mtas:mtasPage,committee:committeePage,
              governance:governancePage,ai:aiPage,onebook:oneBook,learn:learnPage};
   (map[r]||landing)();
   if(r==="sub"&&arg)CUR_SID=arg;
@@ -522,6 +522,58 @@ async function renewalsDesk(){
   </div>
   <div class="card" style="margin-top:16px"><table><thead><tr><th>policy</th><th>expiry</th><th>premium</th><th>last rate chg</th><th>claims 3y</th><th>trade adequacy</th><th>suggested stance</th><th>retention</th></tr></thead><tbody>${rows}</tbody></table></div>
   <div class="prov">Computed live from the policy book and its claims experience. Roadmap: renewal invitation workflow (survey chase, broker pack) and <b>common renewal-date alignment across a client's policies</b> (multi-policy accounts renew as one conversation) — see One Book.</div>`;
+}
+
+/* ---------- MTAs / endorsements ---------- */
+async function mtasPage(){
+  const m=$("#m");m.innerHTML='<div class="loading">Loading endorsements…</div>';
+  const d=await api("/mtas");const k=d.kpi||{};
+  const rows=(d.rows||[]).map(r=>{const hero=r.mta_id.startsWith("mta:9000");
+    return `<tr class="click" onclick="mtaModal('${esc(r.mta_id)}')">
+      <td>${hero?"★ ":""}<b>${esc(r.mta_id)}</b><br><span class="muted">${esc(r.policy_number)} · ${esc(r.trade_group)}</span></td>
+      <td>${pill(r.mta_type.replaceAll("_"," "),"bluep")}</td>
+      <td>${money(Number(r.delta_buildings_si)+Number(r.delta_contents_si))}</td>
+      <td>${esc(r.postcode_district)}</td>
+      <td>${money(r.gross_premium)}</td>
+      <td class="muted">${esc(r.description).slice(0,60)}</td></tr>`}).join("");
+  m.innerHTML=`
+  <div class="eyebrow">Underwriter</div><h1>MTAs &amp; endorsements</h1>
+  <p class="sub">Mid-term adjustments are where operational leakage lives — changes waved through without the checks a new risk would get. Here every endorsement gets the <b>delta</b> checks: accumulation delta, authority on the delta premium, pro-rata additional premium.</p>
+  ${present("What it is: the open endorsement queue on in-force policies. What it shows: click one — the platform computes what the CHANGE does (district accumulation before/after, pro-rata AP for the remaining period, the authority the delta needs) and recommends approve or refer. The hero: a £4m cold-store extension in HX7 that the policy would never flag, but the district does.")}
+  <div class="grid g3">
+    <div class="card"><h3>Open endorsements</h3><div class="big">${num(k.open_mtas)}</div></div>
+    <div class="card"><h3>Δ sums insured pending</h3><div class="big">${money(k.delta_si)}</div></div>
+    <div class="card"><h3>The point</h3><div class="muted" style="line-height:1.5">An in-force policy passes no gates when it grows. The delta must — same rules, same audit, same packs.</div></div>
+  </div>
+  <div class="card" style="margin-top:16px"><table><thead><tr><th>endorsement</th><th>type</th><th>Δ SI</th><th>district</th><th>policy premium</th><th>request</th></tr></thead><tbody>${rows}</tbody></table></div>
+  <div class="prov">${esc(d.note||"")}</div>`;
+}
+async function mtaModal(mid){
+  openModal('<div class="loading">Running the delta checks…</div>');
+  const c=await api("/mta/"+encodeURIComponent(mid));
+  openModal(`<div class="eyebrow">Endorsement delta checks — live</div>
+    <h2 style="margin:0 0 4px">${esc(mid)} · ${esc((c.mta_type||"").replaceAll("_"," "))}</h2>
+    <div class="muted" style="margin-bottom:10px">${esc(c.description||"")} · policy ${esc(c.policy_number||"")}</div>
+    <div class="rec ${c.recommendation==="approve"?"GREEN":"AMBER"}">${esc((c.recommendation||"").toUpperCase())}
+      <ul class="reasons">${(c.reasons||[]).map(r=>`<li>${esc(r)}</li>`).join("")}</ul></div>
+    <div class="grid g2">
+      <div class="card"><h3>Accumulation delta — ${esc(c.postcode_district||"")}</h3>
+        ${kv("District before",pct(c.district_util_before_pct))}
+        ${kv("District after this endorsement",`<b>${pct(c.district_util_after_pct)}</b> ${ragPill(c.accumulation_status==="ok"?"green":c.accumulation_status==="referral"?"amber":"red")}`)}
+        ${kv("Δ property SI",money(c.delta_property_si))}</div>
+      <div class="card"><h3>Premium &amp; authority</h3>
+        ${kv("Pro-rata additional premium",money(c.pro_rata_additional_premium)+" <span class='muted'>("+c.days_remaining+"d remaining)</span>")}
+        ${kv("Authority required",esc(c.required_grade||"—"))}</div>
+    </div>
+    <div style="margin-top:12px">
+      <button class="btn" onclick="mtaDecide('${esc(mid)}','approve')">✓ Endorse</button>
+      <button class="btn warn" onclick="mtaDecide('${esc(mid)}','refer')">→ Refer the delta</button>
+      <span class="muted" id="mtamsg"></span></div>`);
+}
+async function mtaDecide(mid,action){
+  const r=await post("/mta/decide",{mta_id:mid,action});
+  const el=document.getElementById("mtamsg");
+  if(el)el.innerHTML=`✓ ${esc(r.decision_id)} recorded by ${esc(r.recorded_by)} → gold_decision_audit (with the delta-check evidence)`;
 }
 
 /* ---------- work a submission ---------- */

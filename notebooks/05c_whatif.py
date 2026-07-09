@@ -77,4 +77,48 @@ RETURN SELECT named_struct(
 FROM {fqn}.gold_accumulation WHERE postcode_district = p_district
 """)
 print("created: fn_accumulation_whatif")
+
+spark.sql(f"""
+CREATE OR REPLACE FUNCTION {fqn}.fn_mta_check(p_mta_id STRING)
+RETURNS STRUCT<mta_id STRING, policy_number STRING, mta_type STRING, description STRING,
+               delta_property_si BIGINT, postcode_district STRING,
+               district_util_before_pct DOUBLE, district_util_after_pct DOUBLE, accumulation_status STRING,
+               pro_rata_additional_premium DOUBLE, days_remaining INT, required_grade STRING,
+               recommendation STRING, reasons ARRAY<STRING>>
+COMMENT 'Mid-term adjustment (endorsement) delta checks: the ACCUMULATION DELTA in the affected district before/after, pro-rata additional premium for the remaining policy period, and the authority the delta premium requires. Recommendation approve/refer - a human endorses. Input: mta_id like mta:900010.'
+RETURN SELECT named_struct(
+  'mta_id', x.mta_id, 'policy_number', x.policy_number, 'mta_type', x.mta_type,
+  'description', x.description, 'delta_property_si', x.delta, 'postcode_district', x.district,
+  'district_util_before_pct', x.util_before,
+  'district_util_after_pct', round((x.in_force + x.delta) / x.capacity * 100, 1),
+  'accumulation_status', CASE WHEN (x.in_force + x.delta) / x.capacity >= 1.0 THEN 'breach'
+                              WHEN (x.in_force + x.delta) / x.capacity >= 0.8 THEN 'referral' ELSE 'ok' END,
+  'pro_rata_additional_premium', round(x.delta * x.rate / 1000 * x.days_rem / 365, 0),
+  'days_remaining', x.days_rem,
+  'required_grade', CASE WHEN x.delta * x.rate / 1000 * x.days_rem / 365 > 50000 THEN 'senior_underwriter'
+                         WHEN x.delta * x.rate / 1000 * x.days_rem / 365 > 5000 THEN 'underwriter'
+                         ELSE 'assistant_underwriter' END,
+  'recommendation', CASE WHEN (x.in_force + x.delta) / x.capacity >= 0.8 THEN 'refer' ELSE 'approve' END,
+  'reasons', filter(array(
+     CASE WHEN (x.in_force + x.delta) / x.capacity >= 0.8
+          THEN concat('Endorsement takes ', x.district, ' to ',
+                      round((x.in_force + x.delta) / x.capacity * 100, 1), ' percent of capacity - the DELTA needs a referral even though the policy is in force') END,
+     CASE WHEN (x.in_force + x.delta) / x.capacity < 0.8 THEN 'Delta within district capacity and authority - endorse and collect the additional premium' END
+   ), r -> r IS NOT NULL))
+FROM (
+  SELECT any_value(m.mta_id) AS mta_id, any_value(m.policy_number) AS policy_number,
+         any_value(m.mta_type) AS mta_type, any_value(m.description) AS description,
+         any_value(m.delta_buildings_si + m.delta_contents_si) AS delta,
+         any_value(m.postcode_district) AS district,
+         any_value(a.utilisation_pct) AS util_before,
+         any_value(a.in_force_property_si) AS in_force, any_value(a.property_capacity_gbp) AS capacity,
+         any_value(coalesce(r.property_rate_permille, 3.5)) AS rate,
+         any_value(greatest(datediff(to_date(p.expiry_date), current_date()), 0)) AS days_rem
+  FROM {fqn}.landing_mta_feed m
+  JOIN {fqn}.gold_accumulation a ON a.postcode_district = m.postcode_district
+  JOIN {fqn}.landing_pas_policies p ON p.policy_number = m.policy_number
+  LEFT JOIN {fqn}.ref_rate_guide r ON r.trade_group = p.trade_group
+  WHERE m.mta_id = p_mta_id) x
+""")
+print("created: fn_mta_check")
 print("✅ 05c complete")
