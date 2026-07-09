@@ -152,7 +152,7 @@ lr = spark.sql(f"""
   ext AS (
     SELECT file_name,
            from_json(regexp_extract(ai_query('{FM}', concat('{LR_PROMPT}', substring(raw_text, 1, 10000))),
-                     '(?s)\\{{.*\\}}', 0), '{LR_SCHEMA}') AS x
+                     '(?s)\\\\{{.*\\\\}}', 0), '{LR_SCHEMA}') AS x
     FROM lr_docs)
   SELECT CASE WHEN regexp_extract(file_name, 'sub-([0-9]+)', 1) != ''
               THEN concat('sub:', regexp_extract(file_name, 'sub-([0-9]+)', 1)) END AS submission_public_id,
