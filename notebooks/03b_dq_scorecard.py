@@ -70,6 +70,9 @@ SRC_MAP = [
     ("Broker submissions", "Risk schedules / SOVs", "Broker BMS exports", "CSV/XLSX, schema drifts", "continuous",
      "Auto Loader rescuedDataColumn", "bronze_schedule_locations", "live", "Drifted exports quarantine — nothing silently lost",
      "REAL file ingestion incl. the drift handling. Production: same Volume drop from email attachments or SFTP."),
+    ("Broker submissions", "Loss runs — 5 carriers, 5 formats", "RSA PDF · Aviva CSV · Zurich pipe · broker export · 1 ambiguous scan", "mixed", "on submission",
+     "ai_parse_document + ai_query normalisation", "landing_lossrun_claims", "live", "The gauntlet: varying deductibles + windows → ONE canonical claims table; the ambiguous scan is HELD OUT, never guessed",
+     "REAL multi-format parsing on real file bytes. Production: same pipeline; add carriers by dropping their format in the folder."),
     ("Broker submissions", "Call transcripts", "Call platform export", "text transcripts", "continuous",
      "Auto Loader + ai_query insights", "bronze_doc_extractions", "live", "Material facts said on calls that never reach a form",
      "SIMULATED transcripts in the Volume. Production: NICE/Genesys/Teams transcript export → same folder drop — a NEW SOURCE IS A FOLDER DROP + ONE EXTRACTION PROMPT."),
@@ -105,6 +108,25 @@ df = spark.createDataFrame(rows, "source_group string, source string, system str
                                  "databricks_tool string, table_name string, status string, note string, "
                                  "production_connector string, row_count long")
 df.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"{fqn}.gold_ingestion_sources")
+
+# Canonical claims experience (the loss-run gauntlet's output) + per-document reconciliation
+spark.sql(f"""
+CREATE OR REPLACE VIEW {fqn}.gold_claims_experience
+COMMENT 'Canonical claims experience normalised from multi-carrier loss runs (narrative PDF, CSVs, pipe-delimited, broker exports) by Document AI — one row per claim with carrier, deductible and period. Ambiguous documents are held out, never guessed.' AS
+SELECT submission_public_id, file_name, carrier, period_note, loss_date, peril,
+       paid_gbp, outstanding_gbp, deductible_gbp, status, extraction_confidence
+FROM {fqn}.landing_lossrun_claims
+WHERE extraction_confidence >= 0.6 AND peril IS NOT NULL""")
+spark.sql(f"""
+CREATE OR REPLACE VIEW {fqn}.gold_lossrun_recon
+COMMENT 'Reconciliation per loss-run document: claims extracted, totals, confidence, held-out flag.' AS
+SELECT file_name, any_value(submission_public_id) submission_public_id, any_value(carrier) carrier,
+       count(CASE WHEN peril IS NOT NULL THEN 1 END) claims_extracted,
+       sum(coalesce(paid_gbp, 0)) total_paid, sum(coalesce(outstanding_gbp, 0)) total_outstanding,
+       any_value(extraction_confidence) confidence,
+       any_value(extraction_confidence) < 0.6 AS held_out
+FROM {fqn}.landing_lossrun_claims GROUP BY file_name""")
+print("gold_claims_experience + gold_lossrun_recon views created")
 spark.sql(f"ALTER TABLE {fqn}.gold_ingestion_sources SET TBLPROPERTIES ('layer'='gold','demo'='underwriting_workbench')")
 live_rows = df.filter("status='live'").count()
 assert spark.table(f"{fqn}.gold_dq_scorecard").count() >= 8, "expected ≥8 expectations in the scorecard"

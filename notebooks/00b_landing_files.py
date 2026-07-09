@@ -365,6 +365,57 @@ save_pdf(pdf, "sub-900003_risk_presentation.pdf")
 
 # COMMAND ----------
 
+# MAGIC %md ## The loss-run gauntlet — five carriers, five formats, one canonical table
+# MAGIC "Prove your OCR can parse 5-year bordereaux with varying deductibles from five different
+# MAGIC carriers." Challenge accepted: RSA narrative PDF (above), Aviva CSV, Zurich pipe-delimited
+# MAGIC with a total row, a broker Excel-export with junk header rows and £-formatted amounts,
+# MAGIC and one ambiguous scan that MUST quarantine rather than guess.
+
+# COMMAND ----------
+
+LR_AVIVA = f"""claim_ref,date_of_loss,cause,paid_gbp,outstanding_gbp,policy_deductible_gbp,period
+AV-2021-88231,{_dt(1700,'%Y-%m-%d')},Escape of water,14250,0,500,2021-2022
+AV-2022-90112,{_dt(1350,'%Y-%m-%d')},Storm damage,6800,0,500,2022-2023
+AV-2023-91455,{_dt(980,'%Y-%m-%d')},Theft of stock,11900,0,1000,2023-2024
+AV-2024-93872,{_dt(600,'%Y-%m-%d')},Impact - vehicle,4300,0,1000,2024-2025
+AV-2025-95210,{_dt(240,'%Y-%m-%d')},Employers liability,0,18500,0,2025-2026
+"""
+write_text("sub-100200_lossrun_aviva.csv", LR_AVIVA)
+
+LR_ZURICH = f"""CLAIMS EXPERIENCE STATEMENT | ZURICH COMMERCIAL | 5 YEAR SUMMARY
+ClaimNo|LossDate|Peril|GrossIncurred|ExcessCarried|Status
+ZC/19/44821|{_dt(1800,'%d.%m.%Y')}|Fire - electrical|32400|2500|CLOSED
+ZC/21/50233|{_dt(1200,'%d.%m.%Y')}|Water damage|8750|1000|CLOSED
+ZC/23/55190|{_dt(700,'%d.%m.%Y')}|Public liability - slip|12600|0|CLOSED
+ZC/25/58834|{_dt(150,'%d.%m.%Y')}|Storm|3100|1000|OPEN
+TOTAL|||56850||
+"""
+write_text("sub-100300_lossrun_zurich.txt", LR_ZURICH)
+
+LR_BROKER = f"""Prepared by Harborough & Slate for remarketing,,,,
+Client claims history - all carriers - 5 years,,,,
+,,,,
+Year,Insurer,Type of Loss,"Amount Paid","Excess"
+{TODAY.year-4},NIG,"Burst pipe - stock damage","£9,450","£500"
+{TODAY.year-3},NIG,"Break-in / theft","£15,200","£1,000"
+{TODAY.year-2},Aviva,"Fork lift impact","£7,850","£1,000"
+{TODAY.year-1},Aviva,"Slip injury (PL)","£22,300","£0"
+{TODAY.year},Aviva,"Minor water leak","£1,900","£500"
+"""
+write_text("sub-100400_lossrun_broker_export.csv", LR_BROKER)
+
+# The ambiguous one — overlapping periods, unclear currency, illegible rows → must quarantine
+LR_AMBIG = """[SCAN QUALITY: POOR - RE-PHOTOGRAPHED FAX]
+CLAIMS SUMMARY 2019-2024 (?) / policy years overlap 2021-2023 shown twice
+loss 1: warehouse f1re .... 45,ooo (curr?) .... paid?
+loss 2: theft [illegible] 12k or 21k
+loss 3: liab / see attached (no attachment)
+NB figures may be EUR - cedant operates cross-border
+"""
+write_text("sub-100500_lossrun_scan.txt", LR_AMBIG)
+
+# COMMAND ----------
+
 import os
 files = sorted(os.listdir(INBOX))
 print(f"submission_inbox: {len(files)} files")

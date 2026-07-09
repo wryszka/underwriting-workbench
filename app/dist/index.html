@@ -629,6 +629,9 @@ async function subView(sid){
       <div style="margin:10px 0 4px"><b>Documents</b></div>${docs||'<div class="muted">structured channel — no documents (that is the point of e-trade)</div>'}
       ${calls?`<div style="margin:10px 0 0"><b>Calls &amp; insights</b> <span class="muted">(transcripts through the SAME pipeline — facts said on calls that never reach a form)</span></div>${calls}`:""}
       ${locRows?`<div style="margin:12px 0 4px"><b>Schedule of premises</b></div><table><thead><tr><th>#</th><th>site</th><th>district</th><th>property SI</th><th>flood</th><th>EA rivers</th></tr></thead><tbody>${locRows}</tbody></table>`:""}
+      ${(d.claims_experience||[]).length?`<div style="margin:12px 0 4px"><b>Claims experience — normalised</b> <span class="muted">(multi-carrier loss runs → one canonical table)</span></div>
+        <table><thead><tr><th>date</th><th>peril</th><th>paid</th><th>o/s</th><th>excess</th><th>carrier</th></tr></thead><tbody>
+        ${(d.claims_experience||[]).map(c=>`<tr><td>${esc(c.loss_date||"—")}</td><td>${esc(c.peril)}</td><td>${money(c.paid_gbp)}</td><td>${money(c.outstanding_gbp)}</td><td>${money(c.deductible_gbp)}</td><td>${esc(c.carrier||"—")}</td></tr>`).join("")}</tbody></table>`:""}
     </div>
   </div>
   <div class="card" style="margin-top:16px"><h3>👥 Client &amp; account — the multi-policy view</h3>
@@ -952,12 +955,15 @@ async function ingestionPage(){
     <div class="ingkpi amber"><div class="k">In quarantine</div><div class="v">${num(totQ)}</div></div>
   </div>
   ${groupHtml}
-  <div class="grid g2" style="margin-top:16px">
+  <div class="grid g3" style="margin-top:16px">
     <div class="card"><h3>📄 Document AI spotlight</h3>
       <div class="muted" style="margin-bottom:8px">Every file in the inbox, parsed and entity-extracted with a self-reported confidence. Below the 0.6 gate → quarantined for human review, never silently used.</div>
       <table><thead><tr><th>file</th><th>type</th><th>submission</th><th>confidence</th></tr></thead><tbody>
       ${(ING.docs||[]).map(x=>`<tr><td>${esc(x.file_name)}</td><td>${pill(x.doc_type,"slatep")}</td><td>${esc(x.submission_public_id||"—")}</td>
         <td>${pill(Number(x.extraction_confidence).toFixed(2),Number(x.extraction_confidence)>=0.6?"green":"red")}</td></tr>`).join("")}</tbody></table></div>
+    <div class="card"><h3>🧾 The loss-run gauntlet</h3>
+      <div class="muted" style="margin-bottom:8px">"Prove your OCR can parse 5-year bordereaux with varying deductibles from five carriers." Five formats — RSA narrative PDF, Aviva CSV, Zurich pipe-delimited with total rows, a broker export with junk headers and £-formatted amounts, and one deliberately ambiguous scan — normalised into ONE canonical claims table. The ambiguous one is <b>held out, never guessed</b>.</div>
+      <div class="kv"><span>Canonical table</span><b><a class="lnk" onclick="ingGauntlet()">view reconciliation ↗</a></b></div></div>
     <div class="card"><h3>🗺 Roadmap sources</h3>
       <div class="muted" style="margin-bottom:8px">Named honestly, not faked. The pattern for each is the same folder-drop + quality contract you see above.</div>
       ${road.map(x=>`<div class="kv"><span>${esc(x.source)} <span class="soonpill">roadmap</span></span><b class="muted" style="max-width:55%;text-align:right">${esc(x.note)}</b></div>`).join("")}
@@ -1003,6 +1009,12 @@ async function ingPreview(t){
   const d=await api("/ingestion/sample?table="+encodeURIComponent(t));
   const e=document.getElementById("ingprev");
   if(e)e.innerHTML=d.rows?tbl(d.rows):'<div class="muted">preview unavailable</div>';
+}
+async function ingGauntlet(){
+  openModal('<div class="loading">Loading reconciliation…</div>');
+  const d=await api("/ingestion/sample?table=gold_lossrun_recon");
+  openModal(`<div class="eyebrow">One canonical table from five formats</div><h2 style="margin:0 0 8px">Loss-run reconciliation — per document</h2>
+    ${tbl(d.rows)}<div class="note">held_out = true means the document self-reported ambiguity (overlapping periods / unclear currency) and its rows were EXCLUDED from the canonical table pending human review — parsing that guesses is worse than no parsing.</div>`);
 }
 async function quarDrill(src){
   openModal('<div class="loading">Loading quarantine rows…</div>');

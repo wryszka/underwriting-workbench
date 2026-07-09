@@ -238,6 +238,10 @@ def submission_panels(sid: str):
     stmts["documents"] = f"""SELECT file_name, doc_type, extraction_confidence, key_hazards_json,
                                     prior_losses_json, turnover_stated_gbp
                              FROM {F('bronze_doc_extractions')} WHERE submission_public_id='{sid}'"""
+    stmts["claims_experience"] = f"""SELECT carrier, loss_date, peril, paid_gbp, outstanding_gbp,
+                                            deductible_gbp, status, file_name
+                                     FROM {F('gold_claims_experience')}
+                                     WHERE submission_public_id='{sid}' ORDER BY loss_date DESC LIMIT 12"""
     stmts["account"] = f"""SELECT p.policy_number, p.product_line, p.gross_premium, p.policy_status,
                                   p.inception_date, c.client_id, c.client_since,
                                   coalesce(cl.incurred_3y, 0) AS incurred_3y
@@ -275,6 +279,7 @@ def submission_panels(sid: str):
     res["auto_bound"] = (out.get("auto_bound") or [None])[0]
     res["broker"] = (out.get("broker") or [None])[0]
     res["account"] = out.get("account", [])
+    res["claims_experience"] = out.get("claims_experience", [])
     res["fns"] = {k: f"{F(v)}('{sid}')" for k, v in PANEL_FNS.items()}
     return res
 
@@ -637,7 +642,7 @@ def ingestion_quarantine(src: str = "schedules"):
 def ingestion_sample(table: str):
     allowed = {"bronze_submissions", "bronze_schedule_locations", "bronze_documents", "bronze_doc_extractions",
                "bronze_pas_policies", "bronze_pas_claims", "bronze_company_profiles", "ref_sanctions_ofsi",
-               "ref_flood_open", "ref_crime_open", "ref_epc_mix_open"}
+               "ref_flood_open", "ref_crime_open", "ref_epc_mix_open", "gold_lossrun_recon", "gold_claims_experience"}
     if table not in allowed:
         return JSONResponse({"error": "table not inspectable"}, status_code=400)
     return {"rows": sql.query(f"SELECT * FROM {F(table)} LIMIT 8"), "table": F(table)}
