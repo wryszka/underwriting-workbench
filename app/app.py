@@ -339,7 +339,8 @@ async def decision(req: Request):
     for i, subj in enumerate(b.get("subjectivities") or []):
         try:
             import re as _re
-            days = int((_re.search(r"within (\d+) days", subj) or [None, 30])[1])
+            m = _re.search("within ([0-9]+) days", subj)
+            days = int(m.group(1)) if m else 30
         except Exception:
             days = 30
         sql.query(f"""MERGE INTO {F('gold_subjectivity_tracker')} t

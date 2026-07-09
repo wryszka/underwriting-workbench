@@ -111,7 +111,7 @@ USING (
   SELECT concat(a.decision_id, '-S', s.pos) AS tracker_id, a.submission_public_id, a.decision_id,
          s.col AS subjectivity,
          date_add(to_date(a.decision_ts),
-                  coalesce(try_cast(regexp_extract(s.col, 'within (\\d+) days', 1) AS INT), 30)) AS due_date
+                  coalesce(try_cast(regexp_extract(s.col, 'within (\\\\d+) days', 1) AS INT), 30)) AS due_date
   FROM {fqn}.gold_decision_audit a
   LATERAL VIEW posexplode(a.subjectivities) s AS pos, col
   WHERE a.action IN ('quote', 'refer') AND size(a.subjectivities) > 0
