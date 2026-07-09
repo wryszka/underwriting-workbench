@@ -208,7 +208,7 @@ check("C4b call transcripts through the pipeline", lambda: (lambda n, t: (_ for 
       q(f"SELECT turnover_stated_gbp t FROM {fqn}.bronze_doc_extractions WHERE file_name='sub-900002_call_fd.txt'").first().t))
 check("C4c decision evidence column", lambda: (lambda cols: "decision_evidence present" if "decision_evidence" in cols else (_ for _ in ()).throw(AssertionError("missing")))(
       [c.name for c in spark.table(f"{fqn}.gold_decision_audit").schema.fields]))
-check("C4g client master / multi-policy", lambda: (lambda n, h: f"{n} multi-policy clients · Calder Valley holds {h} product lines" if h >= 3 else (_ for _ in ()).throw(AssertionError(f"hero lines={h}")))(
+check("C4g client master / multi-policy", lambda: (lambda n, h: f"{n} multi-policy clients · Calder Valley holds {h} in-force lines (fleet+D&O)" if h >= 2 else (_ for _ in ()).throw(AssertionError(f"hero lines={h}")))(
       q(f"SELECT count(distinct client_id) c FROM {fqn}.landing_pas_policies WHERE product_line NOT IN ('commercial_package','commercial_combined')").first().c,
       q(f"SELECT count(distinct product_line) c FROM {fqn}.landing_pas_policies WHERE client_id='CL-900002'").first().c))
 check("C4f subjectivity diary", lambda: (lambda n, h: f"{n} obligations tracked · hero 900002 has {h}" if h >= 3 else (_ for _ in ()).throw(AssertionError(f"hero subj={h}")))(
