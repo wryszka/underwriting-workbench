@@ -320,7 +320,7 @@ def mk_directors(n):
     return [f"{random.choice(FIRST)} {random.choice(LAST)}" for _ in range(n)]
 
 
-N_PROFILES = 6500   # ≈1.25 submissions/company/yr — realistic remarket frequency (the "returning client" chip must mean something)
+N_PROFILES = 9000   # most companies submit ONCE a year; a deliberate ~20% tail remarkets (see submission loop)
 profiles, PROFILE_BY_CO = [], {}
 for i in range(N_PROFILES):
     trade = random.choice(TRADES_CORE * 3 + TRADES_SEL)
@@ -524,10 +524,16 @@ BROKER_BY_SEGMENT = {"sme": ["BRK-003", "BRK-005", "BRK-002"], "mid_market": ["B
 INCUMBENTS = ["Aviva", "AXA", "RSA", "Zurich", "Allianz", "NIG", "Covea", "Self-insured", None]
 
 profile_pool = [p for p in profiles if p[4] == "active"]
+random.shuffle(profile_pool)
 subs, sub_states = [], {"received": 0}
 N_SUBS = 8_000
+# Realistic remarket shape: ~90% of submissions are a company's ONLY approach this year;
+# the rest re-approach (renewal shopping / broker remarketing) drawn from a concentrated tail —
+# so "returning client" is a meaningful signal (~20% of the open queue), not noise.
+UNIQUE_N = int(N_SUBS * 0.90)
+REPEAT_TAIL = profile_pool[:1500]
 for i in range(N_SUBS):
-    prof = random.choice(profile_pool)
+    prof = profile_pool[i % len(profile_pool)] if i < UNIQUE_N else random.choice(REPEAT_TAIL)
     trade, base_t = prof[8], prof[9]
     segment = "mid_market" if base_t >= 3_000_000 else "sme"
     channel = random.choices(CHANNELS, weights=CH_W, k=1)[0] if segment == "sme" else random.choices(["email", "portal"], weights=[75, 25], k=1)[0]
