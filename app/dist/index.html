@@ -402,6 +402,7 @@ async function controlTower(){
       ${kv("SLA breached",`<span class="pill red">${num(pipe.sla_breached)}</span>`)}
       ${kv("Sitting at referral",num(pipe.referred))}
       ${kv("Total SI on the desk",money(pipe.open_si))}
+      ${kv("Subjectivities",`${pill(num((d.diary||{}).overdue)+" overdue","red")} ${pill(num((d.diary||{}).due_soon)+" due ≤3d","amber")} <a class="lnk" onclick="diaryModal()">open diary ↗</a>`)}
       <div style="margin-top:12px"><button class="btn" onclick="go('inbox')">Open the inbox →</button></div>
       <h3 style="margin-top:16px">Hottest districts</h3>
       ${(d.accum_hot||[]).map(r=>`<div class="kv"><span>${esc(r.postcode_district)} ${r.flood_band==="High"?pill("flood HIGH","red"):""}</span><b>${pct(r.utilisation_pct)} ${ragPill(r.rag)}</b></div>`).join("")}
@@ -438,6 +439,33 @@ async function ctDrill(key){
   const d=await api("/control-tower/drill?key="+key);
   openModal(`<div class="eyebrow">Reconciling rows</div><h2 style="margin:0 0 8px">${key} — computed from ${esc(d.table)}</h2>
     ${tbl(d.rows)}${showSqlBtn("sql-"+key,d.sql)}`);
+}
+
+async function diaryModal(){
+  openModal('<div class="loading">Loading the diary…</div>');
+  const d=await api("/diary");const k=d.kpi||{};
+  const B={overdue:["overdue","red"],due_soon:["due ≤3d","amber"],on_track:["on track","green"],chased:["chased","bluep"],satisfied:["satisfied","green"]};
+  const rows=(d.rows||[]).map(r=>{const b=B[r.bucket]||[r.bucket,"slatep"];
+    return `<div class="kv"><span><b>${esc(r.submission_public_id)}</b> · ${esc(r.subjectivity).slice(0,110)}…<br>
+      <span class="muted">due ${esc(r.due_date)} (${r.days_left}d) · ${esc(r.decision_id)}</span></span>
+      <b>${pill(b[0],b[1])} ${r.status==="open"?`<button class="btn ghost" style="margin:0 0 0 6px;padding:3px 8px" onclick="chaseSubj('${esc(r.tracker_id)}')">✉ draft chaser</button>`:""}</b></div>`}).join("");
+  openModal(`<div class="eyebrow">The diary the system keeps — so underwriters do not</div>
+    <h2 style="margin:0 0 4px">Subjectivities & obligations</h2>
+    <div class="muted" style="margin-bottom:10px">${num(k.overdue)} overdue · ${num(k.due_soon)} due within 3 days · ${num(k.chased)} chased · ${num(k.total)} tracked. Every subjectivity set on a decision lands here with its due date parsed from its own wording; the platform drafts the chaser, a human approves and sends.</div>
+    <div class="tscroll">${rows||'<div class="muted">nothing tracked yet</div>'}</div>
+    <div id="chaseout"></div>`);
+}
+async function chaseSubj(tid){
+  const el=document.getElementById("chaseout");
+  if(el)el.innerHTML='<div class="loading">The comms agent is drafting the chaser…</div>';
+  const r=await post("/diary/chase",{tracker_id:tid});
+  if(el)el.innerHTML=`<div class="letter">${esc(r.text||r.error||"")}</div>
+    <div style="margin-top:8px">${cacheBadge(r.cache)} <button class="btn" onclick="approveChaser('${esc(r.sid)}')">Approve &amp; record</button> <span class="muted" id="chasemsg"></span></div>`;
+  window._chaser=r;
+}
+async function approveChaser(sid){
+  const r=await post("/comms/record",{sid,letter_type:"subjectivity chaser",content:(window._chaser||{}).text||"",status:"approved"});
+  const el=document.getElementById("chasemsg");if(el)el.textContent=`✓ ${r.draft_id} approved by ${r.approver} → gold_comms_drafts`;
 }
 
 /* ---------- inbox ---------- */

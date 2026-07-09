@@ -92,6 +92,39 @@ print("decision audit seeded:", spark.table(f"{fqn}.gold_decision_audit").count(
 
 # COMMAND ----------
 
+# MAGIC %md ## Subjectivity tracker — the diary the system keeps so underwriters do not
+# MAGIC Every subjectivity on a quote/refer decision becomes a tracked obligation with a due
+# MAGIC date parsed from its own wording ("within 14 days" / "within 60 days"). The platform
+# MAGIC watches the diary and drafts the broker chaser; a human approves. Idempotent MERGE.
+
+# COMMAND ----------
+
+spark.sql(f"""
+CREATE TABLE IF NOT EXISTS {fqn}.gold_subjectivity_tracker (
+  tracker_id STRING, submission_public_id STRING, decision_id STRING, subjectivity STRING,
+  due_date DATE, status STRING, chased_ts TIMESTAMP, satisfied_ts TIMESTAMP, created_ts TIMESTAMP)
+TBLPROPERTIES ('layer'='gold','demo'='underwriting_workbench')
+""")
+spark.sql(f"""
+MERGE INTO {fqn}.gold_subjectivity_tracker t
+USING (
+  SELECT concat(a.decision_id, '-S', s.pos) AS tracker_id, a.submission_public_id, a.decision_id,
+         s.col AS subjectivity,
+         date_add(to_date(a.decision_ts),
+                  coalesce(try_cast(regexp_extract(s.col, 'within (\\d+) days', 1) AS INT), 30)) AS due_date
+  FROM {fqn}.gold_decision_audit a
+  LATERAL VIEW posexplode(a.subjectivities) s AS pos, col
+  WHERE a.action IN ('quote', 'refer') AND size(a.subjectivities) > 0
+) src ON t.tracker_id = src.tracker_id
+WHEN NOT MATCHED THEN INSERT (tracker_id, submission_public_id, decision_id, subjectivity,
+  due_date, status, chased_ts, satisfied_ts, created_ts)
+VALUES (src.tracker_id, src.submission_public_id, src.decision_id, src.subjectivity,
+  src.due_date, 'open', NULL, NULL, current_timestamp())
+""")
+print("subjectivity tracker:", spark.table(f"{fqn}.gold_subjectivity_tracker").count(), "obligations tracked")
+
+# COMMAND ----------
+
 # MAGIC %md ## Comms drafts audit shell (HITL: drafted → approved; app appends)
 
 # COMMAND ----------

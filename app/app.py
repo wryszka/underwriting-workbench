@@ -67,6 +67,9 @@ def control_tower():
                         FROM {F('gold_submission_lifecycle')} l
                         LEFT ANTI JOIN {F('gold_auto_bound')} z USING (submission_public_id)""",
         "zerotouch": f"""SELECT count(*) bound, sum(premium) premium FROM {F('gold_auto_bound')}""",
+        "diary": f"""SELECT sum(CASE WHEN status='open' AND due_date < current_date() THEN 1 ELSE 0 END) overdue,
+                            sum(CASE WHEN status='open' AND datediff(due_date, current_date()) BETWEEN 0 AND 3 THEN 1 ELSE 0 END) due_soon
+                     FROM {F('gold_subjectivity_tracker')}""",
         "forecast": f"""SELECT round(sum(coalesce(l.target_premium, l.technical_base_premium)
                                           * coalesce(p.bind_propensity_pct, 25) / 100), 0) expected_gwp,
                                count(*) open_subs,
@@ -321,6 +324,16 @@ async def decision(req: Request):
         {f"'{sql.esc(b['external_reason'])}'" if b.get("external_reason") else "NULL"},
         {arr("internal_notes")}, {b.get("quoted_premium") or "NULL"},
         {str(bool(b.get("straight_through"))).lower()}, '{who}', 'app', current_timestamp(), {ev_sql})""")
+    for i, subj in enumerate(b.get("subjectivities") or []):
+        try:
+            import re as _re
+            days = int((_re.search(r"within (\d+) days", subj) or [None, 30])[1])
+        except Exception:
+            days = 30
+        sql.query(f"""MERGE INTO {F('gold_subjectivity_tracker')} t
+            USING (SELECT '{did}-S{i}' k) s ON t.tracker_id = s.k
+            WHEN NOT MATCHED THEN INSERT VALUES ('{did}-S{i}', '{sid}', '{did}',
+                '{sql.esc(subj)}', date_add(current_date(), {days}), 'open', NULL, NULL, current_timestamp())""")
     pack = _write_pack({**b, "decision_id": did, "submission_public_id": b.get("sid", ""),
                         "decided_by": who, "decided_via": "app", "decision_ts": "now"},
                        b.get("evidence") or {})
@@ -418,6 +431,48 @@ def whatif_options():
         "districts": f"SELECT postcode_district, flood_band FROM {F('ref_flood_open')} ORDER BY postcode_district",
     })
     return q
+
+
+# ---------------------------------------------------------------- subjectivity diary
+@app.get("/api/diary")
+def diary():
+    rows = sql.query(f"""
+        SELECT t.*, datediff(t.due_date, current_date()) AS days_left,
+               CASE WHEN t.status != 'open' THEN t.status
+                    WHEN t.due_date < current_date() THEN 'overdue'
+                    WHEN datediff(t.due_date, current_date()) <= 3 THEN 'due_soon'
+                    ELSE 'on_track' END AS bucket
+        FROM {F('gold_subjectivity_tracker')} t
+        ORDER BY t.due_date LIMIT 100""")
+    kpi = sql.query_one(f"""
+        SELECT sum(CASE WHEN status='open' AND due_date < current_date() THEN 1 ELSE 0 END) overdue,
+               sum(CASE WHEN status='open' AND due_date >= current_date()
+                         AND datediff(due_date, current_date()) <= 3 THEN 1 ELSE 0 END) due_soon,
+               sum(CASE WHEN status='chased' THEN 1 ELSE 0 END) chased,
+               count(*) total
+        FROM {F('gold_subjectivity_tracker')}""")
+    return {"rows": rows, "kpi": kpi}
+
+
+@app.post("/api/diary/chase")
+async def diary_chase(req: Request, cache: int = None):
+    """The system drafts the broker chaser; a human approves — underwriters are not diary managers."""
+    b = await req.json()
+    tid = sql.esc(b.get("tracker_id", ""))
+    row = sql.query_one(f"SELECT * FROM {F('gold_subjectivity_tracker')} WHERE tracker_id='{tid}'")
+    if not row:
+        return JSONResponse({"error": "tracker row not found"}, status_code=404)
+    sid = row["submission_public_id"]
+    data = {"dossier": _struct("fn_extract_summary", sid),
+            "subjectivity": row["subjectivity"], "due_date": row["due_date"],
+            "days_overdue_or_left": row.get("due_date")}
+    r = agents.narrate("broker_comms",
+                       f"Draft a polite but firm chaser to the broker for {sid}: the subjectivity below "
+                       f"falls due on {row['due_date']} and remains outstanding. Ask for the item or a date.",
+                       data, use_cache=_cache_flag(cache))
+    sql.query(f"""UPDATE {F('gold_subjectivity_tracker')}
+                  SET status='chased', chased_ts=current_timestamp() WHERE tracker_id='{tid}'""")
+    return {"text": r.get("text"), "cache": r.get("cache"), "tracker_id": tid, "sid": sid}
 
 
 # ---------------------------------------------------------------- appetite & rate committee
