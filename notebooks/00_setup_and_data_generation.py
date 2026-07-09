@@ -243,6 +243,21 @@ REBUILD = [
 write(spark.createDataFrame(REBUILD, "construction_type string, rebuild_cost_per_m2 int"),
       "ref_rebuild_benchmark", "reference")
 
+# Outward reinsurance structure (property surplus treaty) — the net-line check on referrals.
+# Bricksurance Re (sibling workbench) writes the treaty; the desk must know what the treaty
+# absorbs per risk and when facultative cover is required.
+TREATY = [
+    # treaty_id, treaty_name, applies_to, net_retention_per_risk, surplus_lines, per_risk_capacity, reinsurer, notes
+    ("TR-SURP-2026", "Property Surplus Treaty 2026", "property", 5_000_000, 4, 25_000_000,
+     "Bricksurance Re", "Per-risk: retain GBP 5m net, cede up to 4 lines (GBP 20m). Above GBP 25m per risk = facultative required."),
+    ("TR-CXL-2026", "Casualty XoL 2026", "liability", 2_000_000, 0, 10_000_000,
+     "Bricksurance Re", "EL/PL excess-of-loss GBP 8m xs GBP 2m (context only in this demo)."),
+]
+write(spark.createDataFrame(TREATY,
+      "treaty_id string, treaty_name string, applies_to string, net_retention_per_risk long, "
+      "surplus_lines int, per_risk_capacity long, reinsurer string, notes string"),
+      "ref_treaty_structure", "reference")
+
 # Internal watchlist — SYNTHETIC (the only place a screening "hit" can come from in this demo).
 WATCHLIST = [
     ("WL-001", "Derek Ashworth",  "individual", "Director of entity whose prior policy was avoided for non-disclosure (2023)", "underwriting_conduct"),

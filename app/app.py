@@ -218,7 +218,8 @@ def inbox():
 PANEL_FNS = {"dossier": "fn_extract_summary", "appetite": "fn_appetite_check",
              "authority": "fn_authority_check", "accumulation": "fn_accumulation_impact",
              "price": "fn_technical_price", "screening": "fn_sanctions_screen",
-             "underinsurance": "fn_underinsurance_check", "recommendation": "fn_recommendation"}
+             "underinsurance": "fn_underinsurance_check", "treaty": "fn_treaty_check",
+             "recommendation": "fn_recommendation"}
 
 
 @app.get("/api/submission/{sid:path}/panels")

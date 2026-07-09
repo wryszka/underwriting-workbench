@@ -512,7 +512,7 @@ async function subView(sid){
   const m=$("#m");m.innerHTML=`<div class="loading">Assembling the dossier for ${esc(sid)} — running the crux functions…</div>`;
   const d=await api(`/submission/${encodeURIComponent(sid)}/panels`);
   const es=d.dossier||{},app_=d.appetite||{},auth=d.authority||{},acc=d.accumulation||{},prc=d.price||{},
-        scr=d.screening||{},ui=d.underinsurance||{},rec=d.recommendation||{},sc=d.scores||{};
+        scr=d.screening||{},ui=d.underinsurance||{},rec=d.recommendation||{},sc=d.scores||{},ty=d.treaty||{};
   const actioncls=rec.action==="quote"?"GREEN":rec.action==="decline"?"RED":"AMBER";
   const autoBanner=d.auto_bound?`<div class="rec GREEN" style="background:#f0fdf4;border:1.5px solid #bbf7d0;color:#166534">⚡ BOUND ZERO-TOUCH by the platform at ${esc(d.auto_bound.bound_at)} — every rule passed inside e-trade system authority. Audit row ${esc(d.auto_bound.decision_id||"")} · <a class="lnk" href="/api/decision/pack?sid=${encodeURIComponent(sid)}" target="_blank">📦 audit pack</a></div>`:"";
   const accDistricts=(acc.districts||[]).map(x=>`<div class="kv"><span>${esc(x.postcode_district)} ${x.flood_band==="High"?pill("flood HIGH","red"):""}</span>
@@ -567,6 +567,12 @@ async function subView(sid){
     ${checkCard("Underinsurance",ui.underinsured_flag||ui.bi_indemnity_flag?"warn":"ok",
       kv("Buildings vs rebuild",ui.buildings_adequacy_pct!=null?pct(ui.buildings_adequacy_pct):"n/a (tenant / no schedule)")+
       kv("BI indemnity",(ui.bi_indemnity_months??"—")+" months"+(ui.bi_indemnity_flag?" ⚠":""))+`<div class="muted">${esc(ui.note||"")}</div>`)}
+    ${checkCard("Treaty & net line",ty.facultative_required?"warn":"ok",
+      kv("Gross line (largest risk)",money(ty.gross_line_per_risk)+" <span class='muted'>"+esc(ty.largest_risk_site||"")+"</span>")+
+      kv("Net retention",money(ty.net_retention))+
+      kv("Ceded to surplus treaty",money(ty.ceded_to_treaty))+
+      (ty.facultative_required?kv("⚠ FACULTATIVE required",money(ty.facultative_amount)):kv("Treaty headroom",money(ty.treaty_headroom)))+
+      `<div class="muted">${esc(ty.treaty||"")} — written in the sibling Reinsurance Workbench.</div>`)}
     ${checkCard("Fair presentation",es.turnover_mismatch_ratio>=1.5?"warn":"ok",
       kv("Turnover stated",money(es.turnover_stated))+kv("Filed accounts",es.filed_turnover?money(es.filed_turnover):"turnover not disclosed (micro-entity accounts)")+
       (es.turnover_mismatch_ratio?kv("Ratio",`<b>${es.turnover_mismatch_ratio}×</b>`):"")+

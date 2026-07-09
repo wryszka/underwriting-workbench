@@ -46,7 +46,7 @@ def scalar_fn(fn, arg):
 TABLES = ["landing_pas_policies", "landing_pas_claims", "landing_submissions_feed", "landing_company_profiles",
           "landing_doc_extractions", "ref_broker", "ref_underwriter", "ref_appetite", "ref_authority_matrix",
           "ref_rate_guide", "ref_rebuild_benchmark", "ref_internal_watchlist", "ref_district_capacity",
-          "ref_sanctions_ofsi", "ref_flood_open", "ref_crime_open", "ref_epc_mix_open", "ref_postcode_centroid",
+          "ref_sanctions_ofsi", "ref_flood_open", "ref_crime_open", "ref_epc_mix_open", "ref_postcode_centroid", "ref_treaty_structure",
           "ref_feature_encodings", "bronze_submissions", "bronze_quarantine_submissions", "bronze_schedule_locations",
           "bronze_quarantine_schedules", "bronze_documents", "bronze_doc_extractions", "bronze_quarantine_extractions",
           "bronze_pas_policies", "bronze_pas_claims", "bronze_company_profiles", "silver_submissions",
@@ -57,7 +57,8 @@ TABLES = ["landing_pas_policies", "landing_pas_claims", "landing_submissions_fee
           "feature_submission", "medallion_event_log"]
 FUNCTIONS = ["fn_extract_summary", "fn_appetite_check", "fn_authority_check", "fn_accumulation_impact",
              "fn_technical_price", "fn_sanctions_screen", "fn_underinsurance_check", "fn_recommendation",
-             "fn_triage_score", "fn_risk_score", "fn_price_whatif", "fn_accumulation_whatif", "mask_watchlist"]
+             "fn_triage_score", "fn_risk_score", "fn_price_whatif", "fn_accumulation_whatif",
+             "fn_treaty_check", "mask_watchlist"]
 VIEWS = ["gov_watchlist_secure", "gov_conduct_declines"]
 VOLUMES = ["submission_inbox", "open_data", "ingest_checkpoints", "comms_out"]
 MODELS = ["model_triage_priority", "model_risk_quality", "model_underwriting_agent", "underwriting_agent"]
@@ -207,6 +208,8 @@ check("C4b call transcripts through the pipeline", lambda: (lambda n, t: (_ for 
       q(f"SELECT turnover_stated_gbp t FROM {fqn}.bronze_doc_extractions WHERE file_name='sub-900002_call_fd.txt'").first().t))
 check("C4c decision evidence column", lambda: (lambda cols: "decision_evidence present" if "decision_evidence" in cols else (_ for _ in ()).throw(AssertionError("missing")))(
       [c.name for c in spark.table(f"{fqn}.gold_decision_audit").schema.fields]))
+check("C4e treaty net-line check", lambda: (lambda r: f"gross £{r['gross_line_per_risk']:,} → net £{r['net_retention']:,} + ceded £{r['ceded_to_treaty']:,}, fac={r['facultative_required']}" if r["net_retention"] == 5_000_000 and not r["facultative_required"] else (_ for _ in ()).throw(AssertionError(r)))(
+      scalar_fn("fn_treaty_check", "sub:900002")))
 check("C4d zero-touch auto-bind", lambda: (lambda n, h: (_ for _ in ()).throw(AssertionError(f"zt={n} hero={h}")) if (n < 10 or h != 1) else f"{n} auto-bound · hero 900001 zero-touch")(
       q(f"SELECT count(*) c FROM {fqn}.gold_auto_bound").first().c,
       q(f"SELECT count(*) c FROM {fqn}.gold_auto_bound WHERE submission_public_id='sub:900001'").first().c))

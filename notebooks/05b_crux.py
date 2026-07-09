@@ -264,6 +264,35 @@ RETURN SELECT named_struct(
 
 # COMMAND ----------
 
+# MAGIC %md ## fn_treaty_check — net line vs gross line, facultative flag
+
+# COMMAND ----------
+
+create_fn("""
+CREATE OR REPLACE FUNCTION {F}.fn_treaty_check(sid STRING)
+RETURNS STRUCT<gross_line_per_risk BIGINT, largest_risk_site STRING, net_retention BIGINT,
+               ceded_to_treaty BIGINT, treaty_capacity_per_risk BIGINT, treaty_headroom BIGINT,
+               facultative_required BOOLEAN, facultative_amount BIGINT, treaty STRING, note STRING>
+COMMENT 'Outward reinsurance check at point of quote: the largest single-risk property line vs the surplus treaty (net retention, cession, per-risk capacity) and whether FACULTATIVE cover is required above treaty capacity. The treaty itself is underwritten in the sibling Reinsurance Workbench. Input: submission_public_id.'
+RETURN SELECT named_struct(
+  'gross_line_per_risk', l.gross, 'largest_risk_site', l.site,
+  'net_retention', least(l.gross, t.ret),
+  'ceded_to_treaty', greatest(least(l.gross, t.cap) - t.ret, 0),
+  'treaty_capacity_per_risk', t.cap,
+  'treaty_headroom', greatest(t.cap - l.gross, 0),
+  'facultative_required', l.gross > t.cap,
+  'facultative_amount', greatest(l.gross - t.cap, 0),
+  'treaty', t.nm,
+  'note', 'Per-risk basis = largest single location property line. Treaty written by Bricksurance Re (sibling workbench).')
+FROM (SELECT max(property_si) AS gross, max_by(site_name, property_si) AS site
+      FROM {F}.silver_locations_enriched WHERE submission_public_id = sid) l
+CROSS JOIN (SELECT any_value(net_retention_per_risk) AS ret, any_value(per_risk_capacity) AS cap,
+                   any_value(treaty_name) AS nm
+            FROM {F}.ref_treaty_structure WHERE applies_to = 'property') t
+""")
+
+# COMMAND ----------
+
 # MAGIC %md ## fn_underinsurance_check
 
 # COMMAND ----------
