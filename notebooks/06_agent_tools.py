@@ -123,6 +123,61 @@ ALTER TABLE {fqn}.gold_inbox_priority ALTER COLUMN submission_public_id SET NOT 
 n = spark.table(f"{fqn}.gold_inbox_priority").count()
 print(f"gold_inbox_priority: {n} open submissions batch-scored")
 
+# COMMAND ----------
+
+# MAGIC %md ## Zero-touch auto-bind
+# MAGIC Clean e-trade business that passes EVERY rule inside the e-trade system authority is
+# MAGIC bound automatically — underwriters never see it (it leaves the inbox and lands in the
+# MAGIC zero-touch ledger + the decision audit as `decided_via = system_etrade`). Deterministic
+# MAGIC SQL rules, not ML: every auto-bind is defensible line-by-line.
+
+# COMMAND ----------
+
+_wl_names = [r.name.lower().replace("'", "''") for r in spark.table(f"{fqn}.ref_internal_watchlist").collect()]
+_wl_sql = ", ".join(f"'{n}'" for n in _wl_names) or "''"
+
+spark.sql(f"""
+CREATE OR REPLACE TABLE {fqn}.gold_auto_bound
+COMMENT 'Zero-touch ledger: clean e-trade submissions bound automatically inside system authority — every rule passed, no underwriter minutes spent. Audit rows carry decided_via=system_etrade.'
+TBLPROPERTIES ('layer'='gold','demo'='underwriting_workbench') AS
+SELECT s.submission_public_id, s.company_name, s.trade_group, s.broker_id, s.postcode_district,
+       s.received_ts, round(s.technical_base_premium, 0) AS premium,
+       array('in appetite', 'within e-trade authority', 'data complete', 'no fair-presentation mismatch',
+             'flood band not High', 'accumulation headroom', 'screening clear') AS rules_passed,
+       current_timestamp() AS bound_at
+FROM {fqn}.silver_submissions s
+CROSS JOIN (SELECT * FROM {fqn}.ref_authority_matrix WHERE grade = 'system_etrade') m
+LEFT JOIN {fqn}.gold_accumulation a USING (postcode_district)
+WHERE s.lifecycle_state != 'closed' AND s.channel = 'etrade'
+  AND s.appetite_status != 'excluded' AND s.data_complete
+  AND coalesce(s.turnover_mismatch_ratio, 1.0) < 1.5
+  AND coalesce(s.flood_band, 'Low') != 'High'
+  AND s.total_si <= m.max_total_si
+  AND s.technical_base_premium <= m.max_gross_premium
+  AND s.hazard_grade <= m.max_hazard_grade
+  AND (a.in_force_property_si + s.total_property_si) / a.property_capacity_gbp < 0.8
+  AND lower(s.company_name) NOT IN ({_wl_sql})
+  AND NOT exists(from_json(coalesce(s.directors_json, '[]'), 'ARRAY<STRING>'),
+                 d -> lower(d) IN ({_wl_sql}))
+""")
+
+spark.sql(f"""
+MERGE INTO {fqn}.gold_decision_audit t
+USING {fqn}.gold_auto_bound b
+ON t.submission_public_id = b.submission_public_id AND t.decided_via = 'system_etrade'
+WHEN NOT MATCHED THEN INSERT (decision_id, submission_public_id, action, refer_to_grade,
+    suggested_underwriter, reasons, terms, subjectivities, decline_code_external, external_reason,
+    internal_notes, quoted_premium, straight_through, decided_by, decided_via, decision_ts, decision_evidence)
+VALUES (concat('ZT-', substr(sha2(b.submission_public_id, 256), 1, 10)), b.submission_public_id,
+    'auto_bind', NULL, NULL, b.rules_passed, array(), array(), NULL, NULL, array(),
+    b.premium, true, 'system', 'system_etrade', current_timestamp(), NULL)
+""")
+
+zt = spark.table(f"{fqn}.gold_auto_bound").count()
+assert spark.sql(f"SELECT count(*) c FROM {fqn}.gold_auto_bound WHERE submission_public_id='sub:900001'").first().c == 1, \
+    "hero 900001 must auto-bind (clean e-trade)"
+print(f"⚡ zero-touch: {zt} submissions auto-bound (hero 900001 among them)")
+
 for sid in ("sub:900001", "sub:900002"):
     r = spark.sql(f"SELECT {fqn}.fn_triage_score('{sid}') AS t, {fqn}.fn_risk_score('{sid}') AS r").first()
     print(sid, "triage:", r.t["bind_propensity_pct"], r.t["priority_band"], "| risk:", r.r["large_loss_propensity_pct"], r.r["risk_band"])

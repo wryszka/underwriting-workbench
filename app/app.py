@@ -61,16 +61,19 @@ def control_tower():
                          FROM {F('gold_accumulation')} ORDER BY utilisation_pct DESC LIMIT 5""",
         "adequacy": f"""SELECT round(avg(adequacy_pct),1) adequacy_pct FROM {F('gold_rate_adequacy')}""",
         "pipeline": f"""SELECT count(*) open_subs,
-                               sum(CASE WHEN sla_status='breached' THEN 1 ELSE 0 END) sla_breached,
-                               sum(CASE WHEN lifecycle_state='referred' THEN 1 ELSE 0 END) referred,
-                               sum(total_si) open_si
-                        FROM {F('gold_submission_lifecycle')}""",
+                               sum(CASE WHEN l.sla_status='breached' THEN 1 ELSE 0 END) sla_breached,
+                               sum(CASE WHEN l.lifecycle_state='referred' THEN 1 ELSE 0 END) referred,
+                               sum(l.total_si) open_si
+                        FROM {F('gold_submission_lifecycle')} l
+                        LEFT ANTI JOIN {F('gold_auto_bound')} z USING (submission_public_id)""",
+        "zerotouch": f"""SELECT count(*) bound, sum(premium) premium FROM {F('gold_auto_bound')}""",
         "forecast": f"""SELECT round(sum(coalesce(l.target_premium, l.technical_base_premium)
                                           * coalesce(p.bind_propensity_pct, 25) / 100), 0) expected_gwp,
                                count(*) open_subs,
                                sum(coalesce(l.target_premium, l.technical_base_premium)) max_gwp
                         FROM {F('gold_submission_lifecycle')} l
-                        LEFT JOIN {F('gold_inbox_priority')} p USING (submission_public_id)""",
+                        LEFT JOIN {F('gold_inbox_priority')} p USING (submission_public_id)
+                        LEFT ANTI JOIN {F('gold_auto_bound')} z USING (submission_public_id)""",
         "declines": f"""SELECT coalesce(decline_code, 'APP-REF-RISK') code, count(*) n
                          FROM {F('silver_submissions')} WHERE outcome = 'declined'
                          GROUP BY 1 ORDER BY n DESC""",
@@ -105,6 +108,8 @@ DRILLS = {
     "brokers": ("SELECT broker_id, count(*) policies, sum(gross_premium) gwp, "
                 "round(sum(gross_premium) / (SELECT sum(gross_premium) FROM {t} WHERE policy_status='in_force') * 100, 1) share_pct "
                 "FROM {t} WHERE policy_status = 'in_force' GROUP BY broker_id ORDER BY gwp DESC"),
+    "zerotouch": ("SELECT submission_public_id, company_name, trade_group, broker_id, premium, "
+                  "array_join(rules_passed, ' + ') AS rules_passed, bound_at FROM {t} ORDER BY premium DESC LIMIT 60"),
     "trades": ("SELECT trade_group, appetite_status, policies, gwp, property_si, "
                "round(property_si / (SELECT sum(property_si) FROM {t}) * 100, 1) property_share_pct, loss_ratio_3y_pct "
                "FROM {t} ORDER BY property_share_pct DESC"),
@@ -112,7 +117,7 @@ DRILLS = {
 DRILL_TABLE = {"gwp": "gold_portfolio_position", "retention": "gold_renewals",
                "accumulation": "gold_accumulation", "adequacy": "gold_rate_adequacy",
                "funnel": "gold_pipeline_funnel", "forecast": "gold_submission_lifecycle",
-               "declines": "silver_submissions", "brokers": "bronze_pas_policies",
+               "declines": "silver_submissions", "brokers": "bronze_pas_policies", "zerotouch": "gold_auto_bound",
                "trades": "gold_portfolio_position"}
 
 
@@ -197,6 +202,7 @@ def inbox():
         LEFT JOIN {F('silver_submissions')} ss USING (submission_public_id)
         LEFT JOIN (SELECT company_number, count(*) cnt FROM {F('silver_submissions')}
                    GROUP BY company_number) cc ON cc.company_number = ss.company_number
+        LEFT ANTI JOIN {F('gold_auto_bound')} z USING (submission_public_id)
         ORDER BY CASE WHEN l.submission_public_id LIKE 'sub:9000%' THEN 0 ELSE 1 END,
                  expected_value_gbp DESC NULLS LAST
         LIMIT 120""")
@@ -225,6 +231,10 @@ def submission_panels(sid: str):
     stmts["documents"] = f"""SELECT file_name, doc_type, extraction_confidence, key_hazards_json,
                                     prior_losses_json, turnover_stated_gbp
                              FROM {F('bronze_doc_extractions')} WHERE submission_public_id='{sid}'"""
+    stmts["auto_bound"] = f"""SELECT b.bound_at, a.decision_id FROM {F('gold_auto_bound')} b
+                              LEFT JOIN {F('gold_decision_audit')} a
+                                ON a.submission_public_id = b.submission_public_id AND a.decided_via='system_etrade'
+                              WHERE b.submission_public_id='{sid}'"""
     stmts["client_history"] = f"""SELECT h.submission_public_id, h.received_ts, h.trade_group,
                                          h.lifecycle_state, h.outcome, h.quoted_premium, h.channel
                                   FROM {F('silver_submissions')} h
@@ -239,6 +249,7 @@ def submission_panels(sid: str):
     res["locations"] = out.get("locations", [])
     res["documents"] = out.get("documents", [])
     res["client_history"] = out.get("client_history", [])
+    res["auto_bound"] = (out.get("auto_bound") or [None])[0]
     res["fns"] = {k: f"{F(v)}('{sid}')" for k, v in PANEL_FNS.items()}
     return res
 

@@ -39,7 +39,11 @@ from packs import build_pack  # noqa: E402
 audits = [r.asDict() for r in spark.sql(f"""
     SELECT * FROM (
       SELECT *, row_number() OVER (PARTITION BY submission_public_id ORDER BY decision_ts DESC) rn
-      FROM {fqn}.gold_decision_audit) WHERE rn = 1""").collect()]
+      FROM {fqn}.gold_decision_audit) WHERE rn = 1
+      AND (submission_public_id LIKE 'sub:9000%' OR decided_via = 'app'
+           OR (decided_via = 'system_etrade' AND decision_ts >= (
+                 SELECT min(decision_ts) FROM (SELECT decision_ts FROM {fqn}.gold_decision_audit
+                 WHERE decided_via='system_etrade' ORDER BY decision_ts DESC LIMIT 20))))""").collect()]
 print(f"{len(audits)} decided submissions")
 
 

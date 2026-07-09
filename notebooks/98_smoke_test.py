@@ -53,7 +53,7 @@ TABLES = ["landing_pas_policies", "landing_pas_claims", "landing_submissions_fee
           "silver_locations_enriched", "gold_pipeline_funnel", "gold_portfolio_position", "gold_accumulation",
           "gold_broker_scorecard", "gold_rate_adequacy", "gold_renewals", "gold_underinsurance",
           "gold_submission_lifecycle", "gold_dq_scorecard", "gold_ingestion_sources", "gold_inbox_priority",
-          "gold_decision_audit", "gold_comms_drafts", "gold_ai_activity", "gov_data_inventory", "gov_guide_changes",
+          "gold_decision_audit", "gold_comms_drafts", "gold_ai_activity", "gov_data_inventory", "gov_guide_changes", "gold_auto_bound",
           "feature_submission", "medallion_event_log"]
 FUNCTIONS = ["fn_extract_summary", "fn_appetite_check", "fn_authority_check", "fn_accumulation_impact",
              "fn_technical_price", "fn_sanctions_screen", "fn_underinsurance_check", "fn_recommendation",
@@ -207,6 +207,9 @@ check("C4b call transcripts through the pipeline", lambda: (lambda n, t: (_ for 
       q(f"SELECT turnover_stated_gbp t FROM {fqn}.bronze_doc_extractions WHERE file_name='sub-900002_call_fd.txt'").first().t))
 check("C4c decision evidence column", lambda: (lambda cols: "decision_evidence present" if "decision_evidence" in cols else (_ for _ in ()).throw(AssertionError("missing")))(
       [c.name for c in spark.table(f"{fqn}.gold_decision_audit").schema.fields]))
+check("C4d zero-touch auto-bind", lambda: (lambda n, h: (_ for _ in ()).throw(AssertionError(f"zt={n} hero={h}")) if (n < 10 or h != 1) else f"{n} auto-bound · hero 900001 zero-touch")(
+      q(f"SELECT count(*) c FROM {fqn}.gold_auto_bound").first().c,
+      q(f"SELECT count(*) c FROM {fqn}.gold_auto_bound WHERE submission_public_id='sub:900001'").first().c))
 check("C5 inbox batch-scored", lambda: (lambda n: f"{n} open submissions scored" if n > 100 else (_ for _ in ()).throw(AssertionError(f"only {n}")))(
       q(f"SELECT count(*) c FROM {fqn}.gold_inbox_priority").first().c))
 

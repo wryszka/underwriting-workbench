@@ -379,7 +379,10 @@ async function controlTower(){
     <div class="card" id="worthcard"><h3>What this is worth</h3><div class="muted">…</div></div>
     <div class="card" id="briefcard"><h3>☕ Morning brief</h3><div class="muted">…</div></div>
   </div>
-  <div class="grid g3" style="margin-top:16px">
+  <div class="grid g4" style="margin-top:16px">
+    <div class="card drill" onclick="ctDrill('zerotouch')" style="border-color:#bbf7d0;background:#f0fdf4"><h3>⚡ Zero-touch bound</h3>
+      <div class="big">${num((d.zerotouch||{}).bound)}</div>
+      <div class="muted">clean e-trade bound automatically · ${money((d.zerotouch||{}).premium)} GWP · no underwriter minutes</div></div>
     <div class="card drill" onclick="ctDrill('declines')"><h3>Declinature mix (coded)</h3>
       ${(d.declines||[]).slice(0,3).map(x=>kv(`<span class="mono">${esc(x.code)}</span>`,num(x.n))).join("")||'<div class="muted">no declines</div>'}
       <div class="muted" style="margin-top:6px">consistent, coded, auditable — the conduct answer</div></div>
@@ -457,7 +460,7 @@ async function inboxPage(){
   m.innerHTML=`
   <div class="eyebrow">Underwriter</div><h1>Submission Inbox</h1>
   <p class="sub">The open pipeline ranked by <b>expected value</b> — premium × modelled P(bind) — so the desk works what is winnable <i>and worth winning</i>. Heroes pinned. Click a row to work it.</p>
-  ${present("What it is: the desk's triage queue. What it shows: every open submission ranked by expected premium value (not gut feel, not inbox order), with the model's win-likelihood and risk quality alongside, SLA clocks per channel, and why-chips (flood / fair presentation / appetite) before you open the file. Straight-through eligibility is a COST decision within appetite — deliberately independent of P(bind).")}
+  ${present("What it is: the desk's triage queue. What it shows: every open submission ranked by expected premium value (not gut feel, not inbox order), with the model's win-likelihood and risk quality alongside, SLA clocks per channel, and why-chips (flood / fair presentation / appetite) before you open the file. Clean e-trade business never reaches this queue — it is bound zero-touch (see the Control Tower ledger); this queue is only the business that genuinely needs an underwriter.")}
   <div class="card"><table><thead><tr><th>submission</th><th>trade</th><th>channel</th><th>expected value</th><th>P(bind) · risk</th><th>total SI</th><th>state</th><th>SLA</th><th>flags</th></tr></thead><tbody>${rows}</tbody></table></div>
   <div class="prov">Scores are refreshed in batch by the pipeline — the queue is instant, never waiting on a model to wake. ${esc(d.note||"")}</div>`;
 }
@@ -511,6 +514,7 @@ async function subView(sid){
   const es=d.dossier||{},app_=d.appetite||{},auth=d.authority||{},acc=d.accumulation||{},prc=d.price||{},
         scr=d.screening||{},ui=d.underinsurance||{},rec=d.recommendation||{},sc=d.scores||{};
   const actioncls=rec.action==="quote"?"GREEN":rec.action==="decline"?"RED":"AMBER";
+  const autoBanner=d.auto_bound?`<div class="rec GREEN" style="background:#f0fdf4;border:1.5px solid #bbf7d0;color:#166534">⚡ BOUND ZERO-TOUCH by the platform at ${esc(d.auto_bound.bound_at)} — every rule passed inside e-trade system authority. Audit row ${esc(d.auto_bound.decision_id||"")} · <a class="lnk" href="/api/decision/pack?sid=${encodeURIComponent(sid)}" target="_blank">📦 audit pack</a></div>`:"";
   const accDistricts=(acc.districts||[]).map(x=>`<div class="kv"><span>${esc(x.postcode_district)} ${x.flood_band==="High"?pill("flood HIGH","red"):""}</span>
       <b>${pct(x.current_util_pct)} → ${pct(x.post_util_pct)} ${ragPill(x.status==="ok"?"green":x.status==="referral"?"amber":"red")}</b></div>`).join("");
   const ofsi=(scr.ofsi_candidates||[]).map(c=>`<div class="kv"><span>${esc(c.subject)} ≈ <b>${esc(c.listed_name)}</b> (${esc(c.regime)})</span><b>${pill("false positive — cleared","green")}</b></div><div class="muted" style="margin:2px 0 6px">${esc(c.resolution)}</div>`).join("");
@@ -532,13 +536,14 @@ async function subView(sid){
     <input class="f" id="subsearch" style="margin:0;max-width:240px" placeholder="Open a submission… e.g. 900003" onkeydown="if(event.key==='Enter')openSub()">
     <button class="btn ghost" onclick="openSub()">Open</button>
     <span class="muted">demo cases:</span>
-    <span class="pill bluep" style="cursor:pointer" onclick="go('sub','sub:900001')">★ 900001 fast-track</span>
+    <span class="pill bluep" style="cursor:pointer" onclick="go('sub','sub:900001')">★ 900001 zero-touch</span>
     <span class="pill amber" style="cursor:pointer" onclick="go('sub','sub:900002')">★ 900002 referral</span>
     <span class="pill red" style="cursor:pointer" onclick="go('sub','sub:900003')">★ 900003 decline</span>
   </div>
   <h1>${esc(es.company_name||sid)} <span class="muted" style="font-size:14px">${esc(sid)} · via ${esc(es.broker_id||"")} · ${esc(es.channel||"")}</span></h1>
   <p class="sub">${esc(es.trade_group||"")} · ${esc(es.segment||"")} · ${es.n_locations||1} location(s) · received ${esc(es.received_ts||"")}</p>
   ${present("The centrepiece: everything an underwriter used to swivel-chair across six systems, assembled live by Unity Catalog functions — checks, evidence, price build-up, and a human decision recorded to the audit trail.")}
+  ${autoBanner}
   <div class="rec ${actioncls}">Recommendation: ${esc((rec.action||"…").toUpperCase().replace("_"," "))}
     ${rec.refer_to_grade?` → ${esc(rec.refer_to_grade)}${rec.suggested_underwriter?` (${esc(rec.suggested_underwriter)})`:""}`:""}
     ${rec.straight_through?pill("STRAIGHT-THROUGH ELIGIBLE","green"):""}
