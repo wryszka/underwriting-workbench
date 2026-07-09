@@ -191,8 +191,10 @@ def inbox():
     rows = sql.query(f"""
         SELECT l.*, p.bind_propensity_pct, p.large_loss_propensity_pct,
                coalesce(cc.cnt, 1) - 1 AS prior_contacts,
+               bs.broker_trust_score,
                round(coalesce(l.target_premium, l.technical_base_premium)
-                     * coalesce(p.bind_propensity_pct, 25) / 100, 0) AS expected_value_gbp,
+                     * coalesce(p.bind_propensity_pct, 25) / 100
+                     * (0.7 + 0.3 * coalesce(bs.broker_trust_score, 70) / 100), 0) AS expected_value_gbp,
                CASE WHEN coalesce(l.target_premium, l.technical_base_premium) >= 50000 THEN 'size'
                     WHEN coalesce(p.bind_propensity_pct, 0) >= 50 THEN 'winnable'
                     WHEN p.large_loss_propensity_pct <= 15 THEN 'quality'
@@ -202,6 +204,7 @@ def inbox():
         LEFT JOIN {F('silver_submissions')} ss USING (submission_public_id)
         LEFT JOIN (SELECT company_number, count(*) cnt FROM {F('silver_submissions')}
                    GROUP BY company_number) cc ON cc.company_number = ss.company_number
+        LEFT JOIN {F('gold_broker_scorecard')} bs ON bs.broker_id = l.broker_id
         LEFT ANTI JOIN {F('gold_auto_bound')} z USING (submission_public_id)
         ORDER BY CASE WHEN l.submission_public_id LIKE 'sub:9000%' THEN 0 ELSE 1 END,
                  expected_value_gbp DESC NULLS LAST
@@ -231,6 +234,11 @@ def submission_panels(sid: str):
     stmts["documents"] = f"""SELECT file_name, doc_type, extraction_confidence, key_hazards_json,
                                     prior_losses_json, turnover_stated_gbp
                              FROM {F('bronze_doc_extractions')} WHERE submission_public_id='{sid}'"""
+    stmts["broker"] = f"""SELECT bs.broker_id, bs.broker_name, bs.broker_trust_score, bs.hit_ratio_pct,
+                                 bs.data_complete_pct, bs.fact_discrepancy_pct, bs.ntu_rate_pct
+                          FROM {F('gold_broker_scorecard')} bs
+                          JOIN {F('silver_submissions')} ss ON ss.broker_id = bs.broker_id
+                          WHERE ss.submission_public_id = '{sid}'"""
     stmts["auto_bound"] = f"""SELECT b.bound_at, a.decision_id FROM {F('gold_auto_bound')} b
                               LEFT JOIN {F('gold_decision_audit')} a
                                 ON a.submission_public_id = b.submission_public_id AND a.decided_via='system_etrade'
@@ -250,6 +258,7 @@ def submission_panels(sid: str):
     res["documents"] = out.get("documents", [])
     res["client_history"] = out.get("client_history", [])
     res["auto_bound"] = (out.get("auto_bound") or [None])[0]
+    res["broker"] = (out.get("broker") or [None])[0]
     res["fns"] = {k: f"{F(v)}('{sid}')" for k, v in PANEL_FNS.items()}
     return res
 

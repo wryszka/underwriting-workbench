@@ -87,12 +87,12 @@ def gold_accumulation():
 # COMMAND ----------
 
 @dlt.table(name="gold_broker_scorecard",
-           comment="Broker performance: submission volume, quote rate, hit ratio (bound/quoted), speed, data quality (complete submissions), GWP bound.",
+           comment="Broker performance incl. the TRUST SCORE: hit ratio + data quality + fact-discrepancy rate (stated turnover vs filed accounts, per broker) + NTU, composed 0-100. Low-trust brokers are penalised in triage expected value.",
            table_properties=GOLD_PROPS)
 def gold_broker_scorecard():
     s = dlt.read("silver_submissions")
     br = spark.read.table(f"{SRC}.ref_broker")
-    return (s.groupBy("broker_id")
+    agg = (s.groupBy("broker_id")
             .agg(F.count("*").alias("submissions_12m"),
                  F.round(F.avg(F.when(F.col("quoted_premium").isNotNull(), 1.0).otherwise(0.0)) * 100, 1).alias("quote_rate_pct"),
                  F.round(F.sum(F.when(F.col("outcome") == "bound", 1).otherwise(0))
@@ -101,7 +101,14 @@ def gold_broker_scorecard():
                                 - F.unix_timestamp(F.to_timestamp("received_ts"))) / 3600), 1).alias("avg_hours_to_quote"),
                  F.round(F.avg(F.when(F.col("data_complete"), 1.0).otherwise(0.0)) * 100, 1).alias("data_complete_pct"),
                  F.sum(F.when(F.col("outcome") == "bound", F.col("quoted_premium")).otherwise(0)).alias("gwp_bound"),
-                 F.round(F.avg(F.when(F.col("outcome") == "ntu", 1.0).otherwise(0.0)) * 100, 1).alias("ntu_rate_pct"))
+                 F.round(F.avg(F.when(F.col("outcome") == "ntu", 1.0).otherwise(0.0)) * 100, 1).alias("ntu_rate_pct"),
+                 F.round(F.avg(F.when(F.col("turnover_mismatch_ratio") >= 1.5, 1.0).otherwise(0.0)) * 100, 1).alias("fact_discrepancy_pct")))
+    return (agg.withColumn("broker_trust_score", F.round(
+                F.col("hit_ratio_pct") * 0.30
+                + F.col("data_complete_pct") * 0.30
+                + (100 - F.col("fact_discrepancy_pct") * 4).cast("double").alias("x") * 0.25
+                + (100 - F.col("ntu_rate_pct")) * 0.15, 0))
+            .withColumn("broker_trust_score", F.greatest(F.least(F.col("broker_trust_score"), F.lit(100)), F.lit(0)))
             .join(br, "broker_id", "left"))
 
 # COMMAND ----------

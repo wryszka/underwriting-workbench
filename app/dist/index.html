@@ -561,7 +561,9 @@ async function subView(sid){
       accDistricts||'<div class="muted">no district data</div>')}
     ${checkCard("Screening (real OFSI list)",scr.status==="internal_watchlist_hit"?"bad":scr.status==="false_positive_resolved"?"warn":"ok",
       kv("Status",pill((scr.status||"—").replaceAll("_"," "),scr.status==="clear"?"green":scr.status==="false_positive_resolved"?"amber":"red"))+
-      (ofsi||"")+(wl||"")+`<div class="muted">${esc(scr.guidance||"")}</div>`)}
+      (ofsi||"")+(wl||"")+
+      (d.broker?kv("Broker trust score",`${pill(Math.round(d.broker.broker_trust_score||0),(d.broker.broker_trust_score||0)>=75?"green":(d.broker.broker_trust_score||0)>=55?"amber":"red")} <span class="muted">${esc(d.broker.broker_name||d.broker.broker_id)} · fact discrepancy ${pct(d.broker.fact_discrepancy_pct)}</span>`):"")+
+      `<div class="muted">${esc(scr.guidance||"")}</div>`)}
     ${checkCard("Underinsurance",ui.underinsured_flag||ui.bi_indemnity_flag?"warn":"ok",
       kv("Buildings vs rebuild",ui.buildings_adequacy_pct!=null?pct(ui.buildings_adequacy_pct):"n/a (tenant / no schedule)")+
       kv("BI indemnity",(ui.bi_indemnity_months??"—")+" months"+(ui.bi_indemnity_flag?" ⚠":""))+`<div class="muted">${esc(ui.note||"")}</div>`)}
@@ -851,14 +853,17 @@ async function askGenie(){
 async function brokersPage(){
   const m=$("#m");m.innerHTML='<div class="loading">Loading…</div>';
   const d=await api("/brokers");
+  const trustPill=t=>t==null?"—":pill(Math.round(t),t>=75?"green":t>=55?"amber":"red");
   const rows=(d.rows||[]).map(r=>`<tr><td><b>${esc(r.broker_name||r.broker_id)}</b><br><span class="muted">${esc(r.segment||"")} · ${esc(r.producer_code||"")}</span></td>
+    <td style="font-size:15px">${trustPill(r.broker_trust_score)}</td>
     <td>${num(r.submissions_12m)}</td><td>${pct(r.quote_rate_pct)}</td><td><b>${pct(r.hit_ratio_pct)}</b></td>
-    <td>${r.avg_hours_to_quote??"—"}h</td><td>${pct(r.data_complete_pct)}</td><td>${pct(r.ntu_rate_pct)}</td><td>${money(r.gwp_bound)}</td></tr>`).join("");
+    <td>${r.avg_hours_to_quote??"—"}h</td><td>${pct(r.data_complete_pct)}</td><td>${pct(r.fact_discrepancy_pct)}</td><td>${pct(r.ntu_rate_pct)}</td><td>${money(r.gwp_bound)}</td></tr>`).join("");
   m.innerHTML=`
   <div class="eyebrow">Distribution</div><h1>Broker scorecard</h1>
   <p class="sub">Every head of underwriting wants this and almost nobody has it: volume, quote rate, hit ratio, speed, submission quality and NTU rate per broker — evidence for the panel conversation.</p>
   ${present("Data quality % = complete submissions (core facts present) — the brokers who make the desk fast. NTU (not taken up) is tracked separately from lost-to-competitor.")}
-  <div class="card"><table><thead><tr><th>broker</th><th>submissions 12m</th><th>quote rate</th><th>hit ratio</th><th>time-to-quote</th><th>data quality</th><th>NTU rate</th><th>GWP bound</th></tr></thead><tbody>${rows}</tbody></table></div>
+  <div class="card"><table><thead><tr><th>broker</th><th>trust score</th><th>submissions 12m</th><th>quote rate</th><th>hit ratio</th><th>time-to-quote</th><th>data quality</th><th>fact discrepancy</th><th>NTU rate</th><th>GWP bound</th></tr></thead><tbody>${rows}</tbody></table>
+    <div class="muted" style="margin-top:8px">Trust score = hit ratio (30%) + data quality (30%) + clean fact record (25% — stated turnover vs filed accounts, per broker) + non-NTU (15%). It quietly scales triage expected value: low-trust brokers earn less of the desk's time.</div></div>
   <div class="grid g3" style="margin-top:16px">
     <div class="card tone-emerald" style="border-width:1.5px"><h3>The 360 nobody has</h3>
       <div class="muted" style="line-height:1.55">These same brokers (BRK-001/002/003) live in the sibling <b>Claims Workbench</b> on this platform — same IDs, same universe. One consolidated view spans <b>trading</b> (hit ratio, data quality, speed — this page) and <b>service</b> (claims chase volume, status queries). That combined scorecard exists nowhere in the market, and here it is one JOIN away.</div>
