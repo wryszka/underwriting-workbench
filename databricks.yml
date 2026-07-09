@@ -59,6 +59,8 @@ targets:
     variables:
       catalog: lr_dev_aws_us_catalog
       warehouse_id: "a3b61648ea4809e3"
+      genie_space_id: "01f17afafb6d1309bcff27506395be54"
+      dashboard_id: "01f17afbb9bc192f993f9a26d2343bdb"
 
 sync:
   exclude:

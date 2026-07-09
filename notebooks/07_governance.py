@@ -24,6 +24,38 @@ from pyspark.sql import functions as F
 
 # COMMAND ----------
 
+# MAGIC %md ## Workspace legibility — schema comment + UC tags on every asset
+# MAGIC A human browsing Catalog Explorer should understand this schema without the repo:
+# MAGIC schema comment, per-table `layer`/`demo` **tags** (governed-tag-safe best-effort;
+# MAGIC `project`/`owner` are governed on this workspace and skipped gracefully).
+
+# COMMAND ----------
+
+spark.sql(f"""COMMENT ON SCHEMA {fqn} IS
+ 'Underwriting Workbench (Bricksurance SE demo) — commercial submission-to-decision on Databricks. Layers: landing_* (synthetic sources) → bronze_* (governed + quarantines) → silver_* (enriched) → gold_*/gov_* (marts, audit). ref_* = reference incl. REAL bundled open data (see PROVENANCE). Sacred heroes sub:900001/2/3. Repo: github.com/wryszka/underwriting-workbench'""")
+
+
+def _tag_safe(table, tags):
+    for k, v in tags.items():
+        try:
+            spark.sql(f"ALTER TABLE {fqn}.{table} SET TAGS ('{k}' = '{v}')")
+        except Exception:  # noqa: BLE001 — governed tag policies may reject some keys
+            pass
+
+
+_tagged = 0
+for t in spark.sql(f"SHOW TABLES IN {fqn}").collect():
+    name = t.tableName
+    layer = ("landing" if name.startswith("landing_") else "bronze" if name.startswith("bronze_")
+             else "silver" if name.startswith("silver_") else "gold" if name.startswith(("gold_", "gov_"))
+             else "reference" if name.startswith("ref_") else "feature" if name.startswith("feature_")
+             else "ops")
+    _tag_safe(name, {"layer": layer, "demo": "underwriting_workbench"})
+    _tagged += 1
+print(f"schema commented · {_tagged} tables tagged (layer/demo)")
+
+# COMMAND ----------
+
 # MAGIC %md ## Decision audit — seeded from the LIVE functions (reconciles by construction)
 
 # COMMAND ----------
