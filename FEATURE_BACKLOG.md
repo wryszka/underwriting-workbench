@@ -4,7 +4,11 @@ Status: compiled 2026-07-09 after the CUO review round (F1–F15 shipped), the m
 analysis (docs/MULTI_POLICY_PLAN.md) and the practitioner critique round 2. Sizes are focused
 build-days. Nothing below starts without an explicit go.
 
-## Lane A — Practitioner critique round 2 (credibility fixes)
+**2026-07-09 update — lane A COMPLETE (A1–A6 all shipped and smoke-asserted), B1 positioning
+shipped, C1 shipped, D5 shipped (/Workspace/Shared migration). Open: C2–C5, D1–D4, D6, and the
+B1 preview-enrollment follow-up.**
+
+## Lane A — Practitioner critique round 2 (credibility fixes) — ✅ ALL SHIPPED 2026-07-09
 
 | # | Feature | The point | Size |
 |---|---|---|---|
@@ -25,7 +29,7 @@ build-days. Nothing below starts without an explicit go.
 
 | # | Phase | Size |
 |---|---|---|
-| C1 | M1 client master + product lines (fleet/cyber/D&O; Calder Valley holds fleet+D&O — hero uplift). Build CustomerLake-compatible (B1). | 1d |
+| C1 | ✅ SHIPPED 2026-07-09 — M1 client master + product lines (fleet/cyber/D&O; Calder Valley holds fleet+D&O — hero uplift). Built CustomerLake-compatible (B1). | 1d |
 | C2 | M2 Client 360 page + gold_client_book + top-accounts tile | 1d |
 | C3 | M3 client-level accumulation + per-client line in the crux | 0.5d |
 | C4 | M4 cross-sell gaps + account renewal alignment | 1d |
@@ -39,7 +43,7 @@ build-days. Nothing below starts without an explicit go.
 | D2 | Live model scores in Try-a-submission (the one deliberate live-endpoint beat) | 0.25d |
 | D3 | Dashboard page 2 (funnel trend, retention trend, adequacy by trade) | 0.5d |
 | D4 | Joined cross-workbench Genie ("broker 360" over underwriting + claims gold) | 0.5d + grants |
-| D5 | `/Workspace/Shared` migration (production mode, any-SA redeploy) — after GUI review settles | 0.5d |
+| D5 | ✅ SHIPPED 2026-07-09 — `/Workspace/Shared` migration (production mode, any-SA redeploy) | 0.5d |
 | D6 | REDEPLOYABILITY_AUDIT.md (B1–B6 checklist, reinsurance pattern) | 0.25d |
 
 ## Suggested sequencing (pending go)
