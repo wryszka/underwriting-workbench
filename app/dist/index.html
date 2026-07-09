@@ -641,13 +641,13 @@ async function subView(sid){
         :'<div class="muted" style="margin-top:6px">First contact — no prior submissions from this company.</div>'}
       </div>
       <div>
-        <b style="font-size:12.5px">Account underwriting <span class="soonpill">roadmap</span></b>
-        <div class="kv"><span>Whole-account view — every policy this client holds (package · fleet · cyber · D&amp;O)</span><b class="soonpill">roadmap</b></div>
-        <div class="kv"><span>Account profitability — whole-relationship loss ratio informing the marginal quote</span><b class="soonpill">roadmap</b></div>
-        <div class="kv"><span>Cross-sell gaps — covers peers in this trade hold that this client doesn't</span><b class="soonpill">roadmap</b></div>
-        <div class="kv"><span>Client-level accumulation — one insured's exposure across ALL its policies vs a per-client line</span><b class="soonpill">roadmap</b></div>
-        <div class="kv"><span>Group structures — parent/subsidiary linkage from Companies House</span><b class="soonpill">roadmap</b></div>
-        <div class="muted" style="margin-top:6px">The keystone is a governed <b>client master</b> (one party id across policies, submissions and claims) — plan in One Book.</div>
+        <b style="font-size:12.5px">The account — every policy this client holds</b> <span class="muted">(live — client master ref_client)</span>
+        ${(d.account||[]).length?(d.account||[]).map(a=>{const lr=a.gross_premium>0?Math.round(a.incurred_3y/3/a.gross_premium*100):0;
+          return `<div class="kv"><span>${pill(a.product_line,"bluep")} ${esc(a.policy_number)}<br><span class="muted">since ${esc(a.inception_date)} · client since ${esc(a.client_since)}</span></span>
+          <b>${money(a.gross_premium)}<br><span class="muted">LR ${lr}%</span></b></div>`}).join("")+
+          `<div class="muted" style="margin-top:6px">The marginal quote is an <b>account</b> conversation: the whole relationship's premium and loss ratio sit beside the new risk.</div>`
+        :'<div class="muted" style="margin-top:6px">No other policies held — this would be a NEW relationship.</div>'}
+        <div style="margin-top:8px"><b style="font-size:12px">Still roadmap:</b> <span class="soonpill">cross-sell gaps</span> <span class="soonpill">client-level accumulation line</span> <span class="soonpill">group structures</span></div>
       </div>
     </div>
   </div>
@@ -1116,8 +1116,8 @@ async function oneBook(){
   <div class="grid g3">
     <div class="card tone-blue" style="border-width:1.5px"><h3>Commercial SME &amp; mid-market</h3><div class="big" style="font-size:16px">LIVE — this workbench</div>
       <div class="muted">Submission → decision, end to end, governed.</div></div>
-    <div class="card soon" style="border-color:#c7d2fe;background:#f5f7ff"><h3>Account underwriting — multi-policy <span class="soonpill">roadmap</span></h3>
-      <div class="muted">One client, many policies (package + fleet + cyber + D&amp;O): a governed <b>client master</b> gives the whole-account view, account-level profitability and accumulation, cross-sell gaps and one renewal conversation. The seed already exists — "this client's history" on every dossier. Full plan: MULTI_POLICY_PLAN in the repo docs.</div></div>
+    <div class="card" style="border:1.5px solid #c7d2fe;background:#f5f7ff"><h3>Account underwriting — multi-policy <span class="pill green">LIVE (M1)</span></h3>
+      <div class="muted">The <b>client master is live</b>: one party id across submissions, policies and claims; ~1,800 clients hold fleet / cyber / D&amp;O alongside their package — see the account view on any dossier (Calder Valley holds a profitable fleet + D&amp;O, which changes the referral conversation). <b>In a real estate this is Databricks CustomerLake</b>: Profile Agents resolve messy PAS/CRM/claims parties into governed golden profiles in Unity Catalog — our ref_client mirrors that output shape, so the swap is a source change, not a rebuild. Next: cross-sell gaps, client-level accumulation line, group structures (MULTI_POLICY_PLAN).</div></div>
     <div class="card soon"><h3>Personal motor &amp; home <span class="soonpill">placeholder</span></h3>
       <div class="muted">The Bricksurance personal-lines universe already exists in the sibling <b>Claims Workbench</b> (same brokers, same districts) — new-business underwriting plugs into this chassis.</div></div>
     <div class="card soon"><h3>Specialty / London Market <span class="soonpill">placeholder</span></h3>

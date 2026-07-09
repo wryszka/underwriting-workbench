@@ -238,6 +238,17 @@ def submission_panels(sid: str):
     stmts["documents"] = f"""SELECT file_name, doc_type, extraction_confidence, key_hazards_json,
                                     prior_losses_json, turnover_stated_gbp
                              FROM {F('bronze_doc_extractions')} WHERE submission_public_id='{sid}'"""
+    stmts["account"] = f"""SELECT p.policy_number, p.product_line, p.gross_premium, p.policy_status,
+                                  p.inception_date, c.client_id, c.client_since,
+                                  coalesce(cl.incurred_3y, 0) AS incurred_3y
+                           FROM {F('ref_client')} c
+                           JOIN {F('silver_submissions')} ss ON ss.company_number = c.company_number
+                            AND ss.submission_public_id = '{sid}'
+                           JOIN {F('landing_pas_policies')} p ON p.client_id = c.client_id
+                           LEFT JOIN (SELECT policy_number, sum(incurred) incurred_3y
+                                      FROM {F('landing_pas_claims')} GROUP BY policy_number) cl
+                             ON cl.policy_number = p.policy_number
+                           ORDER BY p.gross_premium DESC LIMIT 8"""
     stmts["broker"] = f"""SELECT bs.broker_id, bs.broker_name, bs.broker_trust_score, bs.hit_ratio_pct,
                                  bs.data_complete_pct, bs.fact_discrepancy_pct, bs.ntu_rate_pct
                           FROM {F('gold_broker_scorecard')} bs
@@ -263,6 +274,7 @@ def submission_panels(sid: str):
     res["client_history"] = out.get("client_history", [])
     res["auto_bound"] = (out.get("auto_bound") or [None])[0]
     res["broker"] = (out.get("broker") or [None])[0]
+    res["account"] = out.get("account", [])
     res["fns"] = {k: f"{F(v)}('{sid}')" for k, v in PANEL_FNS.items()}
     return res
 

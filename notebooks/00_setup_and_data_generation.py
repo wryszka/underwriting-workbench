@@ -379,6 +379,28 @@ write(spark.createDataFrame(profiles + HERO_PROFILES,
 
 # COMMAND ----------
 
+# MAGIC %md ## Client master — the multi-policy keystone (CustomerLake-compatible shape)
+# MAGIC One governed party id (`client_id`) across submissions, policies and claims. Fields are
+# MAGIC aligned with a CustomerLake Profile-Agent "golden profile" output so a real estate can
+# MAGIC swap this synthetic build for identity resolution over messy PAS/CRM/claims parties.
+
+# COMMAND ----------
+
+random.seed(SEED + 7)
+clients, CLIENT_BY_CO = [], {}
+for i, prof in enumerate(profiles + HERO_PROFILES):
+    cid = f"CL-{100001 + i}" if prof[0] not in ("09384712", "06120843", "07551209") else         {"09384712": "CL-900001", "06120843": "CL-900002", "07551209": "CL-900003"}[prof[0]]
+    since = (TODAY - datetime.timedelta(days=random.randint(200, 4000))).isoformat()
+    clients.append((cid, prof[0], prof[1], prof[8], "mid_market" if prof[9] >= 3_000_000 else "sme",
+                    since, "synthetic_profile (CustomerLake Profile Agent in production)", 1.0))
+    CLIENT_BY_CO[prof[0]] = cid
+write(spark.createDataFrame(clients,
+      "client_id string, company_number string, legal_name string, trade_group string, segment string, "
+      "client_since string, resolution_source string, profile_confidence double"),
+      "ref_client", "reference")
+
+# COMMAND ----------
+
 # MAGIC %md ## PAS book — in-force commercial policies + claims history
 # MAGIC ~30k in-force + recent lapsed (retention story). HX7 in-force property SI is hand-seeded
 # MAGIC to exactly £16.75m so hero 900002's marginal £5m lands at 87% of the £25m capacity.
@@ -445,12 +467,42 @@ for j, si in enumerate(HX7_SIS):
                               trade=random.choice(["retail_shop", "light_manufacturing", "hospitality_restaurant", "wholesale"]),
                               forced_property_si=si))
 
+# Multi-policy accounts: ~1,800 clients also hold fleet / cyber / D&O policies with us —
+# the account-underwriting dimension. Calder Valley (hero) holds a PROFITABLE fleet (28
+# vehicles) + D&O, so the 900002 referral becomes an ACCOUNT conversation.
+random.seed(SEED + 8)
+extra_policies = []
+_mp_clients = random.sample([c for c in clients if c[0] not in ("CL-900001", "CL-900003")], 1800)
+_seq = 200_000
+for c in _mp_clients:
+    for pl in random.sample(["fleet", "cyber", "directors_officers"], random.choice([1, 1, 2])):
+        _seq += 1
+        prem = {"fleet": random.randint(8, 40) * 450, "cyber": random.randint(2, 18) * 320,
+                "directors_officers": random.randint(2, 12) * 380}[pl]
+        incep = TODAY - datetime.timedelta(days=random.randint(0, 364))
+        extra_policies.append((f"BSE-C-{_seq:07d}", c[3], SIC_BY_TRADE.get(c[3], "70229"), c[4],
+                               random.choices(DISTRICT_POOL, weights=DISTRICT_W, k=1)[0],
+                               "n/a", 2000, 0, False, 10, 0, 0, 0, 0, 0, 10_000_000, 5_000_000,
+                               prem, round(prem / 1.04), 0.04, 0.20,
+                               incep.isoformat(), (incep + datetime.timedelta(days=365)).isoformat(),
+                               None, "in_force", pl, c[0]))
+# Calder Valley's account (deterministic): fleet 28 vehicles + D&O, both profitable, in force
+for pn, pl, prem in (("BSE-C-0900002", "fleet", 14_700), ("BSE-C-0900003", "directors_officers", 3_800)):
+    incep = TODAY - datetime.timedelta(days=210)
+    extra_policies.append((pn, "food_manufacturing", "10890", "mid_market", "HX7", "n/a", 2000, 0, False,
+                           160, 24_000_000, 0, 0, 0, 0, 10_000_000, 5_000_000, prem, round(prem / 1.05),
+                           0.05, 0.20, incep.isoformat(), (incep + datetime.timedelta(days=365)).isoformat(),
+                           None, "in_force", pl, "CL-900002"))
+
 pol_schema = ("policy_number string, trade_group string, sic_code string, segment string, postcode_district string, "
               "construction_type string, year_built int, floor_area_m2 int, tenant boolean, employees int, turnover long, "
               "buildings_si long, contents_si long, stock_si long, bi_si long, el_limit long, pl_limit long, "
               "gross_premium long, prior_premium long, rate_change_pct double, commission_pct double, "
               "inception_date string, expiry_date string, broker_note string, policy_status string")
-pol_df = spark.createDataFrame(policies, pol_schema).withColumn(
+pol_schema_mp = pol_schema + ", product_line string, client_id string"
+_core = [tuple(p) + ("commercial_combined" if p[3] == "mid_market" else "commercial_package", None)
+         for p in policies]
+pol_df = spark.createDataFrame(_core + extra_policies, pol_schema_mp).withColumn(
     "broker_id", F.expr("CASE WHEN pmod(abs(hash(policy_number)),10)<=2 THEN 'BRK-003' "
                         "WHEN pmod(abs(hash(policy_number)),10)<=4 THEN 'BRK-004' "
                         "WHEN pmod(abs(hash(policy_number)),10)<=6 THEN 'BRK-005' "

@@ -29,6 +29,7 @@ SLA_HOURS = "CASE channel WHEN 'etrade' THEN 4 WHEN 'portal' THEN 24 ELSE 48 END
 @dlt.expect("has_district", "postcode_district IS NOT NULL")
 def silver_submissions():
     subs = dlt.read("bronze_submissions")
+    cli = spark.read.table(f"{SRC}.ref_client").select("company_number", "client_id", "client_since")
     prof = (dlt.read("bronze_company_profiles")
             .select(F.col("company_number"),
                     F.col("sic_code").alias("sic_code_registered"),
@@ -75,6 +76,7 @@ def silver_submissions():
 
     out = (subs
            .join(prof, "company_number", "left")
+           .join(cli, "company_number", "left")
            .join(flood, "postcode_district", "left")
            .join(crime, "postcode_district", "left")
            .join(epc, "postcode_district", "left")
