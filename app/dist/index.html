@@ -453,7 +453,7 @@ async function inboxPage(){
       <td>${money(r.total_si)}</td>
       <td>${pill(r.lifecycle_state,"bluep")}</td>
       <td>${pill(r.sla_status,r.sla_status==="breached"?"red":r.sla_status==="at_risk"?"amber":"green")}<br><span class="muted">${r.hours_since_received}h / ${r.sla_target_hours}h</span></td>
-      <td>${r.flood_band==="High"?pill("flood","red"):""} ${r.turnover_mismatch_ratio>=1.5?pill("fair-presentation","amber"):""} ${r.appetite_status==="excluded"?pill("out of appetite","red"):""}</td></tr>`}).join("");
+      <td>${Number(r.prior_contacts)>0?pill("returning client","bluep"):""} ${r.flood_band==="High"?pill("flood","red"):""} ${r.turnover_mismatch_ratio>=1.5?pill("fair-presentation","amber"):""} ${r.appetite_status==="excluded"?pill("out of appetite","red"):""}</td></tr>`}).join("");
   m.innerHTML=`
   <div class="eyebrow">Underwriter</div><h1>Submission Inbox</h1>
   <p class="sub">The open pipeline ranked by <b>expected value</b> — premium × modelled P(bind) — so the desk works what is winnable <i>and worth winning</i>. Heroes pinned. Click a row to work it.</p>
@@ -490,7 +490,7 @@ async function renewalsDesk(){
     <div class="card"><h3>Due in 30 days</h3><div class="big">${num(k.due_30d)}</div></div>
   </div>
   <div class="card" style="margin-top:16px"><table><thead><tr><th>policy</th><th>expiry</th><th>premium</th><th>last rate chg</th><th>claims 3y</th><th>trade adequacy</th><th>suggested stance</th><th>retention</th></tr></thead><tbody>${rows}</tbody></table></div>
-  <div class="prov">Computed live from the policy book and its claims experience. Renewal invitation workflow (pre-renewal survey chase, broker pack) = roadmap on One Book.</div>`;
+  <div class="prov">Computed live from the policy book and its claims experience. Roadmap: renewal invitation workflow (survey chase, broker pack) and <b>common renewal-date alignment across a client's policies</b> (multi-policy accounts renew as one conversation) — see One Book.</div>`;
 }
 
 /* ---------- work a submission ---------- */
@@ -588,6 +588,26 @@ async function subView(sid){
       <div style="margin:10px 0 4px"><b>Documents</b></div>${docs||'<div class="muted">structured channel — no documents (that is the point of e-trade)</div>'}
       ${calls?`<div style="margin:10px 0 0"><b>Calls &amp; insights</b> <span class="muted">(transcripts through the SAME pipeline — facts said on calls that never reach a form)</span></div>${calls}`:""}
       ${locRows?`<div style="margin:12px 0 4px"><b>Schedule of premises</b></div><table><thead><tr><th>#</th><th>site</th><th>district</th><th>property SI</th><th>flood</th><th>EA rivers</th></tr></thead><tbody>${locRows}</tbody></table>`:""}
+    </div>
+  </div>
+  <div class="card" style="margin-top:16px"><h3>👥 Client &amp; account — the multi-policy view</h3>
+    <div class="grid g2">
+      <div>
+        <b style="font-size:12.5px">This client's history with us</b> <span class="muted">(live — matched on company number)</span>
+        ${(d.client_history||[]).length?(d.client_history||[]).map(h=>`<div class="kv">
+          <span>${esc(h.submission_public_id)} · ${esc(h.trade_group)} ${pill(h.channel,"slatep")}<br><span class="muted">${esc(h.received_ts)}</span></span>
+          <b>${h.outcome?pill(h.outcome,h.outcome==="bound"?"green":h.outcome==="declined"?"red":"slatep"):pill(h.lifecycle_state,"bluep")} ${h.quoted_premium?money(h.quoted_premium):""}</b></div>`).join("")
+        :'<div class="muted" style="margin-top:6px">First contact — no prior submissions from this company.</div>'}
+      </div>
+      <div>
+        <b style="font-size:12.5px">Account underwriting <span class="soonpill">roadmap</span></b>
+        <div class="kv"><span>Whole-account view — every policy this client holds (package · fleet · cyber · D&amp;O)</span><b class="soonpill">roadmap</b></div>
+        <div class="kv"><span>Account profitability — whole-relationship loss ratio informing the marginal quote</span><b class="soonpill">roadmap</b></div>
+        <div class="kv"><span>Cross-sell gaps — covers peers in this trade hold that this client doesn't</span><b class="soonpill">roadmap</b></div>
+        <div class="kv"><span>Client-level accumulation — one insured's exposure across ALL its policies vs a per-client line</span><b class="soonpill">roadmap</b></div>
+        <div class="kv"><span>Group structures — parent/subsidiary linkage from Companies House</span><b class="soonpill">roadmap</b></div>
+        <div class="muted" style="margin-top:6px">The keystone is a governed <b>client master</b> (one party id across policies, submissions and claims) — plan in One Book.</div>
+      </div>
     </div>
   </div>
   <div class="grid g2" style="margin-top:16px">
@@ -1052,6 +1072,8 @@ async function oneBook(){
   <div class="grid g3">
     <div class="card tone-blue" style="border-width:1.5px"><h3>Commercial SME &amp; mid-market</h3><div class="big" style="font-size:16px">LIVE — this workbench</div>
       <div class="muted">Submission → decision, end to end, governed.</div></div>
+    <div class="card soon" style="border-color:#c7d2fe;background:#f5f7ff"><h3>Account underwriting — multi-policy <span class="soonpill">roadmap</span></h3>
+      <div class="muted">One client, many policies (package + fleet + cyber + D&amp;O): a governed <b>client master</b> gives the whole-account view, account-level profitability and accumulation, cross-sell gaps and one renewal conversation. The seed already exists — "this client's history" on every dossier. Full plan: MULTI_POLICY_PLAN in the repo docs.</div></div>
     <div class="card soon"><h3>Personal motor &amp; home <span class="soonpill">placeholder</span></h3>
       <div class="muted">The Bricksurance personal-lines universe already exists in the sibling <b>Claims Workbench</b> (same brokers, same districts) — new-business underwriting plugs into this chassis.</div></div>
     <div class="card soon"><h3>Specialty / London Market <span class="soonpill">placeholder</span></h3>

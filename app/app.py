@@ -185,6 +185,7 @@ def inbox():
     # (P(bind) alone drives a desk to small easy risks). Risk quality shown alongside.
     rows = sql.query(f"""
         SELECT l.*, p.bind_propensity_pct, p.large_loss_propensity_pct,
+               coalesce(cc.cnt, 1) - 1 AS prior_contacts,
                round(coalesce(l.target_premium, l.technical_base_premium)
                      * coalesce(p.bind_propensity_pct, 25) / 100, 0) AS expected_value_gbp,
                CASE WHEN coalesce(l.target_premium, l.technical_base_premium) >= 50000 THEN 'size'
@@ -193,6 +194,9 @@ def inbox():
                     ELSE 'balance' END AS ev_driver
         FROM {F('gold_submission_lifecycle')} l
         LEFT JOIN {F('gold_inbox_priority')} p USING (submission_public_id)
+        LEFT JOIN {F('silver_submissions')} ss USING (submission_public_id)
+        LEFT JOIN (SELECT company_number, count(*) cnt FROM {F('silver_submissions')}
+                   GROUP BY company_number) cc ON cc.company_number = ss.company_number
         ORDER BY CASE WHEN l.submission_public_id LIKE 'sub:9000%' THEN 0 ELSE 1 END,
                  expected_value_gbp DESC NULLS LAST
         LIMIT 120""")
@@ -221,11 +225,20 @@ def submission_panels(sid: str):
     stmts["documents"] = f"""SELECT file_name, doc_type, extraction_confidence, key_hazards_json,
                                     prior_losses_json, turnover_stated_gbp
                              FROM {F('bronze_doc_extractions')} WHERE submission_public_id='{sid}'"""
+    stmts["client_history"] = f"""SELECT h.submission_public_id, h.received_ts, h.trade_group,
+                                         h.lifecycle_state, h.outcome, h.quoted_premium, h.channel
+                                  FROM {F('silver_submissions')} h
+                                  JOIN {F('silver_submissions')} c
+                                    ON h.company_number = c.company_number
+                                   AND c.submission_public_id = '{sid}'
+                                   AND h.submission_public_id != '{sid}'
+                                  ORDER BY h.received_ts DESC LIMIT 8"""
     out = sql.query_many(stmts)
     res = {k: (json.loads(out[k][0]["r"]) if out.get(k) and out[k][0].get("r") else {}) for k in PANEL_FNS}
     res["scores"] = out["scores"][0] if out.get("scores") else {}
     res["locations"] = out.get("locations", [])
     res["documents"] = out.get("documents", [])
+    res["client_history"] = out.get("client_history", [])
     res["fns"] = {k: f"{F(v)}('{sid}')" for k, v in PANEL_FNS.items()}
     return res
 
