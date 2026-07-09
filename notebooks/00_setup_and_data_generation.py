@@ -320,7 +320,7 @@ def mk_directors(n):
     return [f"{random.choice(FIRST)} {random.choice(LAST)}" for _ in range(n)]
 
 
-N_PROFILES = 1200
+N_PROFILES = 6500   # ≈1.25 submissions/company/yr — realistic remarket frequency (the "returning client" chip must mean something)
 profiles, PROFILE_BY_CO = [], {}
 for i in range(N_PROFILES):
     trade = random.choice(TRADES_CORE * 3 + TRADES_SEL)
