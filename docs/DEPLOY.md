@@ -30,6 +30,14 @@ portability anchor** — override one variable.
 above exists, then verifies data invariants and the three heroes end-to-end. On a fresh
 install, all steps PASS or the job fails loudly.
 
+## Where things live (workspace legibility)
+
+Production deployment root: **`/Workspace/Shared/underwriting_workbench`** (notebooks under
+`files/notebooks`, app under `files/app`) — any workspace user can find and reuse them. Jobs
+and the pipeline carry clean `underwriting_*` names + descriptions and `project` tags; every
+table carries `layer`/`demo` UC tags and the schema has a self-describing comment (set by
+notebook 07). Serving endpoints are `underwriting-*`.
+
 ## Deploy steps (~45–60 min, mostly job runtime)
 
 ```bash
@@ -62,11 +70,11 @@ databricks bundle deploy -t dev
 databricks apps deploy underwriting-workbench --source-code-path \
   /Workspace/Users/<you>/.bundle/underwriting-workbench/dev/files/app
 
-# 8. GRANT the app service principal (capture SP id from the app page):
-#    schema: USE SCHEMA, SELECT, EXECUTE, MODIFY, CREATE TABLE (cache) on <catalog>.underwriting_workbench
-#    warehouse: CAN_USE (declared in app.yml resource)
-#    serving: CAN_QUERY on all 8 endpoints (incl. the agents_… supervisor)
-#    reset job: CAN_MANAGE_RUN · Genie space: CAN_RUN · dashboard: CAN_READ
+# 8. GRANT the app service principal — one command (auto-discovers SP, endpoints, reset job):
+python3 scripts/grant_app_sp.py <PROFILE> <CATALOG> underwriting_workbench <WAREHOUSE_ID> <GENIE_ID> <DASHBOARD_ID>
+#    (grants: catalog/schema incl. CREATE TABLE for the cache · comms_out volume R/W ·
+#     CAN_QUERY on every underwriting + supervisor endpoint · reset job CAN_MANAGE_RUN ·
+#     Genie CAN_RUN · dashboard CAN_READ — then restart the app once)
 
 # 9. Warm + verify
 databricks bundle run underwriting_99_reset -t dev
