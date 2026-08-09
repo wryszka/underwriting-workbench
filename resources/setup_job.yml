@@ -25,3 +25,13 @@ resources:
               catalog: "{{job.parameters.catalog}}"
               schema: "{{job.parameters.schema}}"
               seed: "{{job.parameters.seed}}"
+        # Lane E (additive): referral/discretion reference + generated history, isolated RNG (4242)
+        - task_key: lane_e_setup
+          depends_on:
+            - task_key: data_gen
+          environment_key: default
+          notebook_task:
+            notebook_path: ../notebooks/00c_lane_e_setup.py
+            base_parameters:
+              catalog: "{{job.parameters.catalog}}"
+              schema: "{{job.parameters.schema}}"

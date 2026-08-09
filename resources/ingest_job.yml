@@ -32,6 +32,17 @@ resources:
               catalog: "{{job.parameters.catalog}}"
               schema: "{{job.parameters.schema}}"
               fm_endpoint: ${var.fm_endpoint}
+        # Lane E (additive): wageroll Document-AI extraction into the silver sidecar
+        - task_key: wageroll_extraction
+          depends_on:
+            - task_key: doc_extraction
+          environment_key: default
+          notebook_task:
+            notebook_path: ../notebooks/01d_wageroll_extraction.py
+            base_parameters:
+              catalog: "{{job.parameters.catalog}}"
+              schema: "{{job.parameters.schema}}"
+              fm_endpoint: ${var.fm_endpoint}
         - task_key: medallion
           depends_on:
             - task_key: doc_extraction

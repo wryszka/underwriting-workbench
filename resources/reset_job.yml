@@ -31,8 +31,14 @@ resources:
           notebook_task:
             notebook_path: ../notebooks/00_setup_and_data_generation.py
             base_parameters: {catalog: "{{job.parameters.catalog}}", schema: "{{job.parameters.schema}}", seed: "{{job.parameters.seed}}"}
-        - task_key: landing_files
+        - task_key: lane_e_setup
           depends_on: [{task_key: data_gen}]
+          environment_key: default
+          notebook_task:
+            notebook_path: ../notebooks/00c_lane_e_setup.py
+            base_parameters: {catalog: "{{job.parameters.catalog}}", schema: "{{job.parameters.schema}}"}
+        - task_key: landing_files
+          depends_on: [{task_key: lane_e_setup}]
           environment_key: default
           notebook_task:
             notebook_path: ../notebooks/00b_landing_files.py
@@ -42,6 +48,12 @@ resources:
           environment_key: default
           notebook_task:
             notebook_path: ../notebooks/01c_doc_extraction.py
+            base_parameters: {catalog: "{{job.parameters.catalog}}", schema: "{{job.parameters.schema}}", fm_endpoint: "${var.fm_endpoint}"}
+        - task_key: wageroll_extraction
+          depends_on: [{task_key: doc_extraction}]
+          environment_key: default
+          notebook_task:
+            notebook_path: ../notebooks/01d_wageroll_extraction.py
             base_parameters: {catalog: "{{job.parameters.catalog}}", schema: "{{job.parameters.schema}}", fm_endpoint: "${var.fm_endpoint}"}
         - task_key: medallion
           depends_on: [{task_key: doc_extraction}]
@@ -59,6 +71,14 @@ resources:
           environment_key: ml
           notebook_task:
             notebook_path: ../notebooks/04_features.py
+            base_parameters: {catalog: "{{job.parameters.catalog}}", schema: "{{job.parameters.schema}}"}
+        # Lane E (additive): rebuild gold_referral_events from refreshed silver + generated history.
+        # fn_referral_events_from_checks persists across reset (05d not re-run — grants).
+        - task_key: gold_referral_events
+          depends_on: [{task_key: dq_scorecard}]
+          environment_key: default
+          notebook_task:
+            notebook_path: ../notebooks/03c_gold_referral_events.py
             base_parameters: {catalog: "{{job.parameters.catalog}}", schema: "{{job.parameters.schema}}"}
         - task_key: inbox_rescore
           depends_on: [{task_key: features}]

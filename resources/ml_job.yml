@@ -55,3 +55,22 @@ resources:
             base_parameters:
               catalog: "{{job.parameters.catalog}}"
               schema: "{{job.parameters.schema}}"
+        # Lane E (additive): referral-event derivation fn (composes crux) → gold_referral_events
+        - task_key: lane_e_crux
+          depends_on:
+            - task_key: crux
+          environment_key: default
+          notebook_task:
+            notebook_path: ../notebooks/05d_lane_e_crux.py
+            base_parameters:
+              catalog: "{{job.parameters.catalog}}"
+              schema: "{{job.parameters.schema}}"
+        - task_key: gold_referral_events
+          depends_on:
+            - task_key: lane_e_crux
+          environment_key: default
+          notebook_task:
+            notebook_path: ../notebooks/03c_gold_referral_events.py
+            base_parameters:
+              catalog: "{{job.parameters.catalog}}"
+              schema: "{{job.parameters.schema}}"
