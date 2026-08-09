@@ -712,6 +712,16 @@ async function subView(sid){
       ${(rec.terms||[]).length?`<b style="font-size:12.5px">Terms</b><textarea class="f" id="ed_terms" rows="2">${(rec.terms||[]).map(esc).join("\n")}</textarea>`:""}
       ${(rec.subjectivities||[]).length?`<b style="font-size:12.5px">Subjectivities</b><textarea class="f" id="ed_subj" rows="3">${(rec.subjectivities||[]).map(esc).join("\n")}</textarea>`:""}
       ${(rec.internal_notes||[]).length?`<b style="font-size:12.5px">Internal notes (never broker-facing)</b><ul class="reasons">${rec.internal_notes.map(t=>`<li>${esc(t)}</li>`).join("")}</ul>`:""}
+      <div id="adjpanel" style="margin-top:12px;padding:12px;border:1px dashed #cbd5e1;border-radius:10px;background:#f8fafc">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <b style="font-size:12.5px">Pricing pen — premium adjustments <span class="muted">(optional; the pen is audited)</span></b>
+          <button class="btn ghost" style="padding:2px 8px" onclick="addAdjRow()">+ add</button></div>
+        <div class="kv"><span>Technical premium</span><b id="adj_tech">${money(prc.technical_premium)}</b></div>
+        <div id="adjrows"></div>
+        <div class="kv" style="border-top:1px solid #e2e8f0;margin-top:6px;padding-top:6px">
+          <span><b>Charged premium</b> <span class="muted" id="adj_disc"></span></span><b id="adj_charged">${money(prc.technical_premium)}</b></div>
+        <div class="kv"><span class="muted">+ IPT @ 12% / commission recompute on charged</span><span class="muted" id="adj_ipt"></span></div>
+      </div>
       <div style="margin-top:12px">
         <button class="btn" onclick="recordDecision('${sid}','quote')">✓ Quote</button>
         <button class="btn warn" onclick="recordDecision('${sid}','refer')">→ Refer</button>
@@ -734,17 +744,56 @@ async function subView(sid){
       <button class="btn" onclick="askSup('${sid}')">Ask</button></div><div id="supslot"></div></div>
   </div>
   <div class="prov">⌘ Nothing on this page is hardcoded: every panel is a live call to a governed Unity Catalog function, inspectable in Catalog Explorer. Decisions are recorded with the full as-at dossier snapshot.</div>`;
+  ADJ_TECH=prc.technical_premium||0;   // Lane E: seed the pricing-pen panel's technical base
   loadDecisionHistory(sid);
+}
+/* ---------- Lane E: premium-adjustments panel (structured; no agent in the numbers) ---------- */
+let ADJ_REASONS=[], ADJ_TECH=0;
+async function loadAdjReasons(){ if(!ADJ_REASONS.length){try{ADJ_REASONS=(await api("/adjustment-reasons")).reasons||[]}catch(e){ADJ_REASONS=[]}} }
+function adjOptions(){ return ADJ_REASONS.map(r=>`<option value="${esc(r.reason_code)}" data-dir="${esc(r.direction)}">${esc(r.label)}</option>`).join(""); }
+async function addAdjRow(){
+  await loadAdjReasons();
+  const box=$("#adjrows"); if(!box) return;
+  const id="adj"+Math.random().toString(36).slice(2,7);
+  const div=document.createElement("div"); div.className="kv"; div.style.gap="6px"; div.id=id;
+  div.innerHTML=`<select class="f" style="margin:0;max-width:230px" onchange="recomputeAdj()">${adjOptions()}</select>
+    <span style="display:flex;gap:6px;align-items:center">
+      <select class="f" style="margin:0;width:90px" onchange="recomputeAdj()"><option value="discount">discount</option><option value="load">load</option></select>
+      <input class="f adjamt" style="margin:0;width:100px" type="number" placeholder="£ amount" oninput="recomputeAdj()">
+      <button class="btn ghost" style="padding:2px 8px" onclick="this.closest('.kv').remove();recomputeAdj()">✕</button></span>`;
+  box.appendChild(div); recomputeAdj();
+}
+function collectAdj(){
+  return [...document.querySelectorAll("#adjrows .kv")].map(row=>{
+    const sels=row.querySelectorAll("select"), amt=parseFloat(row.querySelector(".adjamt").value||"0");
+    const dir=sels[1].value, mag=Math.abs(amt);
+    return {reason_code:sels[0].value, direction:dir, amount: dir==="discount"?-mag:mag};
+  }).filter(a=>a.amount!==0);
+}
+function recomputeAdj(){
+  if(!$("#adj_charged")) return;
+  const adj=collectAdj();
+  // amount<0 = discount reduces charged; amount>0 = load increases charged
+  const chargedV=Math.max(0, ADJ_TECH + adj.reduce((s,a)=>s+a.amount,0));
+  const ratio=ADJ_TECH>0?(chargedV/ADJ_TECH):1;
+  $("#adj_charged").innerHTML="<b>"+money(Math.round(chargedV))+"</b>";
+  $("#adj_disc").textContent=adj.length?`· discretion ratio ${ratio.toFixed(2)}`:"";
+  $("#adj_ipt").textContent="IPT "+money(Math.round(chargedV*0.12));
 }
 async function recordDecision(sid,action){
   const d=await api(`/submission/${encodeURIComponent(sid)}/panels`);
   const rec=d.recommendation||{},prc=d.price||{};
+  const adj=collectAdj();
+  const charged=action==="quote"?Math.round((prc.technical_premium||0)+adj.reduce((s,a)=>s+a.amount,0)):(prc.technical_premium||0);
+  const discretion_ratio=(prc.technical_premium>0)?+(charged/prc.technical_premium).toFixed(4):1;
   const evidence={dossier:d.dossier,appetite:d.appetite,authority:d.authority,accumulation:d.accumulation,
-    price:d.price,screening:d.screening,underinsurance:d.underinsurance,recommendation:d.recommendation,scores:d.scores};
+    price:d.price,screening:d.screening,underinsurance:d.underinsurance,recommendation:d.recommendation,scores:d.scores,
+    premium_adjustments:adj,discretion_ratio};
   const r=await post("/decision",{sid,action,refer_to:rec.refer_to_grade,underwriter:rec.suggested_underwriter,
     reasons:rec.reasons||[],terms:editedList("terms",rec.terms),subjectivities:editedList("subj",rec.subjectivities),
     decline_code:rec.decline_code_external,external_reason:rec.external_reason,
-    internal_notes:rec.internal_notes||[],quoted_premium:prc.technical_premium,
+    internal_notes:rec.internal_notes||[],quoted_premium:charged,technical_premium:prc.technical_premium,
+    commission_pct:prc.commission_pct,premium_adjustments:adj,discretion_ratio,
     straight_through:!!rec.straight_through,evidence});
   $("#decmsg").innerHTML=`✓ Recorded <span class="mono">${esc(r.decision_id)}</span> by ${esc(r.recorded_by)} — with the full as-at dossier snapshot${r.pack&&r.pack.file_name?` · <a class="lnk" href="/api/decision/pack?sid=${encodeURIComponent(sid)}" target="_blank">📦 audit pack (PDF)</a>`:""}`;
   loadDecisionHistory(sid);

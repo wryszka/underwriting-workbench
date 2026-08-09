@@ -43,6 +43,17 @@ def get_config():
     }
 
 
+# ---------------------------------------------------------------- Lane E: adjustment reasons
+@app.get("/api/adjustment-reasons")
+def adjustment_reasons():
+    try:
+        rows = sql.query_many({"r": f"""SELECT reason_code, label, direction, category
+                                        FROM {F('ref_adjustment_reasons')} ORDER BY category, reason_code"""})["r"]
+        return {"reasons": rows}
+    except Exception:
+        return {"reasons": []}
+
+
 # ---------------------------------------------------------------- control tower
 @app.get("/api/control-tower")
 def control_tower():
@@ -352,10 +363,34 @@ async def decision(req: Request):
             USING (SELECT '{did}-S{i}' k) s ON t.tracker_id = s.k
             WHEN NOT MATCHED THEN INSERT VALUES ('{did}-S{i}', '{sid}', '{did}',
                 '{sql.esc(subj)}', date_add(current_date(), {days}), 'open', NULL, NULL, current_timestamp())""")
+    # Lane E (additive): if the quote carried named premium adjustments, record the component
+    # decomposition to gold_premium_components (transaction_id = submission id, NB convention).
+    adj = b.get("premium_adjustments") or []
+    tech = b.get("technical_premium")
+    comps_written = 0
+    if tech and (b.get("action") == "quote" or b.get("quoted_premium")):
+        try:
+            comm_pct = float(b.get("commission_pct") or 0.20)
+            charged = float(b.get("quoted_premium") or tech)
+            rows = [f"('{sid}', 'TECHNICAL', NULL, {float(tech)}, '{who}', current_timestamp())"]
+            for a in adj:
+                ctype = "LOAD" if float(a.get("amount", 0)) > 0 and a.get("direction") == "load" else \
+                        ("DISCOUNT" if float(a.get("amount", 0)) < 0 or a.get("direction") == "discount" else "LOAD")
+                rc = sql.esc(a.get("reason_code", "MANUAL_OTHER"))
+                rows.append(f"('{sid}', '{ctype}', '{rc}', {float(a.get('amount', 0))}, '{who}', current_timestamp())")
+            rows.append(f"('{sid}', 'IPT', NULL, {round(charged * 0.12, 2)}, '{who}', current_timestamp())")
+            rows.append(f"('{sid}', 'COMMISSION', NULL, {round(charged * comm_pct, 2)}, '{who}', current_timestamp())")
+            sql.query(f"DELETE FROM {F('gold_premium_components')} WHERE transaction_id = '{sid}'")
+            sql.query(f"INSERT INTO {F('gold_premium_components')} VALUES {', '.join(rows)}")
+            comps_written = len(rows)
+        except Exception as e:
+            print("premium-component write skipped:", e)
+
     pack = _write_pack({**b, "decision_id": did, "submission_public_id": b.get("sid", ""),
                         "decided_by": who, "decided_via": "app", "decision_ts": "now"},
                        b.get("evidence") or {})
-    return {"decision_id": did, "recorded_by": who, "evidence_recorded": bool(evidence), "pack": pack}
+    return {"decision_id": did, "recorded_by": who, "evidence_recorded": bool(evidence),
+            "premium_components_written": comps_written, "pack": pack}
 
 
 def _write_pack(audit_like: dict, evidence: dict):
