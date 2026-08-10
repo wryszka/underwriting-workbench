@@ -53,7 +53,7 @@ print("wrote sub-900004_wageroll_statement.txt")
 
 PROMPT = (
     "You are an insurance data-extraction assistant. From the broker note below, extract the "
-    "declared Employers' Liability wageroll (annual gross payroll used as the EL rating basis). "
+    "declared Employers Liability wageroll (annual gross payroll used as the EL rating basis). "
     "Return STRICT JSON only, no prose: "
     "{declared_wageroll_gbp:(number, GBP, null if absent), "
     "confidence:(0-1, your confidence the figure is legible and unambiguous)}. Note follows:\n\n"
@@ -69,7 +69,7 @@ extracted = spark.sql(f"""
   )
   SELECT x.declared_wageroll_gbp, x.confidence
   FROM q, LATERAL (SELECT from_json(regexp_extract(out, '(?s)\\\\{{.*\\\\}}', 0),
-                          'declared_wageroll_gbp:DOUBLE, confidence:DOUBLE') AS x) t
+                          'STRUCT<declared_wageroll_gbp:DOUBLE, confidence:DOUBLE>') AS x) t
 """).first()
 
 wr_value = int(extracted["declared_wageroll_gbp"]) if extracted and extracted["declared_wageroll_gbp"] else None

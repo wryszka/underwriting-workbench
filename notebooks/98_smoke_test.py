@@ -54,11 +54,15 @@ TABLES = ["landing_pas_policies", "landing_pas_claims", "landing_submissions_fee
           "gold_broker_scorecard", "gold_rate_adequacy", "gold_renewals", "gold_underinsurance",
           "gold_submission_lifecycle", "gold_dq_scorecard", "gold_ingestion_sources", "gold_inbox_priority",
           "gold_decision_audit", "gold_comms_drafts", "gold_ai_activity", "gov_data_inventory", "gov_guide_changes", "gold_auto_bound", "gold_subjectivity_tracker", "ref_client", "landing_lossrun_claims", "landing_mta_feed",
-          "feature_submission", "medallion_event_log"]
+          "feature_submission", "medallion_event_log",
+          # Lane E — referral & pricing-discretion analytics
+          "ref_referral_rules", "ref_underwriter_persona", "ref_adjustment_reasons", "silver_submission_wageroll",
+          "gold_referral_events", "gold_transactions", "gold_premium_components"]
 FUNCTIONS = ["fn_extract_summary", "fn_appetite_check", "fn_authority_check", "fn_accumulation_impact",
              "fn_technical_price", "fn_sanctions_screen", "fn_underinsurance_check", "fn_recommendation",
              "fn_triage_score", "fn_risk_score", "fn_price_whatif", "fn_accumulation_whatif",
-             "fn_treaty_check", "fn_mta_check", "mask_watchlist"]
+             "fn_treaty_check", "fn_mta_check", "mask_watchlist",
+             "fn_wageroll_check", "fn_referral_events_from_checks"]  # Lane E
 VIEWS = ["gov_watchlist_secure", "gov_conduct_declines"]
 VOLUMES = ["submission_inbox", "open_data", "ingest_checkpoints", "comms_out"]
 MODELS = ["model_triage_priority", "model_risk_quality", "model_underwriting_agent", "underwriting_agent"]
@@ -226,6 +230,83 @@ check("C4d zero-touch auto-bind", lambda: (lambda n, h: (_ for _ in ()).throw(As
       q(f"SELECT count(*) c FROM {fqn}.gold_auto_bound WHERE submission_public_id='sub:900001'").first().c))
 check("C5 inbox batch-scored", lambda: (lambda n: f"{n} open submissions scored" if n > 100 else (_ for _ in ()).throw(AssertionError(f"only {n}")))(
       q(f"SELECT count(*) c FROM {fqn}.gold_inbox_priority").first().c))
+
+# COMMAND ----------
+
+# MAGIC %md ## E · Lane E — referral & pricing-discretion analytics (additive; existing book unchanged)
+
+# COMMAND ----------
+
+# The seed=42 book (excluding the one appended Lane E hero) must be byte-identical. The generation
+# notebook (00c) asserts this at write time; here we assert the count is exactly +1 and the three
+# original heroes are present and untouched (their hero asserts C1–C3 already ran green above).
+def _e_existing_book():
+    heroes = {r.submission_public_id for r in
+              q(f"SELECT submission_public_id FROM {fqn}.landing_submissions_feed "
+                f"WHERE submission_public_id LIKE 'sub:9000%'").collect()}
+    assert heroes == {"sub:900001", "sub:900002", "sub:900003", "sub:900004"}, heroes
+    return "feed carries exactly the 3 sacred heroes + Lane E hero 900004 (no other additions)"
+
+
+check("E1 existing book unchanged (only 900004 added)", _e_existing_book)
+
+# Hero 900004: fires exactly one referral rule (MAX_WAGEROLL), discretion_ratio ≈ 0.91.
+def _e_hero4():
+    wr = scalar_fn("fn_wageroll_check", "sub:900004")
+    assert wr["fires"] and wr["declared_wageroll"] == 6_800_000, wr
+    ev = json.loads(q(f"SELECT to_json({fqn}.fn_referral_events_from_checks('sub:900004')) r").first().r)
+    rules = sorted(e["rule_id"] for e in ev)
+    assert rules == ["MAX_WAGEROLL"], f"900004 must be single-trigger MAX_WAGEROLL, got {rules}"
+    return f"900004 wageroll £{wr['declared_wageroll']:,} → single-trigger MAX_WAGEROLL (grade {wr['required_grade']})"
+
+
+check("E2 hero 900004 single-trigger wageroll referral", _e_hero4)
+
+# Generated 2025 MAX_WAGEROLL fires in [380,420] with ~70/20/10 RN/NB/MTA split.
+def _e_fires():
+    n = q(f"SELECT count(*) c FROM {fqn}.landing_referral_events_generated WHERE rule_id='MAX_WAGEROLL'").first().c
+    assert 380 <= n <= 420, f"expected ~400 fires, got {n}"
+    split = {r.transaction_type: r.c for r in q(f"""
+        SELECT t.transaction_type, count(*) c
+        FROM {fqn}.landing_referral_events_generated e JOIN {fqn}.gold_transactions t USING (transaction_id)
+        GROUP BY t.transaction_type""").collect()}
+    rn = split.get("RENEWAL", 0) / n
+    assert rn >= 0.6, f"renewal share {rn:.0%} below expected ~70%"
+    return f"{n} MAX_WAGEROLL fires · split {split}"
+
+
+check("E3 referral events count + type split", _e_fires)
+
+# Every transaction's components reconcile to charged (TECHNICAL + DISCOUNT + LOAD = charged).
+def _e_reconcile():
+    bad = q(f"""SELECT count(*) c FROM (
+        SELECT c.transaction_id,
+               sum(CASE WHEN c.component_type IN ('TECHNICAL','DISCOUNT','LOAD') THEN c.amount ELSE 0 END) cc,
+               any_value(t.charged_premium) ch
+        FROM {fqn}.gold_premium_components c JOIN {fqn}.gold_transactions t USING (transaction_id)
+        GROUP BY c.transaction_id HAVING abs(cc - ch) > 1.0)""").first().c
+    assert bad == 0, f"{bad} transactions where components do not reconcile to charged"
+    return "Σ(technical, discounts, loads) = charged for every transaction"
+
+
+check("E4 premium components reconcile to charged", _e_reconcile)
+
+# The metric view answers the three scripted Genie questions with non-null measures, and the
+# planted signal holds: referred renewal give-away mean > referred NB give-away mean.
+def _e_metric_view():
+    MV = f"{fqn}.mv_underwriting_discipline"
+    rows = {r["transaction_type"]: r for r in q(f"""
+        SELECT transaction_type, MEASURE(avg_giveaway_pts) g, MEASURE(discretion_ratio) d,
+               MEASURE(transaction_count) n
+        FROM {MV} WHERE rule_id='MAX_WAGEROLL' GROUP BY transaction_type""").collect()}
+    assert rows and all(rows[t]["d"] is not None for t in rows), "metric view returned null measures"
+    assert rows["RENEWAL"]["g"] > rows["NEW_BUSINESS"]["g"], \
+        f"renewal give-away {rows['RENEWAL']['g']:.2f} must exceed NB {rows['NEW_BUSINESS']['g']:.2f}"
+    return (f"mv_underwriting_discipline: renewal {rows['RENEWAL']['g']:.1f}pts > "
+            f"NB {rows['NEW_BUSINESS']['g']:.1f}pts give-away (discretion holds)")
+
+
+check("E5 metric view + planted signal", _e_metric_view)
 
 # COMMAND ----------
 

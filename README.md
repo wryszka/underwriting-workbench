@@ -25,6 +25,10 @@ Unity Catalog.
 4. **Agents where they help** — role agents (risk profile, appetite, pricing adequacy, broker
    comms, challenge) + one real tool-calling supervisor over UC functions + Genie, all behind
    the workbench UI with human-in-the-loop decisions. Agents advise; humans bind.
+5. **Underwriting discipline, measured** — every referral rule and every pricing-pen decision
+   lands in a governed metric trunk; the questions a Head of Underwriting actually asks (how
+   often does a rule bite, what does the pen do with it, where does discretion leak) are
+   answered in Genie, not in a spreadsheet request.
 
 Build spec: `UNDERWRITING_WORKBENCH_BUILD_BRIEF.md` · Conventions: `CONVENTIONS.md` ·
 Deployment: `docs/DEPLOY.md` (asset inventory + fresh-workspace runbook) ·

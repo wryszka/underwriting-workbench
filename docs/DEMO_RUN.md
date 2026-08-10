@@ -1,4 +1,4 @@
-# DEMO_RUN.md — step-by-step demo (≈25 min + optional beats)
+# DEMO_RUN.md — step-by-step demo (≈30 min + optional beats)
 
 **Canonical presenter copy (Google Doc):** https://docs.google.com/document/d/1-J6OfcRAekJUEwmA3kWD3GpBZx7OoNT0LbDLA7j-jRY/edit
 
@@ -69,6 +69,26 @@ proposal + risk schedule):
    snapshot**. Draft the letter → the comms agent writes the subjectivities verbatim →
    **Approve & record**. The recorded subjectivities land in the **diary** with parsed due dates.
 9. Optional: **Ask the supervisor** — watch the tool trace (real UC function calls).
+
+## Beat 3b · The Head of Underwriting question (4 min) — referral discipline in Genie
+The beat that answers a real practitioner question: *"all the transactions where the Max Wageroll
+referral triggered, split by New Business / Renewal / MTA, technical vs charged."*
+1. **Work a wageroll referral**: open **★ sub:900004 Harwood & Vane Scaffolding** — declared
+   wageroll (the EL rating basis) £6.8m, read from a broker note by `ai_query`, above the £5m
+   standard authority band → the **MAX_WAGEROLL** chip fires (single-trigger, clean). Quote it and
+   use the **pricing-pen panel**: add a reason-coded renewal-retention discount → charged, IPT,
+   commission and the **discretion ratio** recompute live; the components land in
+   `gold_premium_components`, the ratio in the audit evidence.
+2. **Control Tower → Referral discipline tile**: fires this month · discretion-ratio RAG · top
+   rule. Drill it → the practitioner's exact table: MAX_WAGEROLL referrals by NB/RN/MTA, technical
+   vs charged, give-away points — **renewal ~8.7pts > MTA ~4.7 > NB ~2.0** (leakage lives at
+   renewal), and give-away by underwriter **persona** (generous > median > disciplined). "Show the
+   SQL" is one `MEASURE()` over the metric view.
+3. **Ask it in plain English (Genie)**: on the Underwriting AI page, ask *"which underwriters
+   discount most on wageroll referrals?"* and *"how did the discretion ratio trend by quarter?"* —
+   same numbers, no SQL. "Your Head of Underwriting mails this question to an analyst and waits two
+   days; here it's a governed **metric view** — one semantic trunk, the tile, the drill and Genie
+   all read the same measures, so nobody argues about whose discretion-ratio definition is right."
 
 ## Beat 4 · Decline with dignity (2 min)
 Open **★ sub:900003 Midland Metal & Waste**: excluded trade → coded decline `APP-EXCL-WASTE`
@@ -143,3 +163,23 @@ lanes, not placeholders — each new line is a lane on the same governed chassis
   adequacy floor); each one carries a full audit row and pack. Anything else lands with a human.
 - "What about mid-term changes?" — the MTA lane: delta accumulation, delta authority, pro-rata AP,
   same audit trail.
+- "Can I ask how often a referral rule bites, and what underwriters do with the pen?" — yes: every
+  rule-fire is an event, every pricing adjustment is reason-coded, and both roll into ONE metric
+  view (`mv_underwriting_discipline`). Referral rate, discretion ratio, give-away by type / trade /
+  underwriter / quarter — answered in Genie or a Control-Tower drill, not a two-day analyst request.
+- "Whose definition of 'discretion' is that?" — there is only one: the metric view is the semantic
+  trunk; the tile, the drill and Genie all consume the same measures, so the number can't diverge.
+- "We saw an agentic underwriting workbench launch recently — how is this different?" — good, and
+  we're not trying to out-build a pricing-native vendor's workbench. This demo shows what the
+  decision layer looks like when the carrier <b>owns</b> it: appetite, authority and rate are your
+  governed UC tables and functions, not logic rented inside one vendor's runtime. Their engine is
+  welcome on top — it supplies a technical price, this desk consumes it and decides. The wedge is
+  "own the decision, rent the plumbing," and the plumbing is the governed data + audit layer both
+  they and your core have to stand on. (See One Book → "Where this sits in your estate.")
+- "Our core-system roadmap already has an underwriting assistant / an agent framework" — then this
+  is complementary, not competitive. Those frameworks are deliberately model-agnostic and
+  MCP-native — that's a hook, not a wall. The same UC functions you saw here are callable as tools
+  by <i>their</i> agent, and the column masks + lineage hold regardless of who calls. The policy
+  core stays the system of record; Databricks is the neutral data/governance layer underneath.
+  The builder beat on the Underwriting AI page demonstrates exactly this: an external runtime
+  calling a governed function with the conduct mask still enforced.

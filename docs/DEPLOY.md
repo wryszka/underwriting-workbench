@@ -16,14 +16,17 @@ portability anchor** — override one variable.
 | Bronze (DLT) | `bronze_submissions` · `bronze_schedule_locations` · `bronze_documents` · `bronze_doc_extractions` · `bronze_pas_*` · `bronze_company_profiles` + 3 quarantine mirrors |
 | Silver (DLT) | `silver_submissions` · `silver_locations_enriched` |
 | Gold | `gold_pipeline_funnel` · `gold_portfolio_position` · `gold_accumulation` · `gold_broker_scorecard` · `gold_rate_adequacy` · `gold_renewals` · `gold_underinsurance` · `gold_submission_lifecycle` · `gold_dq_scorecard` · `gold_ingestion_sources` · `gold_inbox_priority` · `gold_decision_audit` · `gold_comms_drafts` · `gold_ai_activity` · `gov_data_inventory` · `gold_subjectivity_tracker` · `gold_auto_bound` · `gold_decision_packs` · `gov_guide_changes` + views `gov_watchlist_secure` · `gov_conduct_declines` · event log `medallion_event_log` |
+| Lane E tables | referral & discretion analytics: `ref_referral_rules` · `ref_underwriter_persona` · `ref_adjustment_reasons` · `silver_submission_wageroll` · `gold_referral_events` · `gold_transactions` · `gold_premium_components` · `landing_referral_events_generated` |
+| Lane E metric view | `mv_underwriting_discipline` (UC Metric View — the semantic trunk) + base view `gold_discipline_base` |
 | Feature Store | `feature_submission` (PK submission_public_id) |
-| UC functions (14) | crux: `fn_extract_summary` `fn_appetite_check` `fn_authority_check` `fn_accumulation_impact` `fn_technical_price` `fn_sanctions_screen` `fn_underinsurance_check` `fn_treaty_check` `fn_recommendation` · ML: `fn_triage_score` `fn_risk_score` · what-if: `fn_price_whatif` `fn_accumulation_whatif` · mask: `mask_watchlist` |
+| UC functions (16) | crux: `fn_extract_summary` `fn_appetite_check` `fn_authority_check` `fn_accumulation_impact` `fn_technical_price` `fn_sanctions_screen` `fn_underinsurance_check` `fn_treaty_check` `fn_recommendation` · Lane E: `fn_wageroll_check` `fn_referral_events_from_checks` · ML: `fn_triage_score` `fn_risk_score` · what-if: `fn_price_whatif` `fn_accumulation_whatif` · mask: `mask_watchlist` |
 | UC models (4) | `model_triage_priority` · `model_risk_quality` (@champion) · `model_underwriting_agent` · `underwriting_agent` |
 | Serving endpoints (8) | `underwriting-triage` · `underwriting-risk` · `underwriting-riskprofile` · `underwriting-appetite` · `underwriting-adequacy` · `underwriting-comms` · `underwriting-challenge` · `agents_…underwriting_agent` (auto-named — resolve by substring) |
 | Pipeline | `underwriting_medallion` (serverless DLT) |
 | Jobs (6) | `underwriting_00_setup` · `underwriting_01_ingest` · `underwriting_05_ml` · `underwriting_06_ai` · `underwriting_06b_agent` · `underwriting_99_reset` · `underwriting_98_smoke_test` |
-| Genie space | "Underwriting — Ask the Book (Bricksurance SE)" |
+| Genie space | "Underwriting — Ask the Book (Bricksurance SE)" — includes Lane E metric view + facts + referral vocabulary |
 | Dashboard | "Underwriting Portfolio" (Lakeview, published with embedded credentials) |
+| Builder-beat notebook | `09_external_agent_governed_call` — read-only demo: a foreign agent runtime calls governed UC functions and the conduct mask holds (positioning proof; not in reset) |
 | App | `underwriting-workbench` (FastAPI + self-contained SPA) |
 
 **Verification is automated:** `underwriting_98_smoke_test` step group A checks every asset
@@ -57,6 +60,8 @@ databricks bundle run underwriting_05_ml -t dev
 # 4. Genie space → capture the id
 python3 scripts/create_genie_space.py <PROFILE> <WAREHOUSE_ID> <CATALOG> underwriting_workbench
 #    → set genie_space_id in databricks.yml vars AND app/app.yaml GENIE_SPACE_ID
+#    To ADD Lane E assets to an EXISTING space in place (keeps the embedded id), pass the id as arg 5:
+#    python3 scripts/create_genie_space.py <PROFILE> <WH> <CATALOG> underwriting_workbench <SPACE_ID>
 
 # 5. Agents (role agents + governance, then the tool-calling supervisor)
 databricks bundle run underwriting_06_ai -t dev

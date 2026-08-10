@@ -547,7 +547,34 @@ async def mta_decide(req: Request):
         array(), array(), NULL, NULL, array('endorsement on {sql.esc(chk.get("policy_number", ""))}'),
         {chk.get('pro_rata_additional_premium') or 'NULL'}, false, '{who}', 'app',
         current_timestamp(), '{sql.esc(json.dumps({"mta_check": chk}))[:180000]}')""")
-    return {"decision_id": did, "recorded_by": who, "check": chk}
+
+    # Lane E3b (additive): an approved endorsement also writes a gold_transactions MTA row so the
+    # workflow and the discipline analytics reconcile. Pro-rata AP is the charged/technical premium
+    # (no pricing pen at endorsement in this flow). Refer/decline do not book a transaction.
+    txn_written = None
+    ap = chk.get("pro_rata_additional_premium")
+    pol = chk.get("policy_number")
+    if b.get("action") == "approve" and ap and pol:
+        try:
+            txn = "MT-" + uuid.uuid4().hex[:8]
+            prod = sql.query_one(f"""SELECT coalesce(product_line, CASE WHEN segment='mid_market'
+                        THEN 'commercial_combined' ELSE 'commercial_package' END) p,
+                        commission_pct c FROM {F('landing_pas_policies')}
+                        WHERE policy_number = '{sql.esc(pol)}' LIMIT 1""")
+            product = (prod or {}).get("p", "commercial_combined")
+            comm = float((prod or {}).get("c") or 0.20)
+            apf = float(ap)
+            sql.query(f"""INSERT INTO {F('gold_transactions')} VALUES (
+                '{txn}', '{sql.esc(pol)}', NULL, 'MTA', cast(current_date() AS STRING), '{product}',
+                NULL, {apf}, {apf}, {round(apf * 0.12, 2)}, {comm})""")
+            sql.query(f"""INSERT INTO {F('gold_premium_components')} VALUES
+                ('{txn}', 'TECHNICAL', NULL, {apf}, '{who}', current_timestamp()),
+                ('{txn}', 'IPT', NULL, {round(apf * 0.12, 2)}, '{who}', current_timestamp()),
+                ('{txn}', 'COMMISSION', NULL, {round(apf * comm, 2)}, '{who}', current_timestamp())""")
+            txn_written = txn
+        except Exception as e:
+            print("MTA gold_transactions write skipped:", e)
+    return {"decision_id": did, "recorded_by": who, "check": chk, "transaction_id": txn_written}
 
 
 # ---------------------------------------------------------------- subjectivity diary

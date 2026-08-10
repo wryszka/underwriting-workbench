@@ -25,10 +25,42 @@ underwriting_medallion (DLT) ──► 01 bronze (+expectations, 3 quarantine mi
 06b_supervisor_agent ──────────► underwriting_agent (ChatAgent tool loop) via agents.deploy
 07_governance ─────────────────► gold_decision_audit (hero seed reconciles with live fns) ·
                                  gov_data_inventory · gold_ai_activity · UC mask gov_watchlist_secure
+── Lane E · referral & pricing-discretion analytics (ADDITIVE) ─────────────────────────────────
+00c_lane_e_setup ──────────────► ref_referral_rules · ref_underwriter_persona · ref_adjustment_reasons ·
+                                 silver_submission_wageroll · gold_transactions (NB/RN/MTA facts) ·
+                                 gold_premium_components · landing_referral_events_generated
+                                 (isolated RNG 4242; hero sub:900004 append + scoped-checksum guard)
+01d_wageroll_extraction ───────► ai_query wageroll from a broker note → silver_submission_wageroll (MERGE)
+05d_lane_e_crux ───────────────► fn_wageroll_check + fn_referral_events_from_checks (COMPOSE the crux)
+03c_gold_referral_events ──────► gold_referral_events (live-feed events ∪ generated 2025 history)
+08_metric_views ───────────────► gold_discipline_base → mv_underwriting_discipline (UC Metric View =
+                                 the SEMANTIC TRUNK; Genie + Control Tower tile consume its MEASUREs)
 app/ ──────────────────────────► FastAPI (server/{config,sql,agents}.py) + dist/index.html SPA
 99_reset / 98_smoke_test ──────► reset chain (no retrain, no fn recreation) · smoke = asset checklist
-                                 + invariants + the three heroes' exact outcomes
+                                 + invariants + the three heroes' exact outcomes + Lane E (E1–E5)
 ```
+
+## Referral & discretion analytics (Lane E)
+
+Client-driven lane answering a real practitioner question — *"every transaction where the Max
+Wageroll referral triggered, split NB/RN/MTA, technical vs charged"* — generalised to
+referral-effectiveness and pricing-discretion analytics. **Strictly additive**: new tables join on
+keys, the crux is composed (never modified), and the only write to an existing table is one appended
+hero (`sub:900004`) guarded by a scoped checksum. All synthetic generation uses an **isolated
+`Random(4242)`** so the seed=42 book is byte-identical.
+
+- **Rule-grain fact.** `gold_referral_events` — one row per referral rule that fires (SI band,
+  flood-High, fair-presentation, accumulation, MAX_WAGEROLL). Live-feed events derive from the crux
+  via `fn_referral_events_from_checks`; ~400 generated 2025 MAX_WAGEROLL fires give history on day one.
+- **Wageroll.** The EL rating basis, extracted with `ai_query` into `silver_submission_wageroll`;
+  `fn_wageroll_check` refers above the authority band. Hero `sub:900004` is a clean single-trigger.
+- **Transactions + discretion.** `gold_transactions` (NB/RN/MTA facts) + `gold_premium_components`
+  (reason-coded discounts/loads) capture charged-vs-technical. A planted, discoverable signal —
+  renewal give-away > MTA > NB, generous persona leans on the pen — survives a GROUP BY without
+  screaming from a scatter.
+- **Semantic trunk.** `mv_underwriting_discipline` is a UC Metric View; *all* metric logic
+  (referral_rate, discretion_ratio, avg_giveaway_pts, rate_adequacy…) lives there. The Genie space,
+  the Control-Tower tile and its drill all consume the same MEASUREs — one definition, no divergence.
 
 ## Design decisions worth knowing
 

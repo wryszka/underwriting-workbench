@@ -755,6 +755,7 @@ async function subView(sid){
         <button class="btn bad" onclick="recordDecision('${sid}','decline')">⊘ Decline</button>
         <button class="btn ghost" onclick="recordDecision('${sid}','request_information')">? Request info</button>
       </div><div class="muted" id="decmsg" style="margin-top:8px"></div><div id="dechist"></div>
+      <div class="muted" style="margin-top:8px;font-size:11.5px">The decision is recorded here and to the governed audit; on bind the risk <b>writes back to your PAS</b>, which stays the system of record — this workbench sits earlier in the cycle, it does not replace the core. <span class="soonpill">PAS write-back connector: roadmap</span></div>
       <h3 style="margin-top:18px">Broker letter (agent-drafted · HITL)</h3>
       <div><button class="btn ghost" onclick="draftLetter('${sid}','quote')">Draft quote letter</button>
       <button class="btn ghost" onclick="draftLetter('${sid}','decline')">Draft decline letter</button>
@@ -1076,6 +1077,7 @@ async function ingestionPage(){
   <div class="eyebrow">Platform</div><h1>Ingestion — every channel into one governed lakehouse</h1>
   <p class="sub">Structured feeds, an email inbox, scanned PDFs, schedules that drift, call transcripts, the PAS book, and real bundled open data — every source through the same quality contract.</p>
   ${present("What it is: the register of every data source feeding the desk. What it shows: click any source to open its panel — what it is, what cleansing and quality rules it passes through (with live pass/fail counts and its quarantine), a preview of its real rows, and honestly what is simulated here versus the production connector.")}
+  <div class="note" style="margin-bottom:12px">Underwriters meet the work in the app here; in production the same dossier surfaces where they already work — <b>Outlook / Teams / Slack / mobile</b> are thin clients over these same governed APIs (<span class="soonpill">channel surfaces: roadmap</span>). Nothing about the decision layer changes with the channel.</div>
   <div class="ingkpis">
     <div class="ingkpi blue"><div class="k">Live sources</div><div class="v">${live.length}</div></div>
     <div class="ingkpi violet"><div class="k">Rows landed</div><div class="v">${num(totRows)}</div></div>
@@ -1235,6 +1237,14 @@ async function aiPage(){
     <div class="row"><input id="aiq" placeholder="Ask about a submission (mention sub:900001/2/3) or the book…">
     <button class="go" onclick="aiAsk()">Ask</button></div><div id="aians"></div></div>
   <div class="sech">The bench</div><div class="aitiles">${tiles}</div>
+  <div class="card" style="margin-top:18px;border:1.5px solid #cbd5e1"><h3>Builder beat — anyone's agent, one governed layer</h3>
+    <p class="muted" style="line-height:1.6;margin:6px 0 10px">The supervisor above is <i>our</i> agent — but the decision logic isn't ours to hoard. Appetite, authority, accumulation, price and the wageroll referral are <b>governed Unity Catalog functions</b>, callable as tools by <i>any</i> runtime: this workbench, a pricing engine, or a model-agnostic agent framework on your policy core (the MCP-native kind the incumbents are shipping). Whoever calls, <b>the column masks, lineage and audit hold</b> — a foreign runtime cannot route around the conduct mask, because Unity Catalog enforces it at the data layer, not in an app.</p>
+    <div class="grid g3">
+      <div class="card" style="background:#f8fafc"><b style="font-size:12.5px">Discover</b><div class="muted">The functions carry COMMENTs = tool specs; a foreign agent binds them by name.</div></div>
+      <div class="card" style="background:#f8fafc"><b style="font-size:12.5px">Call</b><div class="muted">An MCP tool call resolves to a scalar UC-function invocation — structured result, never our prose or UI.</div></div>
+      <div class="card" style="background:#f8fafc"><b style="font-size:12.5px">Governed regardless</b><div class="muted">Non-privileged caller ⇒ watchlist detail redacted by UC itself. Same masks, same audit, any caller.</div></div>
+    </div>
+    <div class="muted" style="margin-top:10px">Worked example: notebook <span class="mono">09_external_agent_governed_call</span> stands in for an external runtime — it reasons over the governed functions with no app involved, then shows the conduct mask still redacting. <a class="lnk" onclick="go('onebook')">Where this sits in your estate →</a></div></div>
   <div class="prov">Escalate-not-bind: agents advise, draft and challenge. Decisions are recorded by a named underwriter to gold_decision_audit. Narration is cache-wrapped (toggle in the sidebar); structured checks and prices are always live UC calls.</div>`;
 }
 async function aiAsk(q,sid){
@@ -1262,19 +1272,30 @@ async function oneBook(){
       <div class="muted">The Bricksurance personal-lines universe already exists in the sibling <b>Claims Workbench</b> (same brokers, same districts) — new-business underwriting plugs into this chassis.</div></div>
     <div class="card soon"><h3>Specialty / London Market <span class="soonpill">placeholder</span></h3>
       <div class="muted">MRC-slip intake is proven in the sibling <b>Reinsurance Workbench</b> Document AI path; specialty risks reuse the same extraction + checks spine.</div></div>
+    <div class="card" style="border:1.5px solid #c7d2fe;background:#f5f7ff"><h3>MTAs &amp; endorsements <span class="pill green">LIVE</span></h3>
+      <div class="muted">Mid-term changes run the same checks on the <b>delta</b> — accumulation delta, authority on the delta, pro-rata additional premium — and book a transaction that reconciles with the analytics. See the MTAs desk.</div></div>
+    <div class="card" style="border:1.5px solid #c7d2fe;background:#f5f7ff"><h3>Post-bind obligations <span class="pill green">LIVE</span></h3>
+      <div class="muted">Subjectivities age in the <b>diary</b> with due dates parsed from their own wording; the platform drafts the day-12 chaser for a human to approve — the classic internal-audit finding, closed by the audit trail we already write.</div></div>
     <div class="card soon"><h3>Renewals workbench <span class="soonpill">placeholder</span></h3>
-      <div class="muted">Retention and rate-change vitals are live on the Control Tower; the renewal invitation workflow (rate vs risk change, pre-renewal survey chase) is the next lane.</div></div>
-    <div class="card soon"><h3>MTAs &amp; endorsements <span class="soonpill">placeholder</span></h3>
-      <div class="muted">Mid-term changes through the same checks (accumulation delta, authority) — a large share of real desk volume.</div></div>
-    <div class="card soon"><h3>Post-bind obligations <span class="soonpill">placeholder</span></h3>
-      <div class="muted">Subjectivity ageing + survey/risk-improvement tracking, seeded from gold_decision_audit — the classic internal-audit finding, solved by the audit trail we already write.</div></div>
+      <div class="muted">Retention and rate-change vitals are live on the Control Tower and renewal/MTA transaction history feeds the discipline analytics; the full renewal <i>invitation</i> workflow (survey chase, broker pack) is the next lane.</div></div>
     <div class="card soon"><h3>MGA / delegated binders <span class="soonpill">placeholder</span></h3>
       <div class="muted">Bordereaux in through the same quarantine pattern; coverholder scorecards beside broker scorecards.</div></div>
     <div class="card soon"><h3>Reinsurance outward <span class="soonpill">placeholder</span></h3>
       <div class="muted">Facultative trigger above the net line per risk; treaty view lives in the sibling <b>Reinsurance Workbench</b> (cross-link).</div></div>
     <div class="card tone-emerald" style="border-width:1.5px"><h3>Why consolidate — the loop</h3>
       <div class="muted" style="line-height:1.6">Underwriting writes the risk → <b>Claims</b> (sibling workbench, same universe) records what it truly cost → that experience feeds the <b>burning cost, rate guide and appetite</b> back on this platform → the next quote prices on it. One governed loop instead of three systems and a quarterly spreadsheet.<br><br>• One enrichment spend (flood/crime/CH/sanctions) serving every line<br>• Cross-line client &amp; broker 360, group accumulation across books<br>• One decision-audit + conduct model for the regulator<br>• Each new line = a lane, not a platform</div></div>
-  </div>`;
+  </div>
+  <div class="card" style="margin-top:16px;border:1.5px solid #cbd5e1"><h3>Where this sits in your estate — own the decision, rent the plumbing</h3>
+    <p class="muted" style="line-height:1.6;margin:6px 0 12px">This workbench is not trying to replace your policy core or a pricing engine. It is the <b>governed data, decision-logic and audit layer</b> the rest of the estate stands on — the part you should own rather than rent inside any one vendor's runtime. The decision logic here is <b>your</b> asset: appetite, authority and rate live as governed Unity Catalog tables and functions, not as configuration trapped in someone else's product.</p>
+    <div class="grid g3">
+      <div class="card" style="background:#f8fafc"><b style="font-size:12.5px">Your system of record stays put</b>
+        <div class="muted">The PAS remains the book of record; this layer reads it and writes the bind back. Guidewire / Duck Creek / your own core keeps its job.</div></div>
+      <div class="card" style="background:#f8fafc"><b style="font-size:12.5px">Pricing engines plug in</b>
+        <div class="muted">A pricing-native engine (Radar, Earnix, hx, or your own GLM in the sibling Pricing Workbench) supplies the technical price; this desk consumes it and decides. We deliberately don't duplicate the GLM.</div></div>
+      <div class="card" style="background:#f8fafc"><b style="font-size:12.5px">Agent runtimes call in — governed</b>
+        <div class="muted">A model-agnostic agent runtime (e.g. an MCP-native platform on your core) can call the very same UC functions — appetite, authority, accumulation, price — as tools. The column masks and lineage hold <b>whoever</b> the caller is.</div></div>
+    </div>
+    <div class="muted" style="margin-top:10px">The move isn't to out-build an underwriting workbench or a policy core — it's to be the neutral, governed layer both are forced to stand on. Best-of-breed apps on top; one governance model underneath. <a class="lnk" onclick="go('ai')">See the builder beat →</a></div></div>`;
 }
 
 /* ---------- learn ---------- */
