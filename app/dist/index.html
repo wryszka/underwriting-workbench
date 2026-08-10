@@ -353,10 +353,6 @@ function landing(){
 async function controlTower(){
   const m=$("#m");m.innerHTML='<div class="loading">Loading control tower…</div>';
   const d=await api("/control-tower");
-  let disc={}; try{disc=await api("/referral-discipline")}catch(e){disc={}}
-  const dh=disc.hero||{}, dtop=disc.top_rule||{};
-  const dratio=dh.discretion_ratio!=null?dh.discretion_ratio:null;
-  const dragcls=dratio==null?"slatep":(dratio>=0.97?"green":dratio>=0.93?"amber":"red");
   const gwp=d.gwp||{},ret=d.retention||{},pipe=d.pipeline||{},adq=d.adequacy||{};
   const accum=(d.accum||[]).reduce((a,r)=>(a[r.rag]=r.districts,a),{});
   const funnelRows=(d.funnel||[]).map(r=>{const stp=r.received?Math.round(r.bound/r.received*100):0;
@@ -399,11 +395,7 @@ async function controlTower(){
   </div>
   <div class="grid g2" style="margin-top:16px">
     <div class="card drill" onclick="ctDrill('discipline')" style="border-color:#c7d2fe;background:#f5f7ff"><h3>Referral discipline <span class="muted">— the pricing pen, measured</span></h3>
-      <div style="display:flex;gap:24px;align-items:baseline;flex-wrap:wrap">
-        <div><div class="big">${num(dh.fires)}</div><div class="muted">referral fires</div></div>
-        <div><div class="big">${dratio!=null?pill(dratio.toFixed(2)+" discretion",dragcls):"—"}</div><div class="muted">Σ charged ÷ Σ technical</div></div>
-        <div><div class="big">${dtop.rule_id?esc(dtop.rule_id):"—"}</div><div class="muted">top rule (${num(dtop.fires)})</div></div>
-      </div>
+      <div id="discTile" style="display:flex;gap:24px;align-items:baseline;flex-wrap:wrap"><div class="muted">loading…</div></div>
       <div class="muted" style="margin-top:8px">How often each rule bites and what the pen does with it — the Head of Underwriting question, answered from a governed metric trunk. Drill for the wageroll split ↗</div></div>
   </div>
   <div class="grid g2" style="margin-top:16px">
@@ -422,7 +414,20 @@ async function controlTower(){
     </div>
   </div>
   <div class="prov">⛁ Computed live from the governed marts — queried ${esc((d.meta||{}).queried_at||"")} · pipeline batch-scored ${esc((d.meta||{}).scored_at||"")}. Click any tile for its reconciling rows and the SQL behind it.</div>`;
-  loadBrief();loadWorth();
+  loadBrief();loadWorth();loadDiscipline();
+}
+async function loadDiscipline(){
+  const el=document.getElementById("discTile");if(!el)return;
+  try{
+    const disc=await api("/referral-discipline");
+    const dh=disc.hero||{},dtop=disc.top_rule||{};
+    const dr=dh.discretion_ratio!=null?Number(dh.discretion_ratio):null;
+    const cls=dr==null?"slatep":(dr>=0.97?"green":dr>=0.93?"amber":"red");
+    if(document.getElementById("discTile"))document.getElementById("discTile").innerHTML=
+      `<div><div class="big">${num(dh.fires)}</div><div class="muted">referral fires</div></div>
+       <div><div class="big">${dr!=null?pill(dr.toFixed(2)+" discretion",cls):"—"}</div><div class="muted">Σ charged ÷ Σ technical</div></div>
+       <div><div class="big">${dtop.rule_id?esc(dtop.rule_id):"—"}</div><div class="muted">top rule (${num(dtop.fires)})</div></div>`;
+  }catch(e){if(document.getElementById("discTile"))document.getElementById("discTile").innerHTML='<div class="muted">unavailable</div>';}
 }
 async function loadBrief(){
   const el=document.getElementById("briefcard");if(!el)return;
