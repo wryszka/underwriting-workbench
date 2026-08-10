@@ -353,6 +353,10 @@ function landing(){
 async function controlTower(){
   const m=$("#m");m.innerHTML='<div class="loading">Loading control tower…</div>';
   const d=await api("/control-tower");
+  let disc={}; try{disc=await api("/referral-discipline")}catch(e){disc={}}
+  const dh=disc.hero||{}, dtop=disc.top_rule||{};
+  const dratio=dh.discretion_ratio!=null?dh.discretion_ratio:null;
+  const dragcls=dratio==null?"slatep":(dratio>=0.97?"green":dratio>=0.93?"amber":"red");
   const gwp=d.gwp||{},ret=d.retention||{},pipe=d.pipeline||{},adq=d.adequacy||{};
   const accum=(d.accum||[]).reduce((a,r)=>(a[r.rag]=r.districts,a),{});
   const funnelRows=(d.funnel||[]).map(r=>{const stp=r.received?Math.round(r.bound/r.received*100):0;
@@ -392,6 +396,15 @@ async function controlTower(){
     <div class="card drill" onclick="ctDrill('trades')"><h3>Trade concentration</h3>
       <div class="big">${pct((d.trade_acc||{}).share_pct)}</div>
       <div class="muted">largest trade share of property exposure — <b>${esc((d.trade_acc||{}).trade_group||"")}</b> (soft cap 20%)</div></div>
+  </div>
+  <div class="grid g2" style="margin-top:16px">
+    <div class="card drill" onclick="ctDrill('discipline')" style="border-color:#c7d2fe;background:#f5f7ff"><h3>Referral discipline <span class="muted">— the pricing pen, measured</span></h3>
+      <div style="display:flex;gap:24px;align-items:baseline;flex-wrap:wrap">
+        <div><div class="big">${num(dh.fires)}</div><div class="muted">referral fires</div></div>
+        <div><div class="big">${dratio!=null?pill(dratio.toFixed(2)+" discretion",dragcls):"—"}</div><div class="muted">Σ charged ÷ Σ technical</div></div>
+        <div><div class="big">${dtop.rule_id?esc(dtop.rule_id):"—"}</div><div class="muted">top rule (${num(dtop.fires)})</div></div>
+      </div>
+      <div class="muted" style="margin-top:8px">How often each rule bites and what the pen does with it — the Head of Underwriting question, answered from a governed metric trunk. Drill for the wageroll split ↗</div></div>
   </div>
   <div class="grid g2" style="margin-top:16px">
     <div class="card drill" onclick="ctDrill('funnel')"><h3>Funnel by channel — straight-through is the headline</h3>
@@ -436,6 +449,20 @@ function worthDrill(){const w=window._worth||{};
 }
 async function ctDrill(key){
   openModal('<div class="loading">Loading drill…</div>');
+  if(key==="discipline"){
+    const d=await api("/referral-discipline");
+    const bt=(d.by_type||[]).map(r=>`<tr><td><b>${esc(r.transaction_type)}</b></td><td>${num(r.n)}</td><td>${money(r.technical)}</td><td>${money(r.charged)}</td><td>${r.giveaway_pts}pts</td></tr>`).join("");
+    const bp=(d.by_persona||[]).map(r=>`<tr><td>${esc(r.persona)}</td><td>${r.giveaway_pts}pts</td><td>${num(r.n)}</td></tr>`).join("");
+    const sqlTxt="SELECT transaction_type, MEASURE(transaction_count) n, MEASURE(technical_gwp), MEASURE(gwp), MEASURE(avg_giveaway_pts)\nFROM "+(CFG.catalog||"")+"."+(CFG.schema||"")+".mv_underwriting_discipline\nWHERE rule_id='MAX_WAGEROLL' GROUP BY transaction_type;";
+    openModal(`<div class="eyebrow">The Head of Underwriting question</div>
+      <h2 style="margin:0 0 4px">Max Wageroll referrals — technical vs charged, by transaction type</h2>
+      <div class="muted" style="margin-bottom:10px">Answered from the <b>mv_underwriting_discipline</b> metric view — the single semantic trunk. Genie answers this same question in plain English on the AI page; the dashboard reads the same measures. Renewal is where discretion erodes.</div>
+      <table><thead><tr><th>type</th><th>n</th><th>technical</th><th>charged</th><th>give-away</th></tr></thead><tbody>${bt}</tbody></table>
+      <div style="margin:14px 0 4px"><b style="font-size:12.5px">Give-away by underwriter persona (on wageroll referrals)</b></div>
+      <table><thead><tr><th>persona</th><th>give-away</th><th>n</th></tr></thead><tbody>${bp}</tbody></table>
+      ${showSqlBtn("sql-discipline",sqlTxt)}`);
+    return;
+  }
   const d=await api("/control-tower/drill?key="+key);
   openModal(`<div class="eyebrow">Reconciling rows</div><h2 style="margin:0 0 8px">${key} — computed from ${esc(d.table)}</h2>
     ${tbl(d.rows)}${showSqlBtn("sql-"+key,d.sql)}`);

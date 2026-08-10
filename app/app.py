@@ -43,6 +43,30 @@ def get_config():
     }
 
 
+# ---------------------------------------------------------------- Lane E: referral discipline tile
+@app.get("/api/referral-discipline")
+def referral_discipline():
+    MV = F("mv_underwriting_discipline")
+    q = sql.query_many({
+        "hero": f"""SELECT MEASURE(referral_count) fires, round(MEASURE(discretion_ratio),3) discretion_ratio,
+                           round(MEASURE(total_giveaway_gbp)) giveaway_gbp
+                    FROM {MV} WHERE rule_id IS NOT NULL""",
+        "top_rule": f"""SELECT rule_id, MEASURE(referral_count) fires FROM {MV}
+                        WHERE rule_id IS NOT NULL GROUP BY rule_id ORDER BY fires DESC LIMIT 1""",
+        "by_type": f"""SELECT transaction_type, MEASURE(transaction_count) n,
+                              round(MEASURE(technical_gwp)) technical, round(MEASURE(gwp)) charged,
+                              round(MEASURE(avg_giveaway_pts),2) giveaway_pts
+                       FROM {MV} WHERE rule_id='MAX_WAGEROLL' GROUP BY transaction_type
+                       ORDER BY giveaway_pts DESC""",
+        "by_persona": f"""SELECT persona, round(MEASURE(avg_giveaway_pts),2) giveaway_pts,
+                                 MEASURE(transaction_count) n FROM {MV}
+                          WHERE rule_id='MAX_WAGEROLL' GROUP BY persona ORDER BY giveaway_pts DESC""",
+    })
+    hero = (q["hero"] or [{}])[0]
+    top = (q["top_rule"] or [{}])[0]
+    return {"hero": hero, "top_rule": top, "by_type": q["by_type"], "by_persona": q["by_persona"]}
+
+
 # ---------------------------------------------------------------- Lane E: adjustment reasons
 @app.get("/api/adjustment-reasons")
 def adjustment_reasons():
