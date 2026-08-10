@@ -1006,27 +1006,24 @@ async function insight(){
   const m=$("#m");
   m.innerHTML=`
   <div class="eyebrow">Head of Underwriting</div><h1>Insight &amp; Ask the Book</h1>
-  <p class="sub">The AI/BI dashboard and Genie, embedded — not linked. Ask in natural language; Genie writes the SQL over the governed marts.</p>
-  ${present("Both are live Databricks AI/BI surfaces rendered inside the workbench. The Genie answer shows its generated SQL — governed self-service, not a black box.")}
-  <div class="card"><h3>Ask the Book (AI/BI Genie — in-app)</h3>
-    <div class="exs" id="gex"></div>
-    <div style="display:flex;gap:8px"><input class="f" id="gq" style="margin:0" placeholder="e.g. Which districts are over 80% of property capacity?">
-    <button class="btn" onclick="askGenie()">Ask</button></div><div id="gout"></div></div>
-  ${CFG.dashboard_embed_url?`<div class="card" style="margin-top:16px"><h3>Underwriting Portfolio — AI/BI dashboard (embedded)</h3>
-     <iframe class="embed" style="height:760px" src="${esc(CFG.dashboard_embed_url)}"></iframe></div>`
+  <p class="sub">The AI/BI dashboard and Genie, embedded — not linked. Ask in natural language; Genie writes the SQL over the governed marts and the discipline metric view.</p>
+  ${present("Two live Databricks AI/BI surfaces rendered inside the workbench: the portfolio dashboard, and Genie — natural-language questions answered with the generated SQL shown, over one governed semantic trunk.")}
+  ${CFG.dashboard_embed_url?`<div class="card"><h3>Underwriting Portfolio — AI/BI dashboard</h3>
+     <iframe class="embed" style="height:720px" src="${esc(CFG.dashboard_embed_url)}"></iframe></div>`
     :'<div class="note">Dashboard not configured yet (set DASHBOARD_ID) — it embeds here.</div>'}
-  ${CFG.genie_embed_url?`<div class="card" style="margin-top:16px"><h3>Genie room (embedded)</h3>
-     <iframe class="embed" style="height:620px" src="${esc(CFG.genie_embed_url)}"></iframe></div>`:""}`;
-  const ex=await api("/genie/examples");
-  $("#gex").innerHTML=(ex.examples||[]).map(e=>`<span class="ex" style="background:#eef2ff;border:1px solid #c7d2fe;color:#3730a3;padding:5px 11px;border-radius:999px;font-size:12px;cursor:pointer" onclick="$('#gq').value=this.textContent;askGenie()">${esc(e)}</span>`).join(" ");
+  <div class="card" style="margin-top:16px"><h3>Ask the Book — Genie <span class="muted">(natural language → SQL, over the governed marts)</span></h3>
+    <div class="muted" style="margin-bottom:8px">Try one of these — click to copy, then paste into Genie below:</div>
+    <div class="exs" id="gex"></div>
+    ${CFG.genie_embed_url?`<iframe class="embed" style="height:640px;margin-top:6px" src="${esc(CFG.genie_embed_url)}"></iframe>`
+      :'<div class="note">Genie not configured yet (set GENIE_SPACE_ID) — it embeds here.</div>'}</div>`;
+  try{const ex=await api("/genie/examples");
+    $("#gex").innerHTML=(ex.examples||[]).map(e=>`<span class="ex" style="background:#eef2ff;border:1px solid #c7d2fe;color:#3730a3;padding:5px 11px;border-radius:999px;font-size:12px;cursor:pointer" title="click to copy" onclick="copyPrompt(this)">${esc(e)}</span>`).join(" ");
+  }catch(e){}
 }
-async function askGenie(){
-  $("#gout").innerHTML='<div class="loading">Genie is thinking (writes SQL over the marts)…</div>';
-  const r=await post("/genie/ask",{question:$("#gq").value});
-  if(r.error){$("#gout").innerHTML=`<div class="note">${esc(r.error)}</div>`;return}
-  $("#gout").innerHTML=`${r.answer?`<div class="narr"><span class="tag">genie answer</span>${esc(r.answer)}</div>`:""}
-    ${r.rows&&r.rows.length?`<div style="margin-top:10px">${tbl(r.rows)}</div>`:""}
-    ${r.query?showSqlBtn("gsql",r.query):""}`;
+function copyPrompt(el){
+  const t=el.textContent;
+  try{navigator.clipboard.writeText(t);}catch(e){}
+  const old=el.textContent;el.textContent="✓ copied";setTimeout(()=>{el.textContent=old},1000);
 }
 
 /* ---------- brokers ---------- */

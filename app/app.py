@@ -820,11 +820,12 @@ async def genie_ask(req: Request):
 @app.get("/api/genie/examples")
 def genie_examples():
     return {"examples": [
-        "Which channel converts fastest and what share is straight-through?",
+        "all transactions where the Max Wageroll referral triggered, split by New Business / Renewal / MTA, technical vs charged",
+        "which underwriters discount most on wageroll referrals?",
+        "how did the discretion ratio trend by quarter?",
+        "which rules fire together most often?",
         "Which districts are over 80% of property capacity?",
-        "Rank brokers by hit ratio and data quality",
-        "Where is quoted premium furthest below technical?",
-        "What is retention and rate change by month this year?"]}
+        "Rank brokers by hit ratio and data quality"]}
 
 
 # ---------------------------------------------------------------- ingestion
