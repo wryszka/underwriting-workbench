@@ -88,15 +88,26 @@ def ask_agent(question: str, custom_inputs: dict = None, use_cache: bool = None)
     return {"text": text, "tools": tools, "cache": ("miss" if use_cache else "live"), "endpoint": endpoint}
 
 
-def narrate(role: str, question: str, data: dict, use_cache: bool = None) -> dict:
-    """Call a narrate-only agent endpoint (role = risk_profile/appetite/pricing_adequacy/broker_comms/challenge)."""
+def narrate(role: str, question: str, data: dict, use_cache: bool = None,
+            key_data: dict = None, cache_only: bool = False) -> dict:
+    """Call a narrate-only agent endpoint (role = risk_profile/appetite/pricing_adequacy/broker_comms/challenge).
+
+    key_data: if given, the cache key is computed from THIS (stable) subset instead of the full
+      volatile `data` — so a warmed narration keeps matching even when the live numbers drift
+      (e.g. the CUO brief, whose data carries hourly SLA counts).
+    cache_only: return the cached text if present, else a fast placeholder — NEVER make the
+      (slow) live agent call. Used by page loads that must not block on the model.
+    """
     if use_cache is None:
         use_cache = config.USE_CACHE
     endpoint = config.resolve_endpoint(config.ROLE_SUBSTR.get(role, role))
     payload = {"role": role, "question": question,
                "data_json": json.dumps(data, default=str)}
-    key = _key(endpoint, payload)
-    if use_cache:
+    # Cache key from the stable subset when provided, else the full payload.
+    key = _key(endpoint, {"role": role, "question": question,
+                          "data_json": json.dumps(key_data, default=str)}) if key_data is not None \
+        else _key(endpoint, payload)
+    if use_cache or cache_only:
         try:
             _ensure_cache()
             hit = _read(key)
@@ -104,6 +115,8 @@ def narrate(role: str, question: str, data: dict, use_cache: bool = None) -> dic
                 return {"text": hit, "cache": "hit", "endpoint": endpoint}
         except Exception:
             pass
+    if cache_only:
+        return {"text": "", "cache": "cold", "endpoint": endpoint}
     try:
         w = config.get_workspace_client()
         resp = w.serving_endpoints.query(name=endpoint, dataframe_records=[payload])

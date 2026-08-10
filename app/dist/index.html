@@ -431,6 +431,15 @@ async function loadDiscipline(){
 }
 async function loadBrief(){
   const el=document.getElementById("briefcard");if(!el)return;
+  // cache_only: never blocks on the live agent. If cold, show a one-click generate.
+  try{const r=await api("/brief?cache_only=1");
+    const box=document.getElementById("briefcard");if(!box)return;
+    if(r.text){box.innerHTML=`<h3>☕ Morning brief ${cacheBadge(r.cache)}</h3><div style="white-space:pre-wrap;font-size:12.5px;line-height:1.55">${esc(r.text)}</div>`;}
+    else{box.innerHTML=`<h3>☕ Morning brief</h3><div class="muted">Not warmed yet. <a class="lnk" onclick="genBrief()">Generate now</a> (one live agent call, ~30s).</div>`;}
+  }catch(e){}
+}
+async function genBrief(){
+  const box=document.getElementById("briefcard");if(box)box.innerHTML='<h3>☕ Morning brief</h3><div class="loading">The CUO agent is writing today’s brief…</div>';
   try{const r=await api("/brief");
     if(document.getElementById("briefcard"))document.getElementById("briefcard").innerHTML=
       `<h3>☕ Morning brief ${cacheBadge(r.cache)}</h3><div style="white-space:pre-wrap;font-size:12.5px;line-height:1.55">${esc(r.text)}</div>`;

@@ -280,16 +280,32 @@ def worth():
 
 
 @app.get("/api/brief")
-def brief(cache: int = None):
-    """CUO morning brief — the leader persona's daily wow: the control-tower numbers narrated."""
+def brief(cache: int = None, cache_only: int = None):
+    """CUO morning brief — the leader persona's daily wow: the control-tower numbers narrated.
+
+    cache_only=1 (used by the page load) returns the cached brief or an empty placeholder — it NEVER
+    makes the slow live agent call, so the Control Tower never blocks on the model. The warm-cache
+    job populates it. The cache key is computed from a STABLE subset (GWP/plan/retention/adequacy —
+    not the hourly-drifting SLA counts) so a warmed brief keeps matching across the day.
+    """
     ct = control_tower()
+    gwp = ct.get("gwp") or {}
     data = {
-        "forecast": ct.get("forecast"), "gwp": ct.get("gwp"), "retention": ct.get("retention"),
+        "forecast": ct.get("forecast"), "gwp": gwp, "retention": ct.get("retention"),
         "adequacy": ct.get("adequacy"), "pipeline": ct.get("pipeline"),
         "hot_districts": ct.get("accum_hot"), "funnel_by_channel": ct.get("funnel"),
     }
+    # Stable key: round GWP to the nearest £1m so tiny live drift doesn't invalidate the warmed brief.
+    try:
+        gwp_bucket = round(float(gwp.get("gwp") or 0) / 1_000_000)
+    except Exception:
+        gwp_bucket = 0
+    key_data = {"gwp_bucket": gwp_bucket, "plan": (gwp.get("plan_gwp")),
+                "retention": ct.get("retention"), "adequacy": ct.get("adequacy"),
+                "hot_districts": ct.get("accum_hot")}
     return agents.narrate("cuo_brief", "Write today's morning brief for the Head of Underwriting.",
-                          data, use_cache=_cache_flag(cache))
+                          data, use_cache=_cache_flag(cache), key_data=key_data,
+                          cache_only=bool(cache_only))
 
 
 # ---------------------------------------------------------------- inbox
