@@ -35,3 +35,20 @@ resources:
             base_parameters:
               catalog: "{{job.parameters.catalog}}"
               schema: "{{job.parameters.schema}}"
+        # Lane E.1 (additive): rule landscape (E6) + simulated source feeds (E7), isolated RNG (4243)
+        - task_key: lane_e_source_feeds
+          depends_on:
+            - task_key: lane_e_setup
+          environment_key: default
+          notebook_task:
+            notebook_path: ../notebooks/00d_source_feed_simulation.py
+            base_parameters:
+              catalog: "{{job.parameters.catalog}}"
+              schema: "{{job.parameters.schema}}"
+        # Lane E.1: conform the raw feeds → silver_referral_events_conformed (real DLT lineage)
+        - task_key: referral_conformance
+          depends_on:
+            - task_key: lane_e_source_feeds
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.underwriting_referral_conformance.id}
+            full_refresh: true

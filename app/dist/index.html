@@ -257,7 +257,7 @@ const NAV=[
  {sec:"Head of Underwriting", items:[["tower","Portfolio Control Tower","▦"],["committee","Appetite & Rates","⚖"],["insight","Insight & Ask the Book","◉"]]},
  {sec:"Underwriter", items:[["inbox","Submission Inbox","☰"],["renewals","Renewals desk","↻"],["mtas","MTAs","±"],["work","Work a submission","✎"],["tryit","Try a submission","✚"]]},
  {sec:"Distribution", items:[["brokers","Brokers","🤝"]]},
- {sec:"Platform", items:[["ingestion","Ingestion","⇣"],["governance","Governance","🛡"],["ai","Underwriting AI","✳"],["onebook","One Book","▣"]]},
+ {sec:"Platform", items:[["ingestion","Ingestion","⇣"],["governance","Governance","🛡"],["ai","Underwriting AI","✳"],["tuning","Rule tuning","⚙"],["onebook","One Book","▣"]]},
 ];
 let CUR="home", CUR_SID="sub:900002";
 function renderNav(){
@@ -271,7 +271,7 @@ function route(){closeModal();
   CUR=r==="sub"?"work":r; renderNav();
   const map={home:landing,tower:controlTower,insight:insight,inbox:inboxPage,work:()=>subView(CUR_SID),
              sub:()=>subView(arg||CUR_SID),tryit:tryIt,brokers:brokersPage,ingestion:ingestionPage,renewals:renewalsDesk,mtas:mtasPage,committee:committeePage,
-             governance:governancePage,ai:aiPage,onebook:oneBook,learn:learnPage};
+             governance:governancePage,ai:aiPage,tuning:tuningPage,onebook:oneBook,learn:learnPage};
   (map[r]||landing)();
   if(r==="sub"&&arg)CUR_SID=arg;
 }
@@ -1254,6 +1254,60 @@ async function aiAsk(q,sid){
   const r=await post("/agent/ask",{question:q,sid});
   $("#aians").innerHTML=`<div class="ans"><div style="font-size:11px;color:#6d28d9;font-weight:700;margin-bottom:6px">
     ${cacheBadge(r.cache)} tools: ${(r.tools||[]).map(esc).join(" → ")||"none"}</div><div style="white-space:pre-wrap">${esc(r.text)}</div></div>`;
+}
+
+/* ---------- rule tuning (E8/E9) ---------- */
+async function tuningPage(){
+  const m=$("#m");m.innerHTML='<div class="loading">Loading rule effectiveness…</div>';
+  let eff={rows:[]},rec={rows:[]};
+  try{eff=await api("/rule-effectiveness")}catch(e){}
+  try{rec=await api("/rule-recommendations")}catch(e){}
+  const pctf=v=>v==null?"—":Math.round(v*100)+"%";
+  const effRows=(eff.rows||[]).map(r=>{
+    const tag=r.auto_accept_candidate?pill("auto-accept candidate","green"):r.auto_decline_candidate?pill("auto-decline candidate","red"):"";
+    return `<tr><td><b>${esc(r.rule_id)}</b></td><td>${esc(r.value_band)}</td><td>${num(r.fires)}</td>
+      <td>${pctf(r.rubber_stamp_rate)}</td><td>${pctf(r.decline_rate)}</td><td>${pctf(r.changed_answer_rate)}</td>
+      <td>${r.est_uw_hours}h</td><td>${tag}</td></tr>`}).join("");
+  const recCards=(rec.rows||[]).map(r=>{
+    let ev={};try{ev=JSON.parse(r.evidence||"{}")}catch(e){}
+    const stcls=r.status==="PROPOSED"?"amber":r.status==="ACCEPTED"?"green":"slatep";
+    const actions=r.status==="PROPOSED"?`<div style="margin-top:8px;display:flex;gap:8px;align-items:center">
+      <input class="f" id="note_${r.recommendation_id}" style="margin:0;max-width:280px" placeholder="reviewer note (required)">
+      <button class="btn" onclick="decideRec('${r.recommendation_id}','accept')">✓ Accept → version rule</button>
+      <button class="btn bad" onclick="decideRec('${r.recommendation_id}','reject')">Reject</button></div>`:
+      `<div class="muted" style="margin-top:6px">${esc(r.status)}${r.reviewed_by?` by ${esc(r.reviewed_by)}`:""}</div>`;
+    return `<div class="card" style="border:1.5px solid ${r.status==="PROPOSED"?"#fcd34d":"#e2e8f0"}">
+      <div style="display:flex;justify-content:space-between"><h3 style="margin:0">${esc(r.rule_id)} · ${esc(r.value_band)} ${pill(r.recommendation_type,"bluep")}</h3>${pill(r.status,stcls)}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px">
+        <div><b style="font-size:12px">Agent narrative</b><div class="muted" style="line-height:1.55">${esc(r.narrative)}</div>
+          <div class="muted" style="margin-top:6px;font-size:11px">est. ${r.est_hours_saved}h/yr saved · trace <span class="mono">${esc(r.mlflow_trace_id||"")}</span></div></div>
+        <div><b style="font-size:12px">Evidence (the exact rows relied on)</b>
+          <div class="kv"><span>fires</span><b>${num(ev.fires)}</b></div>
+          <div class="kv"><span>rubber-stamp</span><b>${pctf(ev.rubber_stamp_rate)}</b></div>
+          <div class="kv"><span>decline</span><b>${pctf(ev.decline_rate)}</b></div>
+          <div class="kv"><span>changed the answer</span><b>${pctf(ev.changed_answer_rate)}</b></div>
+          <div class="kv"><span>months of history</span><b>${num(ev.months_seen)}</b></div></div>
+      </div>${actions}<div class="muted" id="recmsg_${r.recommendation_id}" style="margin-top:6px"></div></div>`}).join("");
+  m.innerHTML=`
+  <div class="eyebrow">Platform</div><h1>Rule tuning — the referral envelope, tuned on evidence</h1>
+  <p class="sub">Every referral rule and every pricing-pen decision measured, so the envelope can be tuned: relax the rubber-stamped, hard-stop the always-declined. AI drafts; a named human decides; the rule is versioned.</p>
+  ${present("What it is: the effectiveness of each referral rule, and AI-drafted tuning proposals for a human to accept or reject. What it shows: which rules waste underwriter hours (high rubber-stamp) and which bands should never reach a human (high decline) — with the evidence beside every proposal. Accepting a proposal writes a NEW versioned rule; the agent never changes rules itself.")}
+  <div class="card"><h3>Rule effectiveness — the league table</h3>
+    <table><thead><tr><th>rule</th><th>band</th><th>fires</th><th>rubber-stamp</th><th>decline</th><th>changed answer</th><th>uw hours</th><th>candidate</th></tr></thead>
+    <tbody>${effRows||'<tr><td colspan=8 class="muted">no effectiveness data yet</td></tr>'}</tbody></table>
+    <div class="muted" style="margin-top:6px">All measures come from the <b>mv_underwriting_discipline</b> metric view / <span class="mono">gold_rule_effectiveness</span> — thresholds for the candidate flags live in <span class="mono">ref_effectiveness_policy</span>.</div></div>
+  <div class="sech" style="margin-top:18px">AI second eyes — governed tuning proposals <span class="muted">(agent proposes · human signs · rule versioned)</span></div>
+  <div class="grid g1" style="display:grid;gap:14px">${recCards||'<div class="muted">no recommendations yet</div>'}</div>
+  <div class="prov">Evidence → proposal → human decision → versioned rule. The agent reads the effectiveness table only (structured rows, no documents) and has NO write path to config — Accept writes a new ref_referral_rules version. This lineage is the SS1/23 governance spine.</div>`;
+}
+async function decideRec(rid,action){
+  const noteEl=document.getElementById("note_"+rid);
+  const note=noteEl?noteEl.value.trim():"";
+  if(action==="accept"&&!note){alert("A reviewer note is required to accept.");return}
+  const msg=document.getElementById("recmsg_"+rid);if(msg)msg.textContent="Recording…";
+  const r=await post("/rule-recommendation/decide",{recommendation_id:rid,action,note});
+  if(msg)msg.innerHTML=`✓ ${esc(r.status)} by ${esc(r.reviewed_by)}${r.versioned_rule?` — ${esc(r.versioned_rule.rule_id)} now <b>${esc(r.versioned_rule.new_version)}</b> in ref_referral_rules`:""}`;
+  setTimeout(()=>tuningPage(),1200);
 }
 
 /* ---------- one book ---------- */

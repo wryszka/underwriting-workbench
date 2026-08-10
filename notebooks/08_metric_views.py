@@ -46,7 +46,17 @@ SELECT
   CASE WHEN t.technical_premium > 0
        THEN (t.technical_premium - t.charged_premium) / t.technical_premium * 100 END AS giveaway_pct,
   e.rule_id, e.outcome, e.time_to_decision_hours,
-  CASE WHEN e.rule_id IS NOT NULL THEN 1 ELSE 0 END AS is_referred
+  CASE WHEN e.rule_id IS NOT NULL THEN 1 ELSE 0 END AS is_referred,
+  -- E8: value band relative to threshold + rubber-stamp flag (for the effectiveness measures)
+  CASE
+    WHEN e.threshold_value IS NULL OR e.threshold_value = 0 THEN 'all'
+    WHEN e.triggering_value / e.threshold_value < 1.2 THEN '1.0-1.2x'
+    WHEN e.triggering_value / e.threshold_value < 1.5 THEN '1.2-1.5x'
+    WHEN e.triggering_value / e.threshold_value < 2.0 THEN '1.5-2x'
+    ELSE '>2x' END AS value_band,
+  CASE WHEN e.outcome='quoted_as_recommended' AND abs(t.technical_premium - t.charged_premium) < 1.0
+       THEN 1 ELSE 0 END AS is_rubber_stamp,
+  CASE WHEN e.outcome='declined' THEN 1 ELSE 0 END AS is_declined
 FROM {fqn}.gold_transactions t
 LEFT JOIN {fqn}.landing_referral_events_generated e ON e.transaction_id = t.transaction_id
 LEFT JOIN {fqn}.ref_underwriter u ON u.underwriter_id = t.underwriter_id
@@ -89,6 +99,8 @@ dimensions:
     expr: effective_month
   - name: outcome
     expr: outcome
+  - name: value_band
+    expr: value_band
 
 measures:
   - name: transaction_count
@@ -111,6 +123,12 @@ measures:
     expr: SUM(giveaway_gbp)
   - name: time_to_decision_hours
     expr: AVG(time_to_decision_hours)
+  - name: rubber_stamp_rate
+    expr: SUM(is_rubber_stamp) * 1.0 / NULLIF(SUM(is_referred), 0)
+  - name: changed_answer_rate
+    expr: 1 - (SUM(is_rubber_stamp) * 1.0 / NULLIF(SUM(is_referred), 0))
+  - name: decline_rate
+    expr: SUM(is_declined) * 1.0 / NULLIF(SUM(is_referred), 0)
 """.replace("{F}", fqn)
 
 # Escape for the SQL string literal ($$ dollar-quoting keeps the YAML readable).

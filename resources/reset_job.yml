@@ -37,6 +37,17 @@ resources:
           notebook_task:
             notebook_path: ../notebooks/00c_lane_e_setup.py
             base_parameters: {catalog: "{{job.parameters.catalog}}", schema: "{{job.parameters.schema}}"}
+        - task_key: lane_e_source_feeds
+          depends_on: [{task_key: lane_e_setup}]
+          environment_key: default
+          notebook_task:
+            notebook_path: ../notebooks/00d_source_feed_simulation.py
+            base_parameters: {catalog: "{{job.parameters.catalog}}", schema: "{{job.parameters.schema}}"}
+        - task_key: referral_conformance
+          depends_on: [{task_key: lane_e_source_feeds}]
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.underwriting_referral_conformance.id}
+            full_refresh: true
         - task_key: landing_files
           depends_on: [{task_key: lane_e_setup}]
           environment_key: default
@@ -80,12 +91,26 @@ resources:
           notebook_task:
             notebook_path: ../notebooks/03c_gold_referral_events.py
             base_parameters: {catalog: "{{job.parameters.catalog}}", schema: "{{job.parameters.schema}}"}
-        - task_key: metric_views
+        # Lane E.2 (E8): top-up exemplars + rule effectiveness (runs before the metric view reads events)
+        - task_key: rule_effectiveness
           depends_on: [{task_key: gold_referral_events}]
+          environment_key: default
+          notebook_task:
+            notebook_path: ../notebooks/07b_rule_effectiveness.py
+            base_parameters: {catalog: "{{job.parameters.catalog}}", schema: "{{job.parameters.schema}}"}
+        - task_key: metric_views
+          depends_on: [{task_key: rule_effectiveness}]
           environment_key: default
           notebook_task:
             notebook_path: ../notebooks/08_metric_views.py
             base_parameters: {catalog: "{{job.parameters.catalog}}", schema: "{{job.parameters.schema}}"}
+        # Lane E.2 (E9): AI tuning recommendations (reads effectiveness only)
+        - task_key: rule_tuning_agent
+          depends_on: [{task_key: metric_views}]
+          environment_key: default
+          notebook_task:
+            notebook_path: ../notebooks/07c_rule_tuning_agent.py
+            base_parameters: {catalog: "{{job.parameters.catalog}}", schema: "{{job.parameters.schema}}", fm_endpoint: "${var.fm_endpoint}"}
         - task_key: inbox_rescore
           depends_on: [{task_key: features}]
           environment_key: ml

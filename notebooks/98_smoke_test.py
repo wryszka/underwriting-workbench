@@ -147,7 +147,9 @@ check("B4 EL statutory gate", lambda: (lambda n: (_ for _ in ()).throw(Assertion
 check("B5 HX7 accumulation baseline 67%", lambda: (lambda u: (_ for _ in ()).throw(AssertionError(f"HX7 util {u}")) if not (66.0 <= u <= 68.0) else f"HX7 {u}%")(
       float(q(f"SELECT utilisation_pct FROM {fqn}.gold_accumulation WHERE postcode_district='HX7'").first().utilisation_pct)))
 check("B6 DQ scorecard from event log", lambda: f"{q(f'SELECT count(*) c FROM {fqn}.gold_dq_scorecard').first().c} expectations")
-check("B7 heroes in silver + features", lambda: (lambda a, b: (_ for _ in ()).throw(AssertionError(f"heroes s={a} f={b}")) if (a != 3 or b != 3) else "3/3 in both")(
+# 4 heroes now: the 3 sacred (900001/2/3) + Lane E wageroll hero (900004). All present in silver
+# and carrying feature rows (so the inbox can score them).
+check("B7 heroes in silver + features", lambda: (lambda a, b: (_ for _ in ()).throw(AssertionError(f"heroes s={a} f={b}")) if (a != 4 or b != 4) else "4/4 in both (incl. Lane E hero 900004)")(
       q(f"SELECT count(*) c FROM {fqn}.silver_submissions WHERE submission_public_id LIKE 'sub:9000%'").first().c,
       q(f"SELECT count(*) c FROM {fqn}.feature_submission WHERE submission_public_id LIKE 'sub:9000%'").first().c))
 check("B8 hero schedule through the REAL file path", lambda: (lambda n, hx: (_ for _ in ()).throw(AssertionError(f"n={n} hx7={hx}")) if (n != 6 or hx != 5_000_000) else "6 locations · HX7 marginal exactly £5m")(

@@ -87,12 +87,15 @@ REFERRAL_RULES = [
     # MAX_WAGEROLL is appended by E2 (its rule + fn + hero land together).
 ]
 
-rules_rows = [(rid, name, desc, json.dumps(cfg), unit, ver, src, YEAR_START.isoformat())
+# rule_scope: 'workflow' = fires live in the demo (crux fn + checks-row chip) · 'analytics_only' =
+# retrospective history only (ref row + generated events, no crux/UI). The 5 shipped rules are all
+# workflow; E6 (notebook 00d) appends the analytics_only rule landscape.
+rules_rows = [(rid, name, desc, json.dumps(cfg), unit, ver, src, "workflow", YEAR_START.isoformat())
               for (rid, name, desc, cfg, unit, ver, src) in REFERRAL_RULES]
 write(spark.createDataFrame(
         rules_rows,
         "rule_id string, rule_name string, description string, threshold_config string, "
-        "unit string, rule_version string, source_check string, effective_from string"),
+        "unit string, rule_version string, source_check string, rule_scope string, effective_from string"),
       "ref_referral_rules", "reference")
 
 # COMMAND ----------
@@ -130,10 +133,12 @@ print(f"existing-book (excl. Lane E) baseline: rows={_ck_before[0]} checksum={_c
 
 WAGEROLL_THRESHOLDS = {"etrade": 2_000_000, "standard": 5_000_000, "senior": 12_000_000}
 spark.sql(f"""
-  INSERT INTO {fqn}.ref_referral_rules VALUES
+  INSERT INTO {fqn}.ref_referral_rules
+    (rule_id, rule_name, description, threshold_config, unit, rule_version, source_check, rule_scope, effective_from)
+  VALUES
   ('MAX_WAGEROLL', 'Max wageroll above authority band',
    'Declared employers-liability wageroll (the EL rating basis) exceeds the authority band and must refer up.',
-   '{json.dumps(WAGEROLL_THRESHOLDS)}', 'GBP', 'v1', 'fn_wageroll_check', '{YEAR_START.isoformat()}')
+   '{json.dumps(WAGEROLL_THRESHOLDS)}', 'GBP', 'v1', 'fn_wageroll_check', 'workflow', '{YEAR_START.isoformat()}')
 """)
 print("  ref_referral_rules += MAX_WAGEROLL")
 
@@ -196,7 +201,10 @@ HERO_900004 = (
     800_000, 1_500_000, 150_000, 350_000, 1_200_000, 12, 10_000_000, 5_000_000, 0, 0, 5_000,
     72_000, "Aviva", None,
     "received", None, None, None, None, None)
-# Append-only; the scoped-checksum assert below proves no existing row moved.
+# Idempotent: on a normal run `00` has just regenerated the feed (no 900004); if 00c is re-run
+# standalone, clear any prior Lane E hero rows first so the append never duplicates. Only touches
+# Lane E ids — the scoped-checksum assert below proves no existing (non-Lane-E) row moved.
+spark.sql(f"DELETE FROM {fqn}.landing_submissions_feed WHERE submission_public_id IN ({_excl})")
 spark.createDataFrame([HERO_900004], sub_schema_str()) \
      .write.mode("append").saveAsTable(f"{fqn}.landing_submissions_feed")
 print("  landing_submissions_feed += sub:900004 (append)")

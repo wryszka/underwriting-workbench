@@ -67,6 +67,77 @@ def referral_discipline():
     return {"hero": hero, "top_rule": top, "by_type": q["by_type"], "by_persona": q["by_persona"]}
 
 
+# ---------------------------------------------------------------- Lane E.2: rule effectiveness + tuning
+@app.get("/api/rule-effectiveness")
+def rule_effectiveness():
+    rows = sql.query(f"""
+        SELECT rule_id, value_band,
+               sum(fires) fires,
+               round(sum(fires*rubber_stamp_rate)/sum(fires),3) rubber_stamp_rate,
+               round(sum(fires*decline_rate)/sum(fires),3) decline_rate,
+               round(sum(fires*changed_answer_rate)/sum(fires),3) changed_answer_rate,
+               round(sum(est_uw_hours),1) est_uw_hours,
+               max(auto_accept_candidate) auto_accept_candidate,
+               max(auto_decline_candidate) auto_decline_candidate
+        FROM {F('gold_rule_effectiveness')}
+        GROUP BY rule_id, value_band ORDER BY fires DESC""")
+    return {"rows": rows}
+
+
+@app.get("/api/rule-recommendations")
+def rule_recommendations():
+    rows = sql.query(f"""
+        SELECT recommendation_id, rule_id, value_band, recommendation_type, proposed_config,
+               evidence, narrative, est_hours_saved, est_leakage_risk_note, status,
+               proposed_by, proposed_at, reviewed_by, reviewed_at, mlflow_trace_id
+        FROM {F('gold_rule_recommendations')}
+        ORDER BY CASE status WHEN 'PROPOSED' THEN 0 ELSE 1 END, proposed_at DESC""")
+    return {"rows": rows}
+
+
+@app.post("/api/rule-recommendation/decide")
+async def rule_recommendation_decide(req: Request):
+    b = await req.json()
+    rid = sql.esc(b.get("recommendation_id", ""))
+    action = b.get("action", "reject")
+    who = sql.esc(req.headers.get("x-forwarded-email", "demo-user"))
+    note = sql.esc(b.get("note", ""))
+    status = "ACCEPTED" if action == "accept" else "REJECTED"
+    sql.query(f"""UPDATE {F('gold_rule_recommendations')}
+        SET status = '{status}', reviewed_by = '{who}',
+            reviewed_at = current_timestamp(),
+            est_leakage_risk_note = concat(est_leakage_risk_note, ' | reviewer: {note}')
+        WHERE recommendation_id = '{rid}'""")
+    versioned = None
+    if action == "accept":
+        # Accept writes a NEW versioned ref_referral_rules row — never an in-place update; the agent
+        # has no write path to config. New version = max(existing)+1 for that rule.
+        rec = sql.query_one(f"""SELECT rule_id, proposed_config FROM {F('gold_rule_recommendations')}
+                                WHERE recommendation_id = '{rid}'""")
+        if rec:
+            rr = sql.esc(rec["rule_id"])
+            base = sql.query_one(f"""SELECT rule_name, description, unit, source_check, rule_scope,
+                                       review_effort_hours,
+                                       max(cast(regexp_replace(rule_version,'[^0-9]','') AS INT)) OVER () AS maxv
+                                     FROM {F('ref_referral_rules')} WHERE rule_id='{rr}' LIMIT 1""")
+            if base:
+                newv = f"v{int(base.get('maxv') or 1) + 1}"
+                cfg = sql.esc(rec.get("proposed_config") or "{}")
+                nm = sql.esc(base.get("rule_name") or rr)
+                desc = sql.esc((base.get("description") or "") + f" [{newv}: tuned via {rid}, accepted by {who}]")
+                unit = sql.esc(base.get("unit") or "GBP")
+                src = f"'{sql.esc(base['source_check'])}'" if base.get("source_check") else "NULL"
+                scope = sql.esc(base.get("rule_scope") or "workflow")
+                eff = base.get("review_effort_hours") or "NULL"
+                sql.query(f"""INSERT INTO {F('ref_referral_rules')}
+                    (rule_id, rule_name, description, threshold_config, unit, rule_version, source_check,
+                     rule_scope, effective_from, review_effort_hours)
+                    VALUES ('{rr}','{nm}','{desc}','{cfg}','{unit}','{newv}',{src},'{scope}',
+                            cast(current_date() AS STRING), {eff})""")
+                versioned = {"rule_id": rr, "new_version": newv}
+    return {"recommendation_id": rid, "status": status, "reviewed_by": who, "versioned_rule": versioned}
+
+
 # ---------------------------------------------------------------- Lane E: adjustment reasons
 @app.get("/api/adjustment-reasons")
 def adjustment_reasons():

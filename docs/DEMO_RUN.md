@@ -89,6 +89,25 @@ referral triggered, split by New Business / Renewal / MTA, technical vs charged.
    same numbers, no SQL. "Your Head of Underwriting mails this question to an analyst and waits two
    days; here it's a governed **metric view** — one semantic trunk, the tile, the drill and Genie
    all read the same measures, so nobody argues about whose discretion-ratio definition is right."
+4. **Play it backwards (lineage)**: this history isn't one clean table — it's a *rule landscape*
+   (~2,400 referrals across a dozen rules). Ask Genie *"which rules fire together most?"* and
+   *"which rule has the slowest decisions?"*, then reveal where the numbers come from: three messy
+   source systems (a rating-engine CDC feed with opaque `UW_REF_nnn` codes, an e-trade portal with
+   different names and £-string amounts, a case tool keyed on a bridge) conformed by a DLT pipeline
+   through the **`ref_rule_code_map`** — "your systems say this five ways; this table is where that
+   gets settled." Close on the DQ beats: ~2% orphan case rows **quarantined not dropped**, and the
+   one **authority-matrix threshold that disagrees** with the rating config (£5.5m vs £5.0m) flagged.
+
+## Beat 3c · Close the loop — rule tuning on evidence (3 min)
+Open the **Rule tuning** page. The effectiveness league table scores every rule × band: two tails
+jump out — **MAX_TURNOVER in the 1.0–1.2× band is rubber-stamped ~95%** (pure friction: ~340
+underwriter-hours in 2025, changed the answer a handful of times) and **HAZARDOUS_ACTIVITY_HEIGHT
+above 2× declines ~85%** (should never reach a human). Below, the **AI second eyes** have drafted
+governed proposals — RAISE_THRESHOLD and AUTO_DECLINE_BAND — each with the **exact evidence rows
+beside the narrative** and an MLflow trace. The agent reads the effectiveness table only and has no
+write path to rules. **Accept** (with a mandatory note) writes a **new versioned** `ref_referral_rules`
+row — never an in-place edit — exactly as the pre-seeded accepted example did (SI band v1 → v2).
+Closing line: *the referral envelope, tuned on evidence, with AI drafting and humans deciding.*
 
 ## Beat 4 · Decline with dignity (2 min)
 Open **★ sub:900003 Midland Metal & Waste**: excluded trade → coded decline `APP-EXCL-WASTE`

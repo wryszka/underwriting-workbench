@@ -20,3 +20,21 @@ resources:
             path: ../notebooks/02_silver_dlt.py
         - notebook:
             path: ../notebooks/03_gold_dlt.py
+
+    # Lane E.1 (additive): conforms the three messy referral source feeds into one event table.
+    underwriting_referral_conformance:
+      name: underwriting_referral_conformance
+      serverless: true
+      photon: true
+      catalog: ${var.catalog}
+      schema: ${var.schema}
+      event_log:
+        catalog: ${var.catalog}
+        schema: ${var.schema}
+        name: referral_conformance_event_log
+      configuration:
+        source_catalog: ${var.catalog}
+        source_schema: ${var.schema}
+      libraries:
+        - notebook:
+            path: ../notebooks/02d_referral_conformance.py
