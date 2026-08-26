@@ -254,10 +254,10 @@ function cacheBadge(c){return c==="hit"?pill("cached","amber"):c==="live"||c==="
 /* ---------- nav ---------- */
 const NAV=[
  {sec:"", items:[["home","Overview","◇"]]},
- {sec:"Head of Underwriting", items:[["tower","Portfolio Control Tower","▦"],["committee","Appetite & Rates","⚖"],["insight","Insight & Ask the Book","◉"]]},
+ {sec:"Head of Underwriting", items:[["tower","Portfolio Control Tower","▦"],["referral","Referral Control","⟲"],["committee","Appetite & Rates","⚖"],["insight","Insight & Ask the Book","◉"]]},
  {sec:"Underwriter", items:[["inbox","Submission Inbox","☰"],["renewals","Renewals desk","↻"],["mtas","MTAs","±"],["work","Work a submission","✎"],["tryit","Try a submission","✚"]]},
  {sec:"Distribution", items:[["brokers","Brokers","🤝"]]},
- {sec:"Platform", items:[["ingestion","Ingestion","⇣"],["governance","Governance","🛡"],["ai","Underwriting AI","✳"],["tuning","Rule tuning","⚙"],["onebook","One Book","▣"]]},
+ {sec:"Platform", items:[["ingestion","Ingestion","⇣"],["governance","Governance","🛡"],["ai","Underwriting AI","✳"],["onebook","One Book","▣"]]},
 ];
 let CUR="home", CUR_SID="sub:900002";
 function renderNav(){
@@ -271,7 +271,7 @@ function route(){closeModal();
   CUR=r==="sub"?"work":r; renderNav();
   const map={home:landing,tower:controlTower,insight:insight,inbox:inboxPage,work:()=>subView(CUR_SID),
              sub:()=>subView(arg||CUR_SID),tryit:tryIt,brokers:brokersPage,ingestion:ingestionPage,renewals:renewalsDesk,mtas:mtasPage,committee:committeePage,
-             governance:governancePage,ai:aiPage,tuning:tuningPage,onebook:oneBook,learn:learnPage};
+             governance:governancePage,ai:aiPage,referral:referralControl,tuning:referralControl,onebook:oneBook,learn:learnPage};
   (map[r]||landing)();
   if(r==="sub"&&arg)CUR_SID=arg;
 }
@@ -397,6 +397,9 @@ async function controlTower(){
     <div class="card drill" onclick="ctDrill('discipline')" style="border-color:#c7d2fe;background:#f5f7ff"><h3>Referral discipline <span class="muted">— the pricing pen, measured</span></h3>
       <div id="discTile" style="display:flex;gap:24px;align-items:baseline;flex-wrap:wrap"><div class="muted">loading…</div></div>
       <div class="muted" style="margin-top:8px">How often each rule bites and what the pen does with it — the Head of Underwriting question, answered from a governed metric trunk. Drill for the wageroll split ↗</div></div>
+    <div class="card drill" onclick="go('referral')" style="border-color:#ddd6fe;background:#faf5ff"><h3>Referral Control <span class="muted">— the rulebook, run as a loop</span></h3>
+      <div id="rcTile" style="display:flex;gap:24px;align-items:baseline;flex-wrap:wrap"><div class="muted">loading…</div></div>
+      <div class="muted" style="margin-top:8px">This week's referral problems, discovered and quantified from the fire-vector telemetry — each with a governed change one approval away. Open Referral Control ↗</div></div>
   </div>
   <div class="grid g2" style="margin-top:16px">
     <div class="card drill" onclick="ctDrill('funnel')"><h3>Funnel by channel — straight-through is the headline</h3>
@@ -414,7 +417,18 @@ async function controlTower(){
     </div>
   </div>
   <div class="prov">⛁ Computed live from the governed marts — queried ${esc((d.meta||{}).queried_at||"")} · pipeline batch-scored ${esc((d.meta||{}).scored_at||"")}. Click any tile for its reconciling rows and the SQL behind it.</div>`;
-  loadBrief();loadWorth();loadDiscipline();
+  loadBrief();loadWorth();loadDiscipline();loadRcTile();
+}
+async function loadRcTile(){
+  const el=document.getElementById("rcTile");if(!el)return;
+  try{const d=await api("/referral/findings");
+    const fs=(d.findings||[]).filter(f=>f.action&&f.action!=="keep");
+    const top=fs[0];const hrs=fs.reduce((s,f)=>s+Number(f.hours_released||0),0);
+    const box=document.getElementById("rcTile");if(!box)return;
+    box.innerHTML=`<div><div class="big">${num(fs.length)}</div><div class="muted">open findings</div></div>
+      <div><div class="big" style="font-size:15px">${top?esc(top.rule_id):"—"}</div><div class="muted">top: ${top?esc((top.action||"").replaceAll("_"," ")):"—"}</div></div>
+      <div><div class="big">${num(Math.round(hrs))}h</div><div class="muted">referral-hours releasable</div></div>`;
+  }catch(e){const box=document.getElementById("rcTile");if(box)box.innerHTML='<div class="muted">unavailable</div>';}
 }
 async function loadDiscipline(){
   const el=document.getElementById("discTile");if(!el)return;
@@ -779,8 +793,9 @@ async function subView(sid){
       <div><button class="btn ghost" onclick="narr('${sid}','risk_profile')">Risk profile</button>
       <button class="btn ghost" onclick="narr('${sid}','appetite')">Appetite view</button>
       <button class="btn ghost" onclick="narr('${sid}','pricing_adequacy')">Adequacy view</button>
-      <button class="btn ghost" onclick="narr('${sid}','challenge')">⚖ Challenge</button></div>
-      <div id="narrslot"></div>
+      <button class="btn ghost" onclick="narr('${sid}','challenge')">⚖ Challenge</button>
+      <button class="btn ghost" onclick="rcReviewer('${sid}')">⟲ Referral reviewer</button></div>
+      <div id="narrslot"></div><div id="rcrevslot"></div>
       <h3 style="margin-top:18px">Ask the supervisor <span class="muted">(real tool-calling agent)</span></h3>
       <div style="display:flex;gap:8px"><input class="f" id="supq" style="margin:0" placeholder="Should we quote this? What would you change?">
       <button class="btn" onclick="askSup('${sid}')">Ask</button></div><div id="supslot"></div></div>
@@ -1267,58 +1282,217 @@ async function aiAsk(q,sid){
     ${cacheBadge(r.cache)} tools: ${(r.tools||[]).map(esc).join(" → ")||"none"}</div><div style="white-space:pre-wrap">${esc(r.text)}</div></div>`;
 }
 
-/* ---------- rule tuning (E8/E9) ---------- */
-async function tuningPage(){
-  const m=$("#m");m.innerHTML='<div class="loading">Loading rule effectiveness…</div>';
-  let eff={rows:[]},rec={rows:[]};
-  try{eff=await api("/rule-effectiveness")}catch(e){}
-  try{rec=await api("/rule-recommendations")}catch(e){}
-  const pctf=v=>v==null?"—":Math.round(v*100)+"%";
-  const effRows=(eff.rows||[]).map(r=>{
-    const tag=r.auto_accept_candidate?pill("auto-accept candidate","green"):r.auto_decline_candidate?pill("auto-decline candidate","red"):"";
-    return `<tr><td><b>${esc(r.rule_id)}</b></td><td>${esc(r.value_band)}</td><td>${num(r.fires)}</td>
-      <td>${pctf(r.rubber_stamp_rate)}</td><td>${pctf(r.decline_rate)}</td><td>${pctf(r.changed_answer_rate)}</td>
-      <td>${r.est_uw_hours}h</td><td>${tag}</td></tr>`}).join("");
-  const recCards=(rec.rows||[]).map(r=>{
-    let ev={};try{ev=JSON.parse(r.evidence||"{}")}catch(e){}
-    const stcls=r.status==="PROPOSED"?"amber":r.status==="ACCEPTED"?"green":"slatep";
-    const actions=r.status==="PROPOSED"?`<div style="margin-top:8px;display:flex;gap:8px;align-items:center">
-      <input class="f" id="note_${r.recommendation_id}" style="margin:0;max-width:280px" placeholder="reviewer note (required)">
-      <button class="btn" onclick="decideRec('${r.recommendation_id}','accept')">✓ Accept → version rule</button>
-      <button class="btn bad" onclick="decideRec('${r.recommendation_id}','reject')">Reject</button></div>`:
-      `<div class="muted" style="margin-top:6px">${esc(r.status)}${r.reviewed_by?` by ${esc(r.reviewed_by)}`:""}</div>`;
-    return `<div class="card" style="border:1.5px solid ${r.status==="PROPOSED"?"#fcd34d":"#e2e8f0"}">
-      <div style="display:flex;justify-content:space-between"><h3 style="margin:0">${esc(r.rule_id)} · ${esc(r.value_band)} ${pill(r.recommendation_type,"bluep")}</h3>${pill(r.status,stcls)}</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px">
-        <div><b style="font-size:12px">Agent narrative</b><div class="muted" style="line-height:1.55">${esc(r.narrative)}</div>
-          <div class="muted" style="margin-top:6px;font-size:11px">est. ${r.est_hours_saved}h/yr saved · trace <span class="mono">${esc(r.mlflow_trace_id||"")}</span></div></div>
-        <div><b style="font-size:12px">Evidence (the exact rows relied on)</b>
-          <div class="kv"><span>fires</span><b>${num(ev.fires)}</b></div>
-          <div class="kv"><span>rubber-stamp</span><b>${pctf(ev.rubber_stamp_rate)}</b></div>
-          <div class="kv"><span>decline</span><b>${pctf(ev.decline_rate)}</b></div>
-          <div class="kv"><span>changed the answer</span><b>${pctf(ev.changed_answer_rate)}</b></div>
-          <div class="kv"><span>months of history</span><b>${num(ev.months_seen)}</b></div></div>
-      </div>${actions}<div class="muted" id="recmsg_${r.recommendation_id}" style="margin-top:6px"></div></div>`}).join("");
-  m.innerHTML=`
-  <div class="eyebrow">Platform</div><h1>Rule tuning — the referral envelope, tuned on evidence</h1>
-  <p class="sub">Every referral rule and every pricing-pen decision measured, so the envelope can be tuned: relax the rubber-stamped, hard-stop the always-declined. AI drafts; a named human decides; the rule is versioned.</p>
-  ${present("What it is: the effectiveness of each referral rule, and AI-drafted tuning proposals for a human to accept or reject. What it shows: which rules waste underwriter hours (high rubber-stamp) and which bands should never reach a human (high decline) — with the evidence beside every proposal. Accepting a proposal writes a NEW versioned rule; the agent never changes rules itself.")}
-  <div class="card"><h3>Rule effectiveness — the league table</h3>
-    <table><thead><tr><th>rule</th><th>band</th><th>fires</th><th>rubber-stamp</th><th>decline</th><th>changed answer</th><th>uw hours</th><th>candidate</th></tr></thead>
-    <tbody>${effRows||'<tr><td colspan=8 class="muted">no effectiveness data yet</td></tr>'}</tbody></table>
-    <div class="muted" style="margin-top:6px">All measures come from the <b>mv_underwriting_discipline</b> metric view / <span class="mono">gold_rule_effectiveness</span> — thresholds for the candidate flags live in <span class="mono">ref_effectiveness_policy</span>.</div></div>
-  <div class="sech" style="margin-top:18px">AI second eyes — governed tuning proposals <span class="muted">(agent proposes · human signs · rule versioned)</span></div>
-  <div class="grid g1" style="display:grid;gap:14px">${recCards||'<div class="muted">no recommendations yet</div>'}</div>
-  <div class="prov">Evidence → proposal → human decision → versioned rule. The agent reads the effectiveness table only (structured rows, no documents) and has NO write path to config — Accept writes a new ref_referral_rules version. This lineage is the SS1/23 governance spine.</div>`;
+/* ---------- Referral Control (Lane E) ---------- */
+let RC={as_of:null, tab:"today"};
+function rcAsOf(){return RC.as_of||CFG.anchor_date||new Date().toISOString().slice(0,10)}
+function rcSetAsOf(v){RC.as_of=v;referralControl()}
+function rcAdvance(days){const d=new Date(rcAsOf());d.setDate(d.getDate()+days);RC.as_of=d.toISOString().slice(0,10);referralControl()}
+function rcTab(t){RC.tab=t;referralControl()}
+const RC_ACTCLS={convert_to_auto_decline:"red",reopen_to_referral:"amber",remove:"slatep",re_threshold:"bluep",auto_apply_clause:"green",keep:"slatep",reprice_instead_of_refer:"bluep",split_question:"bluep"};
+const RC_SEVCLS={high:"red",medium:"amber",low:"slatep",locked:"bluep"};
+const RC_PCT=v=>v==null?"—":Math.round(v*100)+"%";
+async function referralControl(){
+  const m=$("#m");const ao=rcAsOf();const anchor=CFG.anchor_date;
+  const scrub=`<div class="card" style="padding:12px 16px;margin-bottom:16px;display:flex;gap:14px;align-items:center;flex-wrap:wrap">
+    <b style="font-size:12.5px">⏱ As of</b>
+    <input class="f" type="date" id="rc_asof" value="${esc(ao)}" style="margin:0;max-width:170px" onchange="rcSetAsOf(this.value)">
+    <button class="btn ghost" onclick="rcAdvance(30)">Advance one month →</button>
+    <button class="btn ghost" onclick="rcSetAsOf(CFG.anchor_date)">Back to today</button>
+    <span class="muted">${ao===anchor?"the demo anchor — today":"time-travelled — the feed, rulebook, metrics and emulation all read as of this date"}</span></div>`;
+  const T=[["today","Today"],["rulebook","Rulebook"],["investigate","Investigate"],["decisions","Decisions"],["howitworks","How it works"]];
+  const tabs=`<div class="tabs">${T.map(([k,l])=>`<button class="${RC.tab===k?"on":""}" onclick="rcTab('${k}')">${l}</button>`).join("")}</div>`;
+  m.innerHTML=`<div class="eyebrow">Head of Underwriting</div><h1>Referral Control</h1>
+    <p class="sub">The referral rulebook run as a continuous loop — discover the problem of today → recommend a governed change from a closed set → emulate it → a human approves → monitor realised vs predicted → reverse when the world changes. Every number is a live UC-function call over the fire-vector telemetry.</p>
+    ${present("Real desks tackle referral triggers one workshop at a time — each analysis a hand-built Excel exhibit that is stale the day it lands. Here the platform discovers, quantifies, governs and re-decides them continuously. Scrub the date to watch the feed change; advance a month to see a reversal appear.")}
+    ${scrub}${tabs}<div id="rcbody"><div class="loading">Loading…</div></div>`;
+  ({today:rcToday,rulebook:rcRulebook,investigate:rcInvestigate,decisions:rcDecisions,howitworks:rcHow}[RC.tab]||rcToday)();
 }
-async function decideRec(rid,action){
-  const noteEl=document.getElementById("note_"+rid);
-  const note=noteEl?noteEl.value.trim():"";
-  if(action==="accept"&&!note){alert("A reviewer note is required to accept.");return}
-  const msg=document.getElementById("recmsg_"+rid);if(msg)msg.textContent="Recording…";
-  const r=await post("/rule-recommendation/decide",{recommendation_id:rid,action,note});
-  if(msg)msg.innerHTML=`✓ ${esc(r.status)} by ${esc(r.reviewed_by)}${r.versioned_rule?` — ${esc(r.versioned_rule.rule_id)} now <b>${esc(r.versioned_rule.new_version)}</b> in ref_referral_rules`:""}`;
-  setTimeout(()=>tuningPage(),1200);
+async function rcToday(){
+  const b=document.getElementById("rcbody");b.innerHTML='<div class="loading">The engine is scanning the book…</div>';
+  const d=await api("/referral/findings?as_of="+rcAsOf());
+  const fs=(d.findings||[]);window._rcFind={};fs.forEach(f=>window._rcFind[f.rule_id]=f);
+  const actionable=fs.filter(f=>f.action&&f.action!=="keep");
+  const cards=fs.map(f=>{const ev=f.evidence||{};const act=f.action||"keep";
+    return `<div class="card" style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+        <div><b style="font-size:14px">${esc(f.rule_id)}</b> ${pill(act.replaceAll("_"," "),RC_ACTCLS[act]||"slatep")} ${pill(f.severity,RC_SEVCLS[f.severity]||"slatep")} ${ev.compliance_lock?pill("🔒 compliance-locked","bluep"):""}
+          <div class="muted" style="margin-top:4px">${esc(f.headline||"")}</div></div>
+        <div class="muted" style="font-size:11px;white-space:nowrap">${esc(f.category||"")}</div></div>
+      <div style="font-size:13px;margin-top:8px;line-height:1.5">${esc(f.reason||"")}</div>
+      <div style="display:flex;gap:20px;margin-top:8px;flex-wrap:wrap;font-size:12px;color:var(--mut)"><span>${esc(f.portfolio_gbp_note||"")}</span><span>${esc(f.ops_note||"")}</span></div>
+      <div style="display:flex;gap:16px;margin-top:8px;flex-wrap:wrap;font-size:12px;color:var(--mut)">
+        <span>fires <b>${num(ev.fires)}</b></span><span>approval <b>${RC_PCT(ev.approval_pct)}</b></span>
+        <span>decline/walk <b>${RC_PCT(ev.decline_walk_pct)}</b></span><span>isolation <b>${RC_PCT(ev.isolated_share)}</b></span>
+        <span>touch cost <b>${money(ev.touch_cost_gbp)}</b></span></div>
+      <div style="margin-top:10px">
+        <button class="btn ghost" onclick="rcRuleModal('${esc(f.rule_id)}')">Drill to rows + SQL ↗</button>
+        ${act!=="keep"?`<button class="btn ghost" onclick="rcEmulateModal('${esc(f.rule_id)}','${esc(act)}')">Emulate + tail exhibit</button>`:""}
+        ${act!=="keep"&&!ev.compliance_lock?`<button class="btn" onclick="rcPropose('${esc(f.rule_id)}','${esc(act)}')">Propose change →</button>`:""}
+        <button class="btn ghost" onclick="rcAdvise('${esc(f.rule_id)}')">💬 Portfolio advisor</button></div>
+      <div id="rcadv_${esc(f.rule_id)}"></div><div class="muted" id="rcmsg_${esc(f.rule_id)}" style="margin-top:6px"></div></div>`}).join("");
+  b.innerHTML=`<div class="muted" style="margin-bottom:10px"><b>${actionable.length}</b> actionable finding(s) of ${fs.length} rules scanned, ranked by severity then impact. Compliance-locked rules are shown with their metrics but never carry a change.</div>${cards}`;
+}
+async function rcRuleModal(rid){
+  openModal('<div class="loading">Loading the rule…</div>');
+  const d=await api("/referral/rule/"+encodeURIComponent(rid)+"?as_of="+rcAsOf());
+  const mt=d.metrics||{},iso=d.isolation||{},rec=d.recommend||{};
+  const partners=(d.partners||[]).map(p=>`${esc(p.partner_rule_id)} (${num(p.times_together)})`).join(" · ")||"none — it fires alone";
+  openModal(`<div class="eyebrow">Referral rule · as of ${esc(d.as_of)}</div>
+    <h2 style="margin:0 0 6px">${esc(rid)} ${pill((rec.action||"").replaceAll("_"," "),RC_ACTCLS[rec.action]||"slatep")}</h2>
+    <div class="grid g2">
+      <div class="card"><h3>Metric tuple</h3>
+        ${kv("Fires",num(mt.fires))}${kv("Approval",RC_PCT(mt.approval_pct))}${kv("Decline / price-walk",RC_PCT(mt.decline_walk_pct))}
+        ${kv("No-adjustment",RC_PCT(mt.noadj_pct))}${kv("Avg loss ratio",mt.avg_lr!=null?mt.avg_lr+"%":"—")}
+        ${kv("Touch cost",money(mt.touch_cost_gbp))}${kv("GWP-at-stake (shadow)",money(mt.gwp_at_stake))}</div>
+      <div class="card"><h3>Isolation — would anything else catch it?</h3>
+        ${kv("Total fires",num(iso.total_fires))}${kv("Isolated (alone)",num(iso.isolated_fires)+" · "+RC_PCT(iso.isolated_share))}
+        ${kv("Isolated GWP",money(iso.isolated_gwp))}${kv("Isolated loss ratio",iso.isolated_lr!=null?iso.isolated_lr+"%":"—")}
+        <div class="muted" style="margin-top:6px">Co-fire partners that would still catch the rest: ${esc(partners)}</div></div></div>
+    <div class="card" style="margin-top:14px"><h3>Reconciling rows — the fires behind the numbers</h3>
+      ${tbl(d.rows)}${showSqlBtn("rc-sql",d.sql)}</div>`);
+}
+async function rcEmulateModal(rid,act){
+  openModal('<div class="loading">Emulating the change on the book…</div>');
+  const e=await api("/referral/emulate?rule_id="+encodeURIComponent(rid)+"&action="+encodeURIComponent(act)+"&as_of="+rcAsOf());
+  const tail=(e.tail_exhibit||[]).map(t=>`<tr><td>${esc(t.company_name)}</td><td>${esc(t.policy_number)}</td><td>${esc(t.transaction_type)}</td><td>${money(t.gwp)}</td><td>${esc(t.outcome)}</td><td>${t.loss_ratio_pct!=null?t.loss_ratio_pct+"%":"—"}</td></tr>`).join("");
+  openModal(`<div class="eyebrow">Emulate — preview only, a human approves</div>
+    <h2 style="margin:0 0 6px">${esc(rid)} → ${esc((act||"").replaceAll("_"," "))}</h2>
+    <div class="grid g4">
+      <div class="card"><h3>Referrals released</h3><div class="big">${num(e.referrals_released)}</div></div>
+      <div class="card"><h3>Hours released</h3><div class="big">${num(Math.round(e.hours_released||0))}</div></div>
+      <div class="card"><h3>GWP delta</h3><div class="big">${money(e.gwp_delta)}</div></div>
+      <div class="card"><h3>Predicted LR delta</h3><div class="big">${e.predicted_lr_delta!=null?e.predicted_lr_delta+"pts":"—"}</div></div></div>
+    <div class="card" style="margin-top:14px"><h3>Surviving tail exhibit — the ${num(e.affected_cases)} policies decided differently</h3>
+      <div class="muted" style="margin-bottom:6px">The defence when someone asks "what did we lose?" — the named policies this change would flip.</div>
+      <table><thead><tr><th>company</th><th>policy</th><th>type</th><th>GWP</th><th>outcome</th><th>LR</th></tr></thead><tbody>${tail||'<tr><td colspan=6 class="muted">none</td></tr>'}</tbody></table></div>
+    <div class="note">${esc(e.note||"")}</div>`);
+}
+async function rcPropose(rid,act){
+  const msg=document.getElementById("rcmsg_"+rid);if(msg)msg.textContent="Proposing the change…";
+  const r=await post("/referral/propose",{rule_id:rid,action:act,as_of:rcAsOf()});
+  const p=r.predicted||{};
+  if(msg)msg.innerHTML=`Proposed <span class="mono">${esc(r.change_id)}</span> — predicted ${num(p.referrals_released)} referrals / ${num(Math.round(p.hours_released||0))}h released.
+    <button class="btn" style="padding:3px 9px;margin-left:6px" onclick="rcApprove('${esc(r.change_id)}','${rid}')">✓ Approve (a human signs)</button>
+    <button class="btn bad" style="padding:3px 9px" onclick="document.getElementById('rcmsg_${rid}').innerHTML='Left pending in the change ledger.'">Reject</button>`;
+}
+async function rcApprove(cid,rid){
+  const msg=document.getElementById("rcmsg_"+rid);if(msg)msg.textContent="Applying the SCD2 write-path…";
+  const r=await post("/referral/approve",{change_id:cid,as_of:rcAsOf()});
+  if(r.error){if(msg)msg.innerHTML=`<span style="color:var(--red)">⊘ ${esc(r.error)}</span>`;return}
+  if(msg)msg.innerHTML=`✓ Approved — <b>${esc(r.rule_id)}</b> now <b>${esc(r.new_version)}</b> (disposition ${esc(r.disposition)}) in ref_referral_rules. Rulebook + change ledger updated. <a class="lnk" onclick="rcTab('rulebook')">see the rulebook ↗</a>`;
+}
+async function rcAdvise(rid){
+  const slot=document.getElementById("rcadv_"+rid);if(slot)slot.innerHTML=narrSlot("rcadvbody_"+rid.replace(/[^a-z0-9]/gi,"_"));
+  const f=(window._rcFind||{})[rid]||{};
+  const em=await api("/referral/emulate?rule_id="+encodeURIComponent(rid)+"&action="+encodeURIComponent(f.action||"keep")+"&as_of="+rcAsOf());
+  const r=await post("/referral/advisor",{finding:f,emulation:em});
+  const el=document.getElementById("rcadvbody_"+rid.replace(/[^a-z0-9]/gi,"_"));
+  if(el)el.innerHTML=`<span class="tag">portfolio advisor · ${cacheBadge(r.cache)} · ${esc(r.endpoint||"")}</span>${esc(r.text)}`;
+}
+async function rcRulebook(){
+  const b=document.getElementById("rcbody");b.innerHTML='<div class="loading">Loading the rulebook…</div>';
+  const [rb,ch]=await Promise.all([api("/referral/rulebook?as_of="+rcAsOf()),api("/referral/changes")]);
+  const rows=(rb.rows||[]).map(r=>{let p="";try{p=Object.entries(JSON.parse(r.threshold_config||"{}")).map(([k,v])=>k+":"+v).join(", ")}catch(e){}
+    const dcls=r.disposition==="auto_decline"?"red":r.disposition==="accept"?"green":r.disposition==="auto_apply_clause"?"bluep":"slatep";
+    return `<tr><td><b>${esc(r.rule_id)}</b> ${String(r.compliance_lock)==="true"?pill("🔒","bluep"):""}<br><span class="muted">${esc(r.rule_name)}</span></td>
+      <td>${esc(r.category)}</td><td>${pill(r.disposition,dcls)}</td><td class="mono">${esc(p)}</td><td>${esc(r.rule_version)}</td><td class="muted">${esc(r.approved_by||"")}</td></tr>`}).join("");
+  const led=(ch.rows||[]).map(c=>{const drift=String(c.drift_flag)==="true";
+    const scls=c.status==="proposed"?"amber":(c.status==="live"||c.status==="monitored")?"green":c.status==="retired"?"slatep":"bluep";
+    const track=drift?pill("⚠ drift","red"):(c.realised_hours_saved!=null?pill("on track","green"):pill("pending","slatep"));
+    return `<tr><td><b>${esc(c.rule_id)}</b><br><span class="muted">${esc((c.action||"").replaceAll("_"," "))}</span></td>
+      <td>${pill(c.status,scls)}</td><td class="mono">${esc(c.from_version||"")}→${esc(c.to_version||"—")}</td>
+      <td>${num(Math.round(c.predicted_hours_released||0))}h / ${c.realised_hours_saved!=null?num(Math.round(c.realised_hours_saved))+"h":"—"}</td>
+      <td>${track}${drift&&c.drift_note?`<br><span class="muted" style="font-size:11px">${esc(c.drift_note).slice(0,90)}</span>`:""}</td>
+      <td class="muted">${esc(c.approved_by||c.proposed_by||"")}</td></tr>`}).join("");
+  b.innerHTML=`<div class="card"><h3>The governed rulebook — as of ${esc(rb.as_of)}</h3>
+    <div class="muted" style="margin-bottom:6px">Scrub the date above to see the rulebook as it stood then (SCD2 effective-dating). Compliance-locked rules carry a 🔒 and are never changed by the engine.</div>
+    <table><thead><tr><th>rule</th><th>category</th><th>disposition</th><th>parameters</th><th>version</th><th>approved by</th></tr></thead><tbody>${rows}</tbody></table></div>
+  <div class="card" style="margin-top:16px"><h3>Change ledger — predicted vs realised</h3>
+    <table><thead><tr><th>rule / action</th><th>status</th><th>version</th><th>hours pred / real</th><th>tracking</th><th>who</th></tr></thead><tbody>${led||'<tr><td colspan=6 class="muted">no changes yet</td></tr>'}</tbody></table>
+    <div class="muted" style="margin-top:6px">Predicted numbers are frozen at proposal; realised accrues daily. Divergence past tolerance raises a drift flag → a new finding on the Today feed.</div></div>`;
+}
+async function rcInvestigate(){
+  const b=document.getElementById("rcbody");b.innerHTML='<div class="loading">Loading the bench…</div>';
+  const rb=await api("/referral/rulebook?as_of="+rcAsOf());
+  const opts=(rb.rows||[]).map(r=>`<option value="${esc(r.rule_id)}">${esc(r.rule_id)} (${esc(r.disposition)})</option>`).join("");
+  const acts=["convert_to_auto_decline","reopen_to_referral","remove","re_threshold","auto_apply_clause","reprice_instead_of_refer"].map(a=>`<option value="${a}">${a.replaceAll("_"," ")}</option>`).join("");
+  b.innerHTML=`<div class="grid g2"><div class="card"><h3>What-if bench — emulate any rule × action</h3>
+    <label class="f">Rule</label><select class="f" id="rc_rule">${opts}</select>
+    <label class="f">Action (closed set)</label><select class="f" id="rc_act">${acts}</select>
+    <div style="margin-top:12px"><button class="btn" onclick="rcBenchRun()">Emulate →</button></div>
+    <div id="rc_bench" style="margin-top:12px"></div></div>
+    <div class="card"><h3>Ask the telemetry — Genie</h3>
+      <div class="muted" style="margin-bottom:8px">Natural-language questions over the referral fire-vector telemetry.</div>
+      ${CFG.genie_embed_url?`<iframe class="embed" style="height:520px" src="${esc(CFG.genie_embed_url)}"></iframe>`:'<div class="note">A referral-telemetry Genie space embeds here once GENIE_SPACE_ID is wired.</div>'}</div></div>`;
+}
+async function rcBenchRun(){
+  const rid=document.getElementById("rc_rule").value,act=document.getElementById("rc_act").value;
+  document.getElementById("rc_bench").innerHTML='<div class="loading">Emulating…</div>';
+  const e=await api("/referral/emulate?rule_id="+encodeURIComponent(rid)+"&action="+encodeURIComponent(act)+"&as_of="+rcAsOf());
+  const tail=(e.tail_exhibit||[]).slice(0,10).map(t=>`<div class="kv"><span>${esc(t.company_name)} · ${esc(t.policy_number)}</span><b>${money(t.gwp)} ${esc(t.outcome)}</b></div>`).join("");
+  document.getElementById("rc_bench").innerHTML=`
+    ${kv("Referrals released",num(e.referrals_released))}${kv("Hours released",num(Math.round(e.hours_released||0)))}
+    ${kv("GWP delta",money(e.gwp_delta))}${kv("Affected cases",num(e.affected_cases))}
+    <div style="margin-top:8px"><b style="font-size:12px">Tail exhibit</b></div>${tail||'<div class="muted">none</div>'}
+    <div style="margin-top:10px"><button class="btn" onclick="rcProposeBench('${esc(rid)}','${esc(act)}')">Propose from here →</button> <span class="muted" id="rc_benchmsg"></span></div>`;
+}
+async function rcProposeBench(rid,act){
+  const r=await post("/referral/propose",{rule_id:rid,action:act,as_of:rcAsOf()});
+  const el=document.getElementById("rc_benchmsg");if(el)el.innerHTML=`✓ ${esc(r.change_id)} → ledger. <a class="lnk" onclick="rcTab('rulebook')">see the ledger ↗</a>`;
+}
+async function rcDecisions(){
+  const b=document.getElementById("rcbody");b.innerHTML='<div class="loading">Loading…</div>';
+  const s=await api("/referral/rule/MAX_WAGEROLL?as_of="+rcAsOf());
+  const samples=(s.rows||[]).slice(0,6).filter(r=>r.transaction_id).map(r=>`<span class="pill bluep" style="cursor:pointer" onclick="document.getElementById('rc_txn').value='${esc(r.transaction_id)}';rcReplay()">${esc(r.transaction_id)}</span>`).join(" ");
+  b.innerHTML=`<div class="card"><h3>Replay a decision under its contemporaneous rulebook</h3>
+    <div class="muted" style="margin-bottom:8px">Every decision replays under the rulebook in force at the time — the fire-vector, the rule versions, outcome and terms. "Grandma Jane" reproducibility. Try one:</div>
+    <div style="display:flex;gap:8px;margin-bottom:8px"><input class="f" id="rc_txn" style="margin:0;max-width:240px" placeholder="transaction id e.g. RC-700001">
+    <button class="btn" onclick="rcReplay()">Replay</button></div>
+    <div>${samples||'<span class="muted">no sample transactions</span>'}</div>
+    <div id="rc_replay" style="margin-top:12px"></div></div>`;
+}
+async function rcReplay(){
+  const tid=(document.getElementById("rc_txn")||{}).value;if(!tid)return;
+  document.getElementById("rc_replay").innerHTML='<div class="loading">Loading the fire-vector…</div>';
+  const d=await api("/referral/decision/"+encodeURIComponent(tid));
+  const ev=(d.events||[]);
+  if(!ev.length){document.getElementById("rc_replay").innerHTML='<div class="muted">No telemetry for that transaction id.</div>';return}
+  const head=ev[0]||{};
+  const rows=ev.map(e=>`<tr><td><b>${esc(e.rule_id)}</b> <span class="mono">${esc(e.rule_version)}</span></td>
+    <td>${String(e.fired)==="true"?pill("fired","amber"):(String(e.would_fire)==="true"?pill("would-fire (shadow)","slatep"):"—")}</td>
+    <td>${esc(e.disposition)}</td><td>${esc(e.outcome)}</td><td>${money(e.gwp)}</td><td>${e.loss_ratio_pct!=null?e.loss_ratio_pct+"%":"—"}</td><td>${esc(e.terms_applied||"—")}</td></tr>`).join("");
+  document.getElementById("rc_replay").innerHTML=`<div class="muted" style="margin-bottom:6px">${esc(head.company_name||"")} · ${esc(head.transaction_type||"")} · decided by ${esc(head.decided_by||"")} · as of ${esc(head.as_of_date||"")}</div>
+    <table><thead><tr><th>rule / version</th><th>state</th><th>disposition</th><th>outcome</th><th>GWP</th><th>LR</th><th>terms</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+function rcHow(){
+  const b=document.getElementById("rcbody");
+  b.innerHTML=`
+  <div class="card"><h3>The pipeline — telemetry → detection → recommendation → governed change</h3>
+    <div class="muted" style="line-height:1.6">Every rule is evaluated against every case with <b>no short-circuit</b>; the full fire-vector lands in <span class="mono">gold_referral_telemetry</span> (fired + would-fire shadow rows + the eventual outcome). Detection reads it through <span class="mono">fn_rule_metrics</span> / <span class="mono">fn_recommend_action</span> as of any date — that is the time-travel you scrub above.</div></div>
+  <div class="card" style="margin-top:14px"><h3>The detection SQL, literally</h3>
+    <div class="sqlbox" style="display:block">SELECT count_if(fired) AS fires,
+       count_if(fired AND outcome IN ('bound_clean','bound_with_terms'))/count_if(fired) AS approval_pct,
+       count_if(fired AND outcome IN ('declined','price_walked'))/count_if(fired) AS decline_walk_pct,
+       count_if(fired AND co_fire_count=0)/count_if(fired)               AS isolated_share,
+       count_if(fired) * review_effort_hours * 95                        AS touch_cost_gbp
+FROM gold_referral_telemetry WHERE rule_id = ? AND as_of_date <= ?;</div></div>
+  <div class="grid g2" style="margin-top:14px">
+    <div class="card"><h3>The closed action set — and why it's closed</h3>
+      <div class="muted" style="line-height:1.6">The engine may only recommend one of: <b>keep · remove · re_threshold · auto_apply_clause · convert_to_auto_decline · reopen_to_referral · reprice_instead_of_refer · split_question</b>. A closed set means every recommendation is governable, auditable and reversible — never a free-text "the AI changed the rule".</div></div>
+    <div class="card"><h3>What the agents do — and do NOT do</h3>
+      <div class="muted" style="line-height:1.6">The portfolio advisor and reviewer <b>narrate</b> the numbers the functions already produced — they never compute a threshold or bind a change. A named human approves every change (escalate-not-bind); the SCD2 write-path versions the rulebook.</div></div></div>
+  <div class="card" style="margin-top:14px"><h3>The governance loop</h3>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:13px;margin-top:6px">
+      ${["discover","recommend","emulate","approve (human)","monitor","reverse"].map((s,i)=>`${i?'<span style="color:#94a3b8">→</span>':""}<span class="pill ${s.indexOf("approve")===0?"green":"bluep"}">${s}</span>`).join("")}</div>
+    <div class="muted" style="margin-top:10px;line-height:1.6"><b>The boundaries, stated:</b> the engine never auto-applies a change; <b>compliance-locked</b> rules (sanctions, regulatory, treaty) are computed but untouchable; an auto-declined gate can only <b>reopen to referral</b> (a probation) — never straight to accept, because there is no recent outcome data to justify accept.</div></div>`;
+}
+async function rcReviewer(sid){
+  const slot=document.getElementById("rcrevslot");if(slot)slot.innerHTML=narrSlot("rcrevbody");
+  const r=await api("/referral/reviewer/"+encodeURIComponent(sid));
+  const fired=(r.fired_rules||[]).map(e=>esc(e.rule_id)).join(", ")||"none";
+  const dist=(r.outcome_distribution||[]).map(x=>`${esc(x.rule_id)}·${esc(x.outcome)}: ${num(x.n)}`).join(" · ");
+  const nn=r.narration||{};const el=document.getElementById("rcrevbody");
+  if(el)el.innerHTML=`<span class="tag">referral reviewer · ${cacheBadge(nn.cache)} · fired: ${fired}</span>${esc(nn.text||"")}${dist?`<div class="muted" style="margin-top:6px">precedent: ${dist}</div>`:""}`;
 }
 
 /* ---------- one book ---------- */

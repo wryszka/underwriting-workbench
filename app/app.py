@@ -1,5 +1,6 @@
 """Underwriting Workbench — thin FastAPI backend. Presentation only: every panel calls a
 real UC function / serving endpoint / Genie / SQL. No underwriting logic lives here."""
+import datetime
 import json
 import uuid
 
@@ -40,7 +41,18 @@ def get_config():
         "pricing_workbench_url": "https://github.com/wryszka/pricing-workbench",
         "claims_app_url": config.CLAIMS_APP_URL,
         "supervisor_endpoint": config.resolve_endpoint(config.EP_AGENT_SUBSTR),
+        "anchor_date": datetime.date.today().isoformat(),
     }
+
+
+def _asof(s):
+    """Validate an as_of date (ISO) → safe date string; default to today (the demo anchor)."""
+    if s:
+        try:
+            return datetime.date.fromisoformat(s).isoformat()
+        except Exception:
+            pass
+    return datetime.date.today().isoformat()
 
 
 # ---------------------------------------------------------------- Lane E: referral discipline tile
@@ -67,75 +79,214 @@ def referral_discipline():
     return {"hero": hero, "top_rule": top, "by_type": q["by_type"], "by_persona": q["by_persona"]}
 
 
-# ---------------------------------------------------------------- Lane E.2: rule effectiveness + tuning
-@app.get("/api/rule-effectiveness")
-def rule_effectiveness():
+# ================================================================ REFERRAL CONTROL (Lane E) =========
+# Detection → recommend → emulate → approve → monitor → reverse. Every number is produced by the
+# 05e UC functions / the telemetry substrate; the app only presents. as_of drives the time-travel.
+
+@app.get("/api/referral/findings")
+def referral_findings(as_of: str = None):
+    """The ranked findings feed AS OF a date — computed live so any scrubbed date works."""
+    ao = _asof(as_of)
     rows = sql.query(f"""
-        SELECT rule_id, value_band,
-               sum(fires) fires,
-               round(sum(fires*rubber_stamp_rate)/sum(fires),3) rubber_stamp_rate,
-               round(sum(fires*decline_rate)/sum(fires),3) decline_rate,
-               round(sum(fires*changed_answer_rate)/sum(fires),3) changed_answer_rate,
-               round(sum(est_uw_hours),1) est_uw_hours,
-               max(auto_accept_candidate) auto_accept_candidate,
-               max(auto_decline_candidate) auto_decline_candidate
-        FROM {F('gold_rule_effectiveness')}
-        GROUP BY rule_id, value_band ORDER BY fires DESC""")
-    return {"rows": rows}
+        SELECT r.rule_id, r.category, to_json({F('fn_recommend_action')}(r.rule_id, DATE'{ao}')) AS rec
+        FROM {F('ref_referral_rules')} r
+        WHERE r.valid_to IS NULL AND r.rule_scope IN ('workflow','analytics_only')""")
+    findings = []
+    for row in rows:
+        rec = json.loads(row["rec"]) if row.get("rec") else {}
+        rec["rule_id"] = row["rule_id"]
+        rec["category"] = row["category"]
+        findings.append(rec)
+    order = {"high": 3, "medium": 2, "low": 1, "locked": 0}
+
+    def _impact(f):
+        try:
+            return abs(float(f.get("gwp_impact") or 0)) + float((f.get("evidence") or {}).get("touch_cost_gbp") or 0)
+        except Exception:
+            return 0.0
+    findings.sort(key=lambda f: (order.get(f.get("severity"), 0), _impact(f)), reverse=True)
+    return {"as_of": ao, "findings": findings}
 
 
-@app.get("/api/rule-recommendations")
-def rule_recommendations():
-    rows = sql.query(f"""
-        SELECT recommendation_id, rule_id, value_band, recommendation_type, proposed_config,
-               evidence, narrative, est_hours_saved, est_leakage_risk_note, status,
-               proposed_by, proposed_at, reviewed_by, reviewed_at, mlflow_trace_id
-        FROM {F('gold_rule_recommendations')}
-        ORDER BY CASE status WHEN 'PROPOSED' THEN 0 ELSE 1 END, proposed_at DESC""")
-    return {"rows": rows}
+@app.get("/api/referral/rule/{rule_id}")
+def referral_rule(rule_id: str, as_of: str = None):
+    """One rule's full picture as of a date: metric tuple, isolation, co-fire partners, recommended
+    action, the reconciling telemetry rows and the SQL behind them (show-the-SQL)."""
+    rid = sql.esc(rule_id)
+    ao = _asof(as_of)
+    tel_sql = (f"SELECT company_name, policy_number, transaction_type, outcome, gwp, loss_ratio_pct, "
+               f"co_fire_count FROM {F('gold_referral_telemetry')} "
+               f"WHERE rule_id='{rid}' AND fired AND as_of_date <= DATE'{ao}' ORDER BY as_of_date DESC")
+    q = sql.query_many({
+        "metrics": f"SELECT to_json({F('fn_rule_metrics')}('{rid}', DATE'{ao}')) r",
+        "isolation": f"SELECT to_json({F('fn_isolation_analysis')}('{rid}', DATE'{ao}')) r",
+        "recommend": f"SELECT to_json({F('fn_recommend_action')}('{rid}', DATE'{ao}')) r",
+        "partners": f"""SELECT partner_rule_id, times_together FROM {F('gold_rule_cofire_partners')}
+                        WHERE rule_id='{rid}' ORDER BY times_together DESC LIMIT 6""",
+        "rows": tel_sql + " LIMIT 40",
+    })
+
+    def j(k):
+        return json.loads(q[k][0]["r"]) if q.get(k) and q[k][0].get("r") else {}
+    return {"as_of": ao, "metrics": j("metrics"), "isolation": j("isolation"),
+            "recommend": j("recommend"), "partners": q.get("partners", []),
+            "rows": q.get("rows", []), "sql": tel_sql}
 
 
-@app.post("/api/rule-recommendation/decide")
-async def rule_recommendation_decide(req: Request):
+@app.get("/api/referral/emulate")
+def referral_emulate(rule_id: str, action: str, as_of: str = None):
+    rid, act, ao = sql.esc(rule_id), sql.esc(action), _asof(as_of)
+    row = sql.query_one(f"SELECT to_json({F('fn_emulate_rule_change')}('{rid}','{act}', DATE'{ao}')) r")
+    return json.loads(row["r"]) if row and row.get("r") else {}
+
+
+@app.post("/api/referral/propose")
+async def referral_propose(req: Request):
     b = await req.json()
-    rid = sql.esc(b.get("recommendation_id", ""))
-    action = b.get("action", "reject")
+    rid, act, ao = sql.esc(b.get("rule_id", "")), sql.esc(b.get("action", "")), _asof(b.get("as_of"))
     who = sql.esc(req.headers.get("x-forwarded-email", "demo-user"))
-    note = sql.esc(b.get("note", ""))
-    status = "ACCEPTED" if action == "accept" else "REJECTED"
-    sql.query(f"""UPDATE {F('gold_rule_recommendations')}
-        SET status = '{status}', reviewed_by = '{who}',
-            reviewed_at = current_timestamp(),
-            est_leakage_risk_note = concat(est_leakage_risk_note, ' | reviewer: {note}')
-        WHERE recommendation_id = '{rid}'""")
-    versioned = None
-    if action == "accept":
-        # Accept writes a NEW versioned ref_referral_rules row — never an in-place update; the agent
-        # has no write path to config. New version = max(existing)+1 for that rule.
-        rec = sql.query_one(f"""SELECT rule_id, proposed_config FROM {F('gold_rule_recommendations')}
-                                WHERE recommendation_id = '{rid}'""")
-        if rec:
-            rr = sql.esc(rec["rule_id"])
-            base = sql.query_one(f"""SELECT rule_name, description, unit, source_check, rule_scope,
-                                       review_effort_hours,
-                                       max(cast(regexp_replace(rule_version,'[^0-9]','') AS INT)) OVER () AS maxv
-                                     FROM {F('ref_referral_rules')} WHERE rule_id='{rr}' LIMIT 1""")
-            if base:
-                newv = f"v{int(base.get('maxv') or 1) + 1}"
-                cfg = sql.esc(rec.get("proposed_config") or "{}")
-                nm = sql.esc(base.get("rule_name") or rr)
-                desc = sql.esc((base.get("description") or "") + f" [{newv}: tuned via {rid}, accepted by {who}]")
-                unit = sql.esc(base.get("unit") or "GBP")
-                src = f"'{sql.esc(base['source_check'])}'" if base.get("source_check") else "NULL"
-                scope = sql.esc(base.get("rule_scope") or "workflow")
-                eff = base.get("review_effort_hours") or "NULL"
-                sql.query(f"""INSERT INTO {F('ref_referral_rules')}
-                    (rule_id, rule_name, description, threshold_config, unit, rule_version, source_check,
-                     rule_scope, effective_from, review_effort_hours)
-                    VALUES ('{rr}','{nm}','{desc}','{cfg}','{unit}','{newv}',{src},'{scope}',
-                            cast(current_date() AS STRING), {eff})""")
-                versioned = {"rule_id": rr, "new_version": newv}
-    return {"recommendation_id": rid, "status": status, "reviewed_by": who, "versioned_rule": versioned}
+    er = sql.query_one(f"SELECT to_json({F('fn_emulate_rule_change')}('{rid}','{act}', DATE'{ao}')) r")
+    em = json.loads(er["r"]) if er and er.get("r") else {}
+    cid = "chg-" + uuid.uuid4().hex[:12]
+    sql.query(f"""INSERT INTO {F('gold_rule_changes')}
+        (change_id, rule_id, action, proposed_by, proposed_at, status, from_version,
+         predicted_referrals_released, predicted_hours_released, predicted_gwp_delta, predicted_lr_delta, rationale)
+        SELECT '{cid}','{rid}','{act}','{who}', current_timestamp(), 'proposed', rule_version,
+               {int(em.get('referrals_released') or 0)}, {float(em.get('hours_released') or 0)},
+               {float(em.get('gwp_delta') or 0)}, {float(em.get('predicted_lr_delta') or 0)},
+               'Proposed from the Referral Control bench by {who}.'
+        FROM {F('ref_referral_rules')} WHERE rule_id='{rid}' AND valid_to IS NULL""")
+    return {"change_id": cid, "status": "proposed", "predicted": em}
+
+
+# Action → new disposition. auto_apply_clause keeps the referral firing but auto-attaches the clause.
+_ACTION_DISPOSITION = {"convert_to_auto_decline": "auto_decline", "reopen_to_referral": "refer",
+                       "auto_apply_clause": "auto_apply_clause"}
+
+
+@app.post("/api/referral/approve")
+async def referral_approve(req: Request):
+    """The SCD2 write-path a human approval runs (escalate-not-bind): close the current rule version
+    and append the next. Compliance-locked rules are refused HERE, not just in the UI."""
+    b = await req.json()
+    cid = sql.esc(b.get("change_id", ""))
+    who = sql.esc(req.headers.get("x-forwarded-email", "demo-user"))
+    ch = sql.query_one(f"SELECT rule_id, action FROM {F('gold_rule_changes')} WHERE change_id='{cid}'")
+    if not ch:
+        return JSONResponse({"error": "change not found"}, status_code=404)
+    rid, action = sql.esc(ch["rule_id"]), ch["action"]
+    cur = sql.query_one(f"""SELECT rule_version, compliance_lock, threshold_config, disposition
+                            FROM {F('ref_referral_rules')} WHERE rule_id='{rid}' AND valid_to IS NULL""")
+    if not cur:
+        return JSONResponse({"error": "rule has no current version"}, status_code=404)
+    if str(cur.get("compliance_lock")).lower() == "true":
+        return JSONResponse({"error": "compliance-locked rule cannot be changed"}, status_code=403)
+    curv = cur["rule_version"]
+    try:
+        newn = int("".join(c for c in curv if c.isdigit())) + 1
+    except Exception:
+        newn = 2
+    newv = f"v{newn}"
+    disp = _ACTION_DISPOSITION.get(action, cur.get("disposition") or "refer")
+    params = cur.get("threshold_config") or "{}"
+    if action == "re_threshold":
+        try:
+            p = json.loads(params)
+            if isinstance(p.get("default"), (int, float)):
+                p["default"] = round(p["default"] * 1.2, 4)
+            params = json.dumps(p)
+        except Exception:
+            pass
+    eff = _asof(b.get("as_of"))
+    sql.query(f"UPDATE {F('ref_referral_rules')} SET valid_to=DATE'{eff}', is_current=false "
+              f"WHERE rule_id='{rid}' AND valid_to IS NULL")
+    if action != "remove":
+        pj = sql.esc(params)
+        sql.query(f"""INSERT INTO {F('ref_referral_rules')}
+            SELECT rule_id, rule_name, category, description, '{pj}' AS threshold_config,
+                   '{sql.esc(disp)}' AS disposition, compliance_lock, rule_scope, source_check, unit,
+                   review_effort_hours, '{newv}' AS rule_version, DATE'{eff}' AS valid_from,
+                   CAST(NULL AS DATE) AS valid_to, '{who}' AS approved_by, '{cid}' AS change_id,
+                   true AS is_current, '{eff}' AS effective_from
+            FROM {F('ref_referral_rules')} WHERE rule_id='{rid}' AND rule_version='{sql.esc(curv)}'""")
+    status = "retired" if action == "remove" else "live"
+    to_v = "retired" if action == "remove" else newv
+    sql.query(f"""UPDATE {F('gold_rule_changes')} SET status='{status}', approved_by='{who}',
+        approved_at=current_timestamp(), effective_date=DATE'{eff}', to_version='{to_v}'
+        WHERE change_id='{cid}'""")
+    return {"change_id": cid, "rule_id": ch["rule_id"], "new_version": to_v,
+            "disposition": disp, "status": status}
+
+
+@app.get("/api/referral/rulebook")
+def referral_rulebook(as_of: str = None):
+    """The governed rulebook as it stood at a date (SCD2 as-of query)."""
+    ao = _asof(as_of)
+    rows = sql.query(f"""SELECT rule_id, rule_name, category, disposition, compliance_lock, rule_scope,
+        threshold_config, rule_version, approved_by, cast(valid_from AS STRING) valid_from
+        FROM {F('ref_referral_rules')}
+        WHERE valid_from <= DATE'{ao}' AND (valid_to IS NULL OR valid_to > DATE'{ao}')
+        ORDER BY compliance_lock DESC, category, rule_id""")
+    return {"as_of": ao, "rows": rows}
+
+
+@app.get("/api/referral/changes")
+def referral_changes():
+    rows = sql.query(f"""SELECT change_id, rule_id, action, status, proposed_by,
+        cast(proposed_at AS STRING) proposed_at, approved_by, cast(effective_date AS STRING) effective_date,
+        from_version, to_version, predicted_referrals_released, predicted_hours_released,
+        predicted_gwp_delta, realised_referrals_released, realised_hours_saved, realised_gwp_effect,
+        drift_flag, drift_note, rationale
+        FROM {F('gold_rule_changes')}
+        ORDER BY CASE status WHEN 'proposed' THEN 0 ELSE 1 END, proposed_at DESC""")
+    return {"rows": rows}
+
+
+@app.get("/api/referral/decision/{transaction_id:path}")
+def referral_decision(transaction_id: str):
+    """Replay a decision under its contemporaneous rulebook: the fire-vector for the transaction."""
+    tid = sql.esc(transaction_id)
+    rows = sql.query(f"""SELECT rule_id, rule_version, disposition, fired, would_fire, outcome, decided_by,
+        terms_applied, gwp, technical_premium, loss_ratio_pct, transaction_type, company_name,
+        cast(as_of_date AS STRING) as_of_date
+        FROM {F('gold_referral_telemetry')} WHERE transaction_id='{tid}' ORDER BY fired DESC, rule_id""")
+    return {"transaction_id": transaction_id, "events": rows}
+
+
+@app.get("/api/referral/reviewer/{sid:path}")
+def referral_reviewer(sid: str, cache: int = None):
+    """The reviewer agent for a LIVE referral: fired rules + the historical outcome distribution for
+    that fire-pattern from telemetry, then narration. Advisory only."""
+    s = sql.esc(sid)
+    fr = sql.query_one(f"SELECT to_json({F('fn_referral_events_from_checks')}('{s}')) r")
+    fired = json.loads(fr["r"]) if fr and fr.get("r") else []
+    rule_ids = [e.get("rule_id") for e in fired if e.get("rule_id")]
+    dist = []
+    if rule_ids:
+        inlist = ",".join("'" + sql.esc(r) + "'" for r in rule_ids)
+        dist = sql.query(f"""SELECT rule_id, outcome, count(*) n,
+            round(avg(loss_ratio_pct),1) avg_lr, max(terms_applied) sample_clause
+            FROM {F('gold_referral_telemetry')} WHERE rule_id IN ({inlist}) AND fired
+            AND as_of_date <= current_date() GROUP BY rule_id, outcome ORDER BY rule_id, n DESC""")
+    data = {"submission": sid, "fired_rules": fired, "outcome_distribution": dist}
+    r = agents.narrate("reviewer", f"Advise the underwriter on the live referral {sid} from the "
+                       f"fire-pattern precedent (what usually happens, likely terms, consistency).",
+                       data, use_cache=_cache_flag(cache))
+    return {"fired_rules": fired, "outcome_distribution": dist, "narration": r}
+
+
+@app.post("/api/referral/advisor")
+async def referral_advisor(req: Request, cache: int = None):
+    """Portfolio-advisor narration for a Today-feed finding (narrate-only over the fn outputs)."""
+    b = await req.json()
+    finding = b.get("finding") or {}
+    rid = finding.get("rule_id", "")
+    r = agents.narrate("portfolio_advisor",
+                       f"Make the case for the recommended action on {rid} and draft the one-line "
+                       f"change proposal for human approval.",
+                       {"finding": finding, "emulation": b.get("emulation") or {}},
+                       use_cache=_cache_flag(cache))
+    return r
 
 
 # ---------------------------------------------------------------- Lane E: adjustment reasons
