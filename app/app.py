@@ -1234,6 +1234,13 @@ def warm_cache(scope: str = None):
     return {"warmed": warmed, "scope": scope or "all"}
 
 
+# --- MCP server: standard /api/mcp read/ops surface (control-tower client).
+#     Mounted BEFORE the SPA catch-all so /api/mcp is not swallowed by it. ---
+import sys as _sys
+from server import mcp as _mcp
+app.include_router(_mcp.register(_sys.modules[__name__]))
+
+
 # ---------------------------------------------------------------- static SPA
 @app.get("/")
 def root():
