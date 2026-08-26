@@ -280,28 +280,24 @@ for _ in range(205):
 
 # COMMAND ----------
 
-haz_is_auto_decline = rules["HAZARDOUS_ACTIVITY_HEIGHT"].disposition == "auto_decline"
-# Ramp: month +1 ~14 cases, +2 ~28, +3 ~56 → ~4x growth in GWP-at-stake across the window.
-for month, n in ((0, 14), (1, 28), (2, 56)):
+# Seeded as `would_fire` SHADOW rows: the hazard rule CATCHES this growing new-channel volume, and
+# the GWP-at-stake (technical premium) ramps ~4x across the 3 future months. This shadow exists
+# regardless of the live conversion; fn_recommend_action's reopen_to_referral logic is gated on the
+# rule being auto_decline, so the reversal only surfaces AFTER the S1 convert is approved.
+r = rules["HAZARDOUS_ACTIVITY_HEIGHT"]
+for month, n in ((0, 14), (1, 28), (2, 56)):    # ramp → ~4x GWP-at-stake growth
     for _ in range(n):
         d = TODAY + datetime.timedelta(days=month * 30 + rnd.randint(1, 30))
         p = pick_policy(HAZ_TRADES)
         technical = int(p.gross_premium * rnd.uniform(1.0, 1.4))    # bigger, better risks
-        good_gwp = int(technical * rnd.uniform(0.97, 1.03))
         name = make_name(p.trade_group)
         txn_id = f"RC-{_seq:06d}"; _seq += 1
-        r = rules["HAZARDOUS_ACTIVITY_HEIGHT"]
-        # If auto_decline now: outcome declined (auto), shadow would_fire=true, GWP-at-stake = technical.
-        # If still refer: it binds clean (good risk) — the segment is visibly improving either way.
-        oc = "declined" if haz_is_auto_decline else "bound_clean"
         eid = hashlib.sha256(f"{txn_id}|HAZARDOUS_ACTIVITY_HEIGHT|{d.isoformat()}|shadow".encode()).hexdigest()[:32]
         telemetry.append((
             eid, d, txn_id, None, p.policy_number, name, "HAZARDOUS_ACTIVITY_HEIGHT",
             r.rule_version, r.disposition, bool(r.compliance_lock),
-            (not haz_is_auto_decline), haz_is_auto_decline, oc,
-            "system" if haz_is_auto_decline else rnd.choice(uw_ids), None,
-            0.0 if haz_is_auto_decline else float(good_gwp), float(technical), 0.0,
-            None if haz_is_auto_decline else float(round(rnd.gauss(44, 6), 1)),
+            False, True, "declined",              # would_fire shadow; GWP-at-stake = technical
+            "system", None, 0.0, float(technical), 0.0, None,
             "NEW_BUSINESS", p.trade_group, p.product, "BRK-NEWCO", value_band(technical), 0, True))
 
 # COMMAND ----------
@@ -328,7 +324,7 @@ for rid, n in BG_COUNT.items():
         emit_case(rid, oc, window=("future" if rnd.random() < 0.06 else "past"),
                   co_rules=co, noadj=(rnd.random() < 0.45), lr=rnd.gauss(50, 11))
 
-print(f"  generated telemetry rows: {len(telemetry)}  (haz currently auto_decline={haz_is_auto_decline})")
+print(f"  generated telemetry rows: {len(telemetry)}")
 
 # COMMAND ----------
 

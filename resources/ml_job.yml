@@ -83,3 +83,23 @@ resources:
             base_parameters:
               catalog: "{{job.parameters.catalog}}"
               schema: "{{job.parameters.schema}}"
+        # Referral Control: deterministic engine functions (metrics/isolation/recommend/emulate)
+        - task_key: referral_control_fns
+          depends_on:
+            - task_key: crux
+          environment_key: default
+          notebook_task:
+            notebook_path: ../notebooks/05e_referral_control_fns.py
+            base_parameters:
+              catalog: "{{job.parameters.catalog}}"
+              schema: "{{job.parameters.schema}}"
+        # Referral Control: detection pass → gold_rule_effectiveness + gold_referral_findings
+        - task_key: referral_detection
+          depends_on:
+            - task_key: referral_control_fns
+          environment_key: default
+          notebook_task:
+            notebook_path: ../notebooks/07d_referral_detection.py
+            base_parameters:
+              catalog: "{{job.parameters.catalog}}"
+              schema: "{{job.parameters.schema}}"

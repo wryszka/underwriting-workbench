@@ -51,6 +51,13 @@ resources:
           notebook_task:
             notebook_path: ../notebooks/00f_referral_telemetry.py
             base_parameters: {catalog: "{{job.parameters.catalog}}", schema: "{{job.parameters.schema}}"}
+        # Referral Control: detection pass (functions persist across reset; telemetry rebuilt by 00f)
+        - task_key: referral_detection
+          depends_on: [{task_key: referral_telemetry}]
+          environment_key: default
+          notebook_task:
+            notebook_path: ../notebooks/07d_referral_detection.py
+            base_parameters: {catalog: "{{job.parameters.catalog}}", schema: "{{job.parameters.schema}}"}
         - task_key: lane_e_source_feeds
           depends_on: [{task_key: lane_e_registry}]
           environment_key: default
