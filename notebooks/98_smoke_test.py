@@ -352,6 +352,122 @@ check("D3 tool-calling supervisor live", _agent_live)
 
 # COMMAND ----------
 
+# MAGIC %md ## R · Referral Control (SCD2 rulebook · fire-vector telemetry · detection · governance)
+
+# COMMAND ----------
+
+import datetime
+_today = datetime.date.today().isoformat()
+_plus60 = (datetime.date.today() + datetime.timedelta(days=60)).isoformat()
+
+
+def _rec(rule_id, as_of=_today):
+    return json.loads(q(f"SELECT to_json({fqn}.fn_recommend_action('{rule_id}', DATE'{as_of}')) r").first().r)
+
+
+def _r_assets():
+    for t in ("gold_referral_telemetry", "gold_referral_findings", "gold_rule_effectiveness",
+              "gold_rule_cofire_partners", "gold_rule_changes"):
+        assert spark.catalog.tableExists(f"{fqn}.{t}"), f"missing {t}"
+    n = q(f"SELECT count(*) c FROM {fqn}.gold_referral_telemetry").first().c
+    assert n > 2000, f"telemetry too small: {n}"
+    return f"5 RC tables present · telemetry {n} rows"
+
+
+def _r_registry_scd2():
+    cur = q(f"SELECT count(*) c FROM {fqn}.ref_referral_rules WHERE valid_to IS NULL").first().c
+    assert 20 <= cur <= 30, f"expected ~24 current rules, got {cur}"
+    dbl = q(f"""SELECT count(*) c FROM (SELECT rule_id, count_if(valid_to IS NULL) n
+               FROM {fqn}.ref_referral_rules GROUP BY rule_id HAVING n <> 1)""").first().c
+    assert dbl == 0, f"{dbl} rules with <>1 current version"
+    versioned = q(f"""SELECT count(*) c FROM (SELECT rule_id FROM {fqn}.ref_referral_rules
+                     GROUP BY rule_id HAVING count(*) >= 2)""").first().c
+    assert versioned >= 2, f"expected >=2 rules with SCD2 history, got {versioned}"
+    return f"{cur} current rules · one current each · {versioned} with version history"
+
+
+def _r_no_shortcircuit():
+    m = q(f"""SELECT count(*) c FROM (SELECT transaction_id FROM {fqn}.gold_referral_telemetry
+             WHERE fired GROUP BY transaction_id HAVING count(*) > 1)""").first().c
+    assert m > 100, f"expected co-fire cases (fire-vector), got {m}"
+    return f"{m} co-fire cases (no short-circuit)"
+
+
+def _r_storylines():
+    got = {r: _rec(r)["action"] for r in
+           ("DUAL_TRADE_DECLARED", "RENEWAL_UNCHANGED_RISK", "EVENT_ATTENDANCE_LIMIT",
+            "NEW_VENTURE_TRADING_HISTORY", "HAZARDOUS_ACTIVITY_HEIGHT", "SANCTIONS_SCREEN_HIT")}
+    assert got["DUAL_TRADE_DECLARED"] == "remove", got
+    assert got["RENEWAL_UNCHANGED_RISK"] == "re_threshold", got
+    assert got["EVENT_ATTENDANCE_LIMIT"] == "auto_apply_clause", got
+    assert got["NEW_VENTURE_TRADING_HISTORY"] == "keep", got
+    assert got["HAZARDOUS_ACTIVITY_HEIGHT"] in ("convert_to_auto_decline", "reopen_to_referral"), got
+    assert got["SANCTIONS_SCREEN_HIT"] == "keep", got
+    return "S1/S3/S4/S5/S7 discovered with expected actions; S6 locked=keep"
+
+
+def _r_compliance_lock():
+    locked = _rec("TREATY_CAPACITY_LIMIT")
+    assert locked["action"] == "keep" and locked["severity"] == "locked", locked
+    bad = q(f"""SELECT count(*) c FROM {fqn}.gold_referral_findings
+               WHERE compliance_lock AND recommended_action <> 'keep'""").first().c
+    assert bad == 0, f"{bad} locked findings recommend a change"
+    return "compliance-locked rules refuse change at the function level"
+
+
+def _r_emulate_tail():
+    em = json.loads(q(f"SELECT to_json({fqn}.fn_emulate_rule_change('HAZARDOUS_ACTIVITY_HEIGHT','convert_to_auto_decline', DATE'{_today}')) e").first().e)
+    assert em["tail_exhibit"] and len(em["tail_exhibit"]) > 0, "tail exhibit is mandatory and non-empty"
+    return f"emulate tail exhibit: {len(em['tail_exhibit'])} named policies, gwp_delta={em['gwp_delta']}"
+
+
+def _r_time_travel():
+    now = q(f"SELECT count(*) c FROM {fqn}.gold_referral_telemetry WHERE as_of_date <= DATE'{_today}'").first().c
+    allr = q(f"SELECT count(*) c FROM {fqn}.gold_referral_telemetry").first().c
+    assert allr > now, "future book missing (as_of scrub would reveal nothing)"
+    # S2 precondition: HAZARDOUS future shadow GWP-at-stake ramps up (reopen fires once converted).
+    ramp = q(f"""SELECT sum(CASE WHEN as_of_date > date_sub(DATE'{_plus60}',30) THEN technical_premium ELSE 0 END) recent,
+                       sum(CASE WHEN as_of_date <= date_sub(DATE'{_plus60}',30) AND as_of_date > date_sub(DATE'{_plus60}',90) THEN technical_premium ELSE 0 END) prior
+                FROM {fqn}.gold_referral_telemetry WHERE rule_id='HAZARDOUS_ACTIVITY_HEIGHT' AND would_fire""").first()
+    assert (ramp.recent or 0) > (ramp.prior or 0), "S2 future shadow ramp missing"
+    return f"future book present ({allr - now} future rows); S2 shadow ramps recent>{int(ramp.prior or 0)}"
+
+
+def _r_governance():
+    prop = q(f"SELECT count(*) c FROM {fqn}.gold_rule_changes WHERE status='proposed'").first().c
+    drift = q(f"SELECT count(*) c FROM {fqn}.gold_rule_changes WHERE drift_flag").first().c
+    assert prop >= 1 and drift >= 1, f"ledger: proposed={prop} drift={drift}"
+    y = (datetime.date.today() - datetime.timedelta(days=365)).isoformat()
+    now_t = q(f"""SELECT get_json_object(threshold_config,'$.default') t FROM {fqn}.ref_referral_rules
+                 WHERE rule_id='MAX_TURNOVER' AND valid_to IS NULL""").first().t
+    old_t = q(f"""SELECT get_json_object(threshold_config,'$.default') t FROM {fqn}.ref_referral_rules
+                 WHERE rule_id='MAX_TURNOVER' AND valid_from <= DATE'{y}'
+                   AND (valid_to IS NULL OR valid_to > DATE'{y}')""").first()
+    assert old_t is not None and old_t.t != now_t, "as-of scrub: rulebook should differ a year ago"
+    return f"ledger proposed={prop} drift={drift}; as-of scrub differs (MAX_TURNOVER {old_t.t}->{now_t})"
+
+
+def _r_heroes_referral():
+    ev4 = json.loads(q(f"SELECT to_json({fqn}.fn_referral_events_from_checks('sub:900004')) r").first().r)
+    ev1 = json.loads(q(f"SELECT to_json({fqn}.fn_referral_events_from_checks('sub:900001')) r").first().r)
+    f4 = sorted(e["rule_id"] for e in ev4)
+    assert f4 == ["MAX_WAGEROLL"], f"900004 must be single-trigger MAX_WAGEROLL, got {f4}"
+    assert len(ev1) == 0, f"900001 should fire no rules, got {[e['rule_id'] for e in ev1]}"
+    return "heroes byte-identical: 900004=[MAX_WAGEROLL], 900001=[] (crux reads registry)"
+
+
+check("R1 Referral Control tables installed", _r_assets)
+check("R2 registry SCD2 integrity", _r_registry_scd2)
+check("R3 fire-vector (no short-circuit)", _r_no_shortcircuit)
+check("R4 storylines discovered (closed action set)", _r_storylines)
+check("R5 compliance-lock refused at fn level", _r_compliance_lock)
+check("R6 emulate returns tail exhibit", _r_emulate_tail)
+check("R7 time-travel + S2 shadow ramp", _r_time_travel)
+check("R8 governance ledger + as-of scrub", _r_governance)
+check("R9 heroes byte-identical referral fires", _r_heroes_referral)
+
+# COMMAND ----------
+
 import pandas as pd
 
 df = pd.DataFrame(RESULTS, columns=["step", "status", "seconds", "detail"])
