@@ -1,0 +1,9 @@
+command: ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8000"]
+
+env:
+  - name: CATALOG_NAME
+    value: "lr_dev_aws_us_catalog"
+  - name: SCHEMA_NAME
+    value: "underwriting_workbench"
+  - name: WAREHOUSE_ID
+    value: "a3b61648ea4809e3"
