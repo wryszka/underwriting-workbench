@@ -42,21 +42,21 @@ RETURNS ARRAY<STRUCT<rule_id STRING, rule_version STRING, triggering_value DOUBL
                      threshold_value DOUBLE, unit STRING>>
 COMMENT 'Maps this submission''s existing crux check-result structs to referral-event rows - one per rule that FIRES (SI authority band, RoFRS flood-High, fair-presentation turnover mismatch, district accumulation over the referral line). Feeds gold_referral_events. The existing crux functions are unchanged; this composes them. Input: submission_public_id.'
 RETURN SELECT filter(array(
-    CASE WHEN t.auth.total_si > 5000000
-         THEN named_struct('rule_id', 'SI_AUTHORITY_BAND', 'rule_version', 'v1',
+    CASE WHEN t.auth.total_si > {F}.fn_rule_threshold('SI_AUTHORITY_BAND', 'default')
+         THEN named_struct('rule_id', 'SI_AUTHORITY_BAND', 'rule_version', {F}.fn_rule_version('SI_AUTHORITY_BAND'),
                            'triggering_value', cast(t.auth.total_si AS DOUBLE),
-                           'threshold_value', 5000000.0, 'unit', 'GBP') END,
+                           'threshold_value', {F}.fn_rule_threshold('SI_AUTHORITY_BAND', 'default'), 'unit', 'GBP') END,
     CASE WHEN t.es.flood_band = 'High'
-         THEN named_struct('rule_id', 'ROFRS_HIGH', 'rule_version', 'v1',
-                           'triggering_value', 1.0, 'threshold_value', 1.0, 'unit', 'band') END,
-    CASE WHEN coalesce(t.es.turnover_mismatch_ratio, 1.0) >= 1.5
-         THEN named_struct('rule_id', 'FAIR_PRESENTATION_MISMATCH', 'rule_version', 'v1',
+         THEN named_struct('rule_id', 'ROFRS_HIGH', 'rule_version', {F}.fn_rule_version('ROFRS_HIGH'),
+                           'triggering_value', 1.0, 'threshold_value', {F}.fn_rule_threshold('ROFRS_HIGH', 'default'), 'unit', 'band') END,
+    CASE WHEN coalesce(t.es.turnover_mismatch_ratio, 1.0) >= {F}.fn_rule_threshold('FAIR_PRESENTATION_MISMATCH', 'default')
+         THEN named_struct('rule_id', 'FAIR_PRESENTATION_MISMATCH', 'rule_version', {F}.fn_rule_version('FAIR_PRESENTATION_MISMATCH'),
                            'triggering_value', t.es.turnover_mismatch_ratio,
-                           'threshold_value', 1.5, 'unit', 'ratio') END,
+                           'threshold_value', {F}.fn_rule_threshold('FAIR_PRESENTATION_MISMATCH', 'default'), 'unit', 'ratio') END,
     CASE WHEN coalesce(t.acc.worst_status, 'a_ok') IN ('referral', 'breach')
-         THEN named_struct('rule_id', 'ACCUMULATION_CAPACITY', 'rule_version', 'v1',
+         THEN named_struct('rule_id', 'ACCUMULATION_CAPACITY', 'rule_version', {F}.fn_rule_version('ACCUMULATION_CAPACITY'),
                            'triggering_value', t.acc.worst_post_util_pct / 100.0,
-                           'threshold_value', 0.80, 'unit', 'ratio') END
+                           'threshold_value', {F}.fn_rule_threshold('ACCUMULATION_CAPACITY', 'default'), 'unit', 'ratio') END
   ), x -> x IS NOT NULL)
 FROM (SELECT {F}.fn_extract_summary(sid) AS es,
              {F}.fn_authority_check(sid) AS auth,
@@ -97,7 +97,7 @@ FROM (SELECT declared_wageroll, extraction_confidence FROM {F}.silver_submission
 CROSS JOIN (SELECT cast(get_json_object(threshold_config, '$.etrade')   AS BIGINT) AS et,
                    cast(get_json_object(threshold_config, '$.standard') AS BIGINT) AS std,
                    cast(get_json_object(threshold_config, '$.senior')   AS BIGINT) AS snr
-            FROM {F}.ref_referral_rules WHERE rule_id = 'MAX_WAGEROLL') t
+            FROM {F}.ref_referral_rules WHERE rule_id = 'MAX_WAGEROLL' AND valid_to IS NULL) t
 """)
 
 # COMMAND ----------
@@ -114,23 +114,23 @@ RETURNS ARRAY<STRUCT<rule_id STRING, rule_version STRING, triggering_value DOUBL
                      threshold_value DOUBLE, unit STRING>>
 COMMENT 'Maps this submission''s existing crux check-result structs to referral-event rows - one per rule that FIRES (SI authority band, RoFRS flood-High, fair-presentation turnover mismatch, district accumulation over the referral line, MAX_WAGEROLL). Feeds gold_referral_events. The existing crux functions are unchanged; this composes them. Input: submission_public_id.'
 RETURN SELECT filter(array(
-    CASE WHEN t.auth.total_si > 5000000
-         THEN named_struct('rule_id', 'SI_AUTHORITY_BAND', 'rule_version', 'v1',
+    CASE WHEN t.auth.total_si > {F}.fn_rule_threshold('SI_AUTHORITY_BAND', 'default')
+         THEN named_struct('rule_id', 'SI_AUTHORITY_BAND', 'rule_version', {F}.fn_rule_version('SI_AUTHORITY_BAND'),
                            'triggering_value', cast(t.auth.total_si AS DOUBLE),
-                           'threshold_value', 5000000.0, 'unit', 'GBP') END,
+                           'threshold_value', {F}.fn_rule_threshold('SI_AUTHORITY_BAND', 'default'), 'unit', 'GBP') END,
     CASE WHEN t.es.flood_band = 'High'
-         THEN named_struct('rule_id', 'ROFRS_HIGH', 'rule_version', 'v1',
-                           'triggering_value', 1.0, 'threshold_value', 1.0, 'unit', 'band') END,
-    CASE WHEN coalesce(t.es.turnover_mismatch_ratio, 1.0) >= 1.5
-         THEN named_struct('rule_id', 'FAIR_PRESENTATION_MISMATCH', 'rule_version', 'v1',
+         THEN named_struct('rule_id', 'ROFRS_HIGH', 'rule_version', {F}.fn_rule_version('ROFRS_HIGH'),
+                           'triggering_value', 1.0, 'threshold_value', {F}.fn_rule_threshold('ROFRS_HIGH', 'default'), 'unit', 'band') END,
+    CASE WHEN coalesce(t.es.turnover_mismatch_ratio, 1.0) >= {F}.fn_rule_threshold('FAIR_PRESENTATION_MISMATCH', 'default')
+         THEN named_struct('rule_id', 'FAIR_PRESENTATION_MISMATCH', 'rule_version', {F}.fn_rule_version('FAIR_PRESENTATION_MISMATCH'),
                            'triggering_value', t.es.turnover_mismatch_ratio,
-                           'threshold_value', 1.5, 'unit', 'ratio') END,
+                           'threshold_value', {F}.fn_rule_threshold('FAIR_PRESENTATION_MISMATCH', 'default'), 'unit', 'ratio') END,
     CASE WHEN coalesce(t.acc.worst_status, 'a_ok') IN ('referral', 'breach')
-         THEN named_struct('rule_id', 'ACCUMULATION_CAPACITY', 'rule_version', 'v1',
+         THEN named_struct('rule_id', 'ACCUMULATION_CAPACITY', 'rule_version', {F}.fn_rule_version('ACCUMULATION_CAPACITY'),
                            'triggering_value', t.acc.worst_post_util_pct / 100.0,
-                           'threshold_value', 0.80, 'unit', 'ratio') END,
+                           'threshold_value', {F}.fn_rule_threshold('ACCUMULATION_CAPACITY', 'default'), 'unit', 'ratio') END,
     CASE WHEN t.wr.fires
-         THEN named_struct('rule_id', 'MAX_WAGEROLL', 'rule_version', 'v1',
+         THEN named_struct('rule_id', 'MAX_WAGEROLL', 'rule_version', {F}.fn_rule_version('MAX_WAGEROLL'),
                            'triggering_value', cast(t.wr.declared_wageroll AS DOUBLE),
                            'threshold_value', cast(t.wr.etrade_threshold AS DOUBLE), 'unit', 'GBP') END
   ), x -> x IS NOT NULL)

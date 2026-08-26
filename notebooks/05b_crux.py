@@ -26,6 +26,33 @@ def create_fn(sql):
 
 # COMMAND ----------
 
+# MAGIC %md ## fn_rule_threshold / fn_rule_version — the crux reads the governed rulebook (Referral Control)
+# MAGIC The single point where a check reads a threshold. Both return the CURRENT (`valid_to IS NULL`)
+# MAGIC version from `ref_referral_rules`, so a governed rule change (a new SCD2 version written by the
+# MAGIC governance write-path) flows into every check without editing SQL. Seeded values equal the old
+# MAGIC hardcoded literals, so heroes stay byte-identical (proven by the hero-gate).
+
+# COMMAND ----------
+
+create_fn("""
+CREATE OR REPLACE FUNCTION {F}.fn_rule_threshold(p_rule_id STRING, p_key STRING)
+RETURNS DOUBLE
+COMMENT 'The single point where the crux reads the governed rulebook: the numeric threshold for a key (default / etrade / standard / senior / ...) from the CURRENT (valid_to IS NULL) version of a rule in ref_referral_rules. A governed rule change (a new SCD2 version) therefore flows into every check. NULL if the rule/key is absent. Input: rule_id, parameter key.'
+RETURN (SELECT element_at(from_json(any_value(threshold_config), 'MAP<STRING,DOUBLE>'), p_key)
+        FROM {F}.ref_referral_rules
+        WHERE rule_id = p_rule_id AND valid_to IS NULL)
+""")
+
+create_fn("""
+CREATE OR REPLACE FUNCTION {F}.fn_rule_version(p_rule_id STRING)
+RETURNS STRING
+COMMENT 'Current (valid_to IS NULL) version label of a referral rule in ref_referral_rules, so live referral events are tagged with the rulebook version in force at the time of the decision. NULL if absent. Input: rule_id.'
+RETURN (SELECT any_value(rule_version) FROM {F}.ref_referral_rules
+        WHERE rule_id = p_rule_id AND valid_to IS NULL)
+""")
+
+# COMMAND ----------
+
 # MAGIC %md ## fn_extract_summary — the dossier header
 
 # COMMAND ----------
@@ -107,7 +134,7 @@ RETURN SELECT named_struct(
      min_by(u.underwriter_name, concat(lpad(cast(m.max_total_si AS STRING), 12, '0'), u.underwriter_id))
        FILTER (WHERE adequate AND u.underwriter_name IS NOT NULL),
   'triggers', any_value(filter(array(
-     CASE WHEN s.tsi > 5000000 THEN concat('Total SI GBP ', format_number(s.tsi, 0), ' above the GBP 5m underwriter band') END,
+     CASE WHEN s.tsi > {F}.fn_rule_threshold('SI_AUTHORITY_BAND', 'default') THEN concat('Total SI GBP ', format_number(s.tsi, 0), ' above the GBP 5m underwriter band') END,
      CASE WHEN s.fb = 'High' THEN 'Flood band HIGH requires senior authority' END,
      CASE WHEN s.hz >= 4 THEN concat('Hazard grade ', s.hz, ' requires senior authority') END), x -> x IS NOT NULL)))
 FROM (SELECT any_value(total_si) AS tsi, any_value(technical_base_premium) AS tech,
@@ -145,10 +172,10 @@ RETURN SELECT named_struct(
       'post_util_pct', round((a.in_force_property_si + l.marginal_si) / a.property_capacity_gbp * 100, 1),
       'flood_band', a.flood_band,
       'status', CASE WHEN (a.in_force_property_si + l.marginal_si) / a.property_capacity_gbp >= 1.0 THEN 'breach'
-                     WHEN (a.in_force_property_si + l.marginal_si) / a.property_capacity_gbp >= 0.8 THEN 'referral'
+                     WHEN (a.in_force_property_si + l.marginal_si) / a.property_capacity_gbp >= rl.refline THEN 'referral'
                      ELSE 'ok' END)),
   'worst_status', CASE coalesce(max(CASE WHEN (a.in_force_property_si + l.marginal_si) / a.property_capacity_gbp >= 1.0 THEN 2
-                                         WHEN (a.in_force_property_si + l.marginal_si) / a.property_capacity_gbp >= 0.8 THEN 1
+                                         WHEN (a.in_force_property_si + l.marginal_si) / a.property_capacity_gbp >= rl.refline THEN 1
                                          ELSE 0 END), 0)
                   WHEN 2 THEN 'breach' WHEN 1 THEN 'referral' ELSE 'a_ok' END,
   'worst_district', max_by(l.postcode_district, (a.in_force_property_si + l.marginal_si) / a.property_capacity_gbp),
@@ -156,6 +183,7 @@ RETURN SELECT named_struct(
 FROM (SELECT postcode_district, sum(property_si) AS marginal_si
       FROM {F}.silver_locations_enriched WHERE submission_public_id = sid GROUP BY 1) l
 JOIN {F}.gold_accumulation a USING (postcode_district)
+CROSS JOIN (SELECT {F}.fn_rule_threshold('ACCUMULATION_CAPACITY', 'default') AS refline) rl
 """)
 
 # COMMAND ----------
@@ -334,7 +362,7 @@ RETURN SELECT named_struct(
           WHEN NOT es.data_complete THEN 'request_information'
           WHEN auth.required_grade IN ('senior_underwriter', 'head_of_underwriting')
                OR coalesce(acc.worst_status, 'a_ok') = 'referral'
-               OR coalesce(es.turnover_mismatch_ratio, 1.0) >= 1.5
+               OR coalesce(es.turnover_mismatch_ratio, 1.0) >= fp_thresh
                OR prc.verdict = 'target_materially_below_technical' THEN 'refer'
           ELSE 'quote' END,
   'refer_to_grade',
@@ -342,7 +370,7 @@ RETURN SELECT named_struct(
           WHEN scr.status = 'internal_watchlist_hit' THEN 'compliance_and_senior_underwriter'
           WHEN coalesce(acc.worst_status, 'a_ok') = 'breach' THEN 'head_of_underwriting'
           WHEN auth.required_grade IN ('senior_underwriter', 'head_of_underwriting') THEN auth.required_grade
-          WHEN coalesce(acc.worst_status, 'a_ok') = 'referral' OR coalesce(es.turnover_mismatch_ratio, 1.0) >= 1.5
+          WHEN coalesce(acc.worst_status, 'a_ok') = 'referral' OR coalesce(es.turnover_mismatch_ratio, 1.0) >= fp_thresh
                OR prc.verdict = 'target_materially_below_technical' THEN 'senior_underwriter' END,
   'suggested_underwriter', auth.suggested_underwriter,
   'reasons', filter(array(
@@ -352,12 +380,12 @@ RETURN SELECT named_struct(
      CASE WHEN coalesce(acc.worst_status, 'a_ok') = 'breach' THEN concat('Accumulation BREACH in ', acc.worst_district, ' - post-bind ', acc.worst_post_util_pct, ' percent of capacity') END,
      CASE WHEN coalesce(acc.worst_status, 'a_ok') = 'referral' THEN concat('Accumulation in ', acc.worst_district, ' reaches ', acc.worst_post_util_pct, ' percent of district capacity (referral line = 80)') END,
      CASE WHEN auth.required_grade IN ('senior_underwriter', 'head_of_underwriting') THEN concat('Requires ', auth.required_grade, ' authority: ', array_join(auth.triggers, '; ')) END,
-     CASE WHEN coalesce(es.turnover_mismatch_ratio, 1.0) >= 1.5 THEN concat('Fair presentation concern (Insurance Act 2015): filed accounts show turnover ', format_number(es.filed_turnover, 0), ' vs ', format_number(es.turnover_stated, 0), ' stated - PL/Products rating basis and BI sums affected; EL wageroll to be confirmed') END,
+     CASE WHEN coalesce(es.turnover_mismatch_ratio, 1.0) >= fp_thresh THEN concat('Fair presentation concern (Insurance Act 2015): filed accounts show turnover ', format_number(es.filed_turnover, 0), ' vs ', format_number(es.turnover_stated, 0), ' stated - PL/Products rating basis and BI sums affected; EL wageroll to be confirmed') END,
      CASE WHEN prc.verdict = 'target_materially_below_technical' THEN concat('Broker target ', format_number(prc.target_premium, 0), ' is ', prc.adequacy_pct, ' percent of technical ', format_number(prc.technical_premium, 0)) END,
      CASE WHEN NOT es.data_complete THEN 'Core facts incomplete - query back to broker' END,
      CASE WHEN app.in_appetite AND scr.status = 'clear' AND coalesce(acc.worst_status, 'a_ok') = 'a_ok'
                AND auth.required_grade NOT IN ('senior_underwriter', 'head_of_underwriting')
-               AND coalesce(es.turnover_mismatch_ratio, 1.0) < 1.5 THEN 'All checks green - within appetite and authority' END
+               AND coalesce(es.turnover_mismatch_ratio, 1.0) < fp_thresh THEN 'All checks green - within appetite and authority' END
      ), x -> x IS NOT NULL),
   'terms', CASE WHEN app.in_appetite THEN filter(array(
      CASE WHEN es.flood_band = 'High' OR coalesce(acc.worst_status, 'a_ok') IN ('referral', 'breach')
@@ -365,7 +393,7 @@ RETURN SELECT named_struct(
      CASE WHEN ui.underinsured_flag THEN 'Declared buildings sum insured below rebuild benchmark - average clause discussion / uplift required' END
      ), x -> x IS NOT NULL) ELSE array() END,
   'subjectivities', CASE WHEN app.in_appetite THEN filter(array(
-     CASE WHEN coalesce(es.turnover_mismatch_ratio, 1.0) >= 1.5
+     CASE WHEN coalesce(es.turnover_mismatch_ratio, 1.0) >= fp_thresh
           THEN 'Subject to audited turnover confirmation and revised PL/Products and BI estimates (and EL wageroll) within 14 days (Insurance Act 2015 fair presentation)' END,
      CASE WHEN app.hazard_grade >= 4 OR es.total_property_si > 2000000
           THEN 'Subject to satisfactory risk survey of principal site(s) within 60 days of inception' END,
@@ -385,11 +413,12 @@ RETURN SELECT named_struct(
   'straight_through', app.in_appetite AND scr.status IN ('clear', 'false_positive_resolved')
      AND coalesce(acc.worst_status, 'a_ok') = 'a_ok'
      AND es.channel = 'etrade' AND auth.etrade_eligible AND es.data_complete
-     AND coalesce(es.turnover_mismatch_ratio, 1.0) < 1.5)
+     AND coalesce(es.turnover_mismatch_ratio, 1.0) < fp_thresh)
 FROM (SELECT {F}.fn_extract_summary(sid) AS es, {F}.fn_appetite_check(sid) AS app,
              {F}.fn_authority_check(sid) AS auth, {F}.fn_accumulation_impact(sid) AS acc,
              {F}.fn_sanctions_screen(sid) AS scr, {F}.fn_technical_price(sid) AS prc,
-             {F}.fn_underinsurance_check(sid) AS ui) t
+             {F}.fn_underinsurance_check(sid) AS ui,
+             {F}.fn_rule_threshold('FAIR_PRESENTATION_MISMATCH', 'default') AS fp_thresh) t
 """)
 
 # COMMAND ----------

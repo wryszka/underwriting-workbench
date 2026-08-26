@@ -61,42 +61,15 @@ print(f"Lane E setup → {fqn}  rng={LANE_E_SEED}  as_at={TODAY}")
 
 # COMMAND ----------
 
-# MAGIC %md ## E1 · `ref_referral_rules` — the referral rulebook as governed config
-# MAGIC Every referral rule the crux can raise, versioned, with its threshold configuration. The
-# MAGIC crux functions are UNCHANGED — this table names and versions the rules so `gold_referral_events`
-# MAGIC and the metric view can analyse *every* rule, not just wageroll. Thresholds are illustrative.
+# MAGIC %md ## E1 · `ref_referral_rules` — MOVED to `00e_referral_registry` (Referral Control)
+# MAGIC The referral rulebook is now a governed **SCD2** table owned by `00e_referral_registry`, which
+# MAGIC seeds ALL rules in one place — the workflow rules (with the EXACT thresholds the crux uses, so
+# MAGIC heroes stay byte-identical) plus the analytics + compliance-locked taxonomy. `00e` runs after
+# MAGIC this notebook and before any rule reader. Nothing to seed here.
 
 # COMMAND ----------
 
-import json
-
-# threshold_config is JSON keyed by authority band where a rule is band-dependent, else {"default": …}.
-REFERRAL_RULES = [
-    ("SI_AUTHORITY_BAND", "Sum insured above authority band",
-     "Total sum insured exceeds the underwriter authority band and must refer up.",
-     {"default": 5_000_000}, "GBP", "v1", "fn_authority_check"),
-    ("ROFRS_HIGH", "Flood band High",
-     "A location sits in EA RoFRS flood-band High; flood-High requires senior authority.",
-     {"default": 1}, "band", "v1", "fn_extract_summary"),
-    ("FAIR_PRESENTATION_MISMATCH", "Fair-presentation turnover mismatch",
-     "Filed-accounts turnover materially exceeds declared turnover (Insurance Act 2015).",
-     {"default": 1.5}, "ratio", "v1", "fn_extract_summary"),
-    ("ACCUMULATION_CAPACITY", "District accumulation over referral line",
-     "Post-bind property accumulation in a district reaches the referral line (80% of capacity).",
-     {"default": 0.80}, "ratio", "v1", "fn_accumulation_impact"),
-    # MAX_WAGEROLL is appended by E2 (its rule + fn + hero land together).
-]
-
-# rule_scope: 'workflow' = fires live in the demo (crux fn + checks-row chip) · 'analytics_only' =
-# retrospective history only (ref row + generated events, no crux/UI). The 5 shipped rules are all
-# workflow; E6 (notebook 00d) appends the analytics_only rule landscape.
-rules_rows = [(rid, name, desc, json.dumps(cfg), unit, ver, src, "workflow", YEAR_START.isoformat())
-              for (rid, name, desc, cfg, unit, ver, src) in REFERRAL_RULES]
-write(spark.createDataFrame(
-        rules_rows,
-        "rule_id string, rule_name string, description string, threshold_config string, "
-        "unit string, rule_version string, source_check string, rule_scope string, effective_from string"),
-      "ref_referral_rules", "reference")
+import json  # retained for downstream cells
 
 # COMMAND ----------
 
@@ -124,23 +97,14 @@ print(f"existing-book (excl. Lane E) baseline: rows={_ck_before[0]} checksum={_c
 
 # COMMAND ----------
 
-# MAGIC %md ## E2 · MAX_WAGEROLL rule + wageroll sidecar + hero `sub:900004`
-# MAGIC Wageroll = the declared Employers' Liability rating basis. New rule: declared wageroll above
-# MAGIC the authority band refers up. Config-driven thresholds (illustrative): e-trade £2.0m,
-# MAGIC standard £5.0m, senior £12.0m. Appended to `ref_referral_rules` (additive row).
+# MAGIC %md ## E2 · wageroll sidecar + hero `sub:900004` (MAX_WAGEROLL *rule* now in `00e`)
+# MAGIC Wageroll = the declared Employers' Liability rating basis. The MAX_WAGEROLL *rule* (e-trade
+# MAGIC £2.0m / standard £5.0m / senior £12.0m) is seeded by `00e_referral_registry`; this section
+# MAGIC seeds the wageroll sidecar + the single-trigger hero that fires it.
 
 # COMMAND ----------
 
-WAGEROLL_THRESHOLDS = {"etrade": 2_000_000, "standard": 5_000_000, "senior": 12_000_000}
-spark.sql(f"""
-  INSERT INTO {fqn}.ref_referral_rules
-    (rule_id, rule_name, description, threshold_config, unit, rule_version, source_check, rule_scope, effective_from)
-  VALUES
-  ('MAX_WAGEROLL', 'Max wageroll above authority band',
-   'Declared employers-liability wageroll (the EL rating basis) exceeds the authority band and must refer up.',
-   '{json.dumps(WAGEROLL_THRESHOLDS)}', 'GBP', 'v1', 'fn_wageroll_check', 'workflow', '{YEAR_START.isoformat()}')
-""")
-print("  ref_referral_rules += MAX_WAGEROLL")
+# (MAX_WAGEROLL rule row is seeded in 00e_referral_registry — see there.)
 
 # COMMAND ----------
 

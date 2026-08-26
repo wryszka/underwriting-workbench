@@ -37,8 +37,15 @@ resources:
           notebook_task:
             notebook_path: ../notebooks/00c_lane_e_setup.py
             base_parameters: {catalog: "{{job.parameters.catalog}}", schema: "{{job.parameters.schema}}"}
-        - task_key: lane_e_source_feeds
+        # Referral Control: governed SCD2 rule registry (supersedes flat rule seeding in 00c/00d)
+        - task_key: lane_e_registry
           depends_on: [{task_key: lane_e_setup}]
+          environment_key: default
+          notebook_task:
+            notebook_path: ../notebooks/00e_referral_registry.py
+            base_parameters: {catalog: "{{job.parameters.catalog}}", schema: "{{job.parameters.schema}}"}
+        - task_key: lane_e_source_feeds
+          depends_on: [{task_key: lane_e_registry}]
           environment_key: default
           notebook_task:
             notebook_path: ../notebooks/00d_source_feed_simulation.py

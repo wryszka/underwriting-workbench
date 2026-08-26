@@ -64,8 +64,8 @@ def _table_exists(name):
 ANALYTICS_RULE_IDS = ["MAX_TURNOVER", "MAX_SUMS_INSURED", "HAZARDOUS_ACTIVITY_HEIGHT", "CLAIMS_FREQUENCY",
                       "FLOOD_POSTCODE", "PRICE_BELOW_TECHNICAL_FLOOR", "RENEWAL_RATE_CHANGE_TOLERANCE"]
 _rids = ", ".join(f"'{r}'" for r in ANALYTICS_RULE_IDS)
-if _table_exists("ref_referral_rules"):
-    spark.sql(f"DELETE FROM {fqn}.ref_referral_rules WHERE rule_id IN ({_rids})")
+# (ref_referral_rules is owned by 00e_referral_registry; 00d no longer deletes/inserts rule rows —
+#  it only clears + regenerates the analytics EVENTS and their LX- transactions below.)
 if _table_exists("landing_referral_events_generated"):
     # E6 events = analytics rules, plus MAX_TURNOVER co-fires (rule_id in the set). MAX_WAGEROLL untouched.
     spark.sql(f"DELETE FROM {fqn}.landing_referral_events_generated WHERE rule_id IN ({_rids})")
@@ -77,45 +77,17 @@ print("  cleared any prior E6/E7 output (analytics rules, their events, LX- txns
 
 # COMMAND ----------
 
-# MAGIC %md ## E6 · rule landscape — 7 analytics-only rules → `ref_referral_rules` (rule_scope='analytics_only')
-# MAGIC Ref rows only. Thresholds illustrative. These never build crux functions or UI — they exist
-# MAGIC as retrospective history so the analytics has breadth.
+# MAGIC %md ## E6 · rule landscape — analytics rules now seeded in `00e_referral_registry`
+# MAGIC The 7 analytics-only rules (MAX_TURNOVER, MAX_SUMS_INSURED, HAZARDOUS_ACTIVITY_HEIGHT,
+# MAGIC CLAIMS_FREQUENCY, FLOOD_POSTCODE, PRICE_BELOW_TECHNICAL_FLOOR, RENEWAL_RATE_CHANGE_TOLERANCE)
+# MAGIC are seeded by `00e` (Referral Control registry) with their governed category/disposition/lock.
+# MAGIC This notebook now only generates their retrospective EVENTS + transactions (below); `00e` runs
+# MAGIC before it. The `rule_id`s below must match `00e`.
 
 # COMMAND ----------
 
-# (rule_id, rule_name, description, threshold_config, unit, family)
-ANALYTICS_RULES = [
-    ("MAX_TURNOVER", "Turnover above authority band",
-     "Declared turnover exceeds the authority band for the class.",
-     {"default": 20_000_000}, "GBP", "exposure"),
-    ("MAX_SUMS_INSURED", "Sums insured above authority band",
-     "Total declared sums insured exceed the authority band.",
-     {"default": 25_000_000}, "GBP", "exposure"),
-    ("HAZARDOUS_ACTIVITY_HEIGHT", "Hazardous activity — work at height",
-     "Declared working-at-height activity above the delegated threshold (scaffolding/roofing).",
-     {"default": 1}, "flag", "trade_activity"),
-    ("CLAIMS_FREQUENCY", "Adverse claims frequency",
-     "Claims frequency over the trailing period exceeds the referral threshold.",
-     {"default": 3}, "count", "risk_history"),
-    ("FLOOD_POSTCODE", "Flood-exposed postcode",
-     "Risk postcode sits in a flagged flood-exposed district (peril concentration).",
-     {"default": 1}, "flag", "property_peril"),
-    ("PRICE_BELOW_TECHNICAL_FLOOR", "Price below technical floor",
-     "Proposed price falls below the technical floor for the class (discretion referral).",
-     {"default": 0.85}, "ratio", "pricing_discretion"),
-    ("RENEWAL_RATE_CHANGE_TOLERANCE", "Renewal rate-change outside tolerance",
-     "Renewal rate change falls outside the portfolio tolerance band.",
-     {"default": 0.05}, "ratio", "pricing_discretion"),
-]
-rule_rows = [(rid, name, desc, json.dumps(cfg), unit, "v1", None, "analytics_only", YEAR_START.isoformat())
-             for (rid, name, desc, cfg, unit, fam) in ANALYTICS_RULES]
-spark.createDataFrame(
-    rule_rows,
-    "rule_id string, rule_name string, description string, threshold_config string, unit string, "
-    "rule_version string, source_check string, rule_scope string, effective_from string"
-).write.mode("append").saveAsTable(f"{fqn}.ref_referral_rules")
-RULE_FAMILY = {r[0]: r[5] for r in ANALYTICS_RULES}
-print(f"  ref_referral_rules += {len(ANALYTICS_RULES)} analytics-only rules")
+# (analytics rule rows are seeded in 00e_referral_registry — this notebook generates their events.)
+print(f"  analytics rule events for: {ANALYTICS_RULE_IDS}")
 
 # COMMAND ----------
 
