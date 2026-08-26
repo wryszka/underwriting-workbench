@@ -72,3 +72,13 @@ resources:
             base_parameters:
               catalog: "{{job.parameters.catalog}}"
               schema: "{{job.parameters.schema}}"
+        # Referral Control: change ledger + SCD2 write-path + seeded governance history
+        - task_key: referral_governance
+          depends_on:
+            - task_key: referral_telemetry
+          environment_key: default
+          notebook_task:
+            notebook_path: ../notebooks/07e_referral_governance.py
+            base_parameters:
+              catalog: "{{job.parameters.catalog}}"
+              schema: "{{job.parameters.schema}}"

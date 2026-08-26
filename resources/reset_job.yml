@@ -51,9 +51,16 @@ resources:
           notebook_task:
             notebook_path: ../notebooks/00f_referral_telemetry.py
             base_parameters: {catalog: "{{job.parameters.catalog}}", schema: "{{job.parameters.schema}}"}
+        # Referral Control: change ledger + SCD2 write-path (00e reset the registry to v1, so 07e's bumps are idempotent)
+        - task_key: referral_governance
+          depends_on: [{task_key: referral_telemetry}]
+          environment_key: default
+          notebook_task:
+            notebook_path: ../notebooks/07e_referral_governance.py
+            base_parameters: {catalog: "{{job.parameters.catalog}}", schema: "{{job.parameters.schema}}"}
         # Referral Control: detection pass (functions persist across reset; telemetry rebuilt by 00f)
         - task_key: referral_detection
-          depends_on: [{task_key: referral_telemetry}]
+          depends_on: [{task_key: referral_governance}]
           environment_key: default
           notebook_task:
             notebook_path: ../notebooks/07d_referral_detection.py
@@ -112,26 +119,14 @@ resources:
           notebook_task:
             notebook_path: ../notebooks/03c_gold_referral_events.py
             base_parameters: {catalog: "{{job.parameters.catalog}}", schema: "{{job.parameters.schema}}"}
-        # Lane E.2 (E8): top-up exemplars + rule effectiveness (runs before the metric view reads events)
-        - task_key: rule_effectiveness
-          depends_on: [{task_key: gold_referral_events}]
-          environment_key: default
-          notebook_task:
-            notebook_path: ../notebooks/07b_rule_effectiveness.py
-            base_parameters: {catalog: "{{job.parameters.catalog}}", schema: "{{job.parameters.schema}}"}
+        # (RETIRED: 07b_rule_effectiveness + 07c_rule_tuning_agent — superseded by Referral Control
+        #  07d_referral_detection, which recomputes gold_rule_effectiveness from telemetry.)
         - task_key: metric_views
-          depends_on: [{task_key: rule_effectiveness}]
+          depends_on: [{task_key: gold_referral_events}]
           environment_key: default
           notebook_task:
             notebook_path: ../notebooks/08_metric_views.py
             base_parameters: {catalog: "{{job.parameters.catalog}}", schema: "{{job.parameters.schema}}"}
-        # Lane E.2 (E9): AI tuning recommendations (reads effectiveness only)
-        - task_key: rule_tuning_agent
-          depends_on: [{task_key: metric_views}]
-          environment_key: default
-          notebook_task:
-            notebook_path: ../notebooks/07c_rule_tuning_agent.py
-            base_parameters: {catalog: "{{job.parameters.catalog}}", schema: "{{job.parameters.schema}}", fm_endpoint: "${var.fm_endpoint}"}
         - task_key: inbox_rescore
           depends_on: [{task_key: features}]
           environment_key: ml
