@@ -103,3 +103,13 @@ resources:
             base_parameters:
               catalog: "{{job.parameters.catalog}}"
               schema: "{{job.parameters.schema}}"
+        # Lane F (MCP): read/compute functions the managed MCP servers expose + MCP audit table
+        - task_key: mcp_functions
+          depends_on:
+            - task_key: referral_control_fns
+          environment_key: default
+          notebook_task:
+            notebook_path: ../notebooks/05f_mcp_functions.py
+            base_parameters:
+              catalog: "{{job.parameters.catalog}}"
+              schema: "{{job.parameters.schema}}"
