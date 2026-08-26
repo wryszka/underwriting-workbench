@@ -44,6 +44,13 @@ resources:
           notebook_task:
             notebook_path: ../notebooks/00e_referral_registry.py
             base_parameters: {catalog: "{{job.parameters.catalog}}", schema: "{{job.parameters.schema}}"}
+        # Referral Control: fire-vector telemetry + backfill + future book + storylines (RNG 4245)
+        - task_key: referral_telemetry
+          depends_on: [{task_key: lane_e_registry}]
+          environment_key: default
+          notebook_task:
+            notebook_path: ../notebooks/00f_referral_telemetry.py
+            base_parameters: {catalog: "{{job.parameters.catalog}}", schema: "{{job.parameters.schema}}"}
         - task_key: lane_e_source_feeds
           depends_on: [{task_key: lane_e_registry}]
           environment_key: default

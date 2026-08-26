@@ -62,3 +62,13 @@ resources:
           pipeline_task:
             pipeline_id: ${resources.pipelines.underwriting_referral_conformance.id}
             full_refresh: true
+        # Referral Control: fire-vector telemetry + backfill + future book + storylines (RNG 4245)
+        - task_key: referral_telemetry
+          depends_on:
+            - task_key: lane_e_registry
+          environment_key: default
+          notebook_task:
+            notebook_path: ../notebooks/00f_referral_telemetry.py
+            base_parameters:
+              catalog: "{{job.parameters.catalog}}"
+              schema: "{{job.parameters.schema}}"
