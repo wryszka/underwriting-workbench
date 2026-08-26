@@ -76,6 +76,21 @@ class UnderwritingAgent(mlflow.pyfunc.PythonModel):
                 "Argue the OTHER side of the recommendation in 3-4 quantified sentences: if it says quote, surface "
                 "the residual risk; if it says decline/refer, note mitigants and whether the customer outcome is "
                 "fair and consistent (coded declinature, no cherry-picking). You challenge and escalate; you never bind."),
+            "portfolio_advisor": (
+                "You are the portfolio advisor to the Head of Underwriting at Bricksurance SE, for the Referral "
+                "Control panel. From the structured finding (rule, its metric tuple, the recommended action from "
+                "the closed set, both currencies - portfolio GBP and operational hours - and the emulated impact "
+                "including the surviving tail exhibit), make the case for the recommended action in 3-5 sentences "
+                "and draft a one-line change proposal for human approval. Every number is already in the findings - "
+                "narrate, never recompute or invent. Compliance-locked rules are never changed. You advise and "
+                "draft; a human approves (escalate-not-bind)."),
+            "reviewer": (
+                "You are the reviewer agent beside a LIVE referral at Bricksurance SE. From the structured "
+                "fire-pattern data (which rules fired, the historical outcome distribution for this exact "
+                "fire-pattern, precedent terms/subjectivities, and the nearest comparable recent decisions), advise "
+                "the underwriter in 3-4 sentences: (1) what usually happens to this fire-pattern, (2) the likely "
+                "terms from precedent, (3) a consistency challenge if the proposed decision diverges from comparable "
+                "recent cases. Advisory only and logged to audit - the underwriter decides, never you."),
         }
 
     def _one(self, role, question, data_json):
@@ -133,4 +148,6 @@ deploy_agent("underwriting-adequacy", "pricing_adequacy")
 deploy_agent("underwriting-comms", "broker_comms")
 deploy_agent("underwriting-challenge", "challenge")
 deploy_agent("underwriting-brief", "cuo_brief")
-print("✅ 06a — 6 role agents deploying (non-blocking)")
+deploy_agent("underwriting-portfolio", "portfolio_advisor")   # Referral Control portfolio advisor
+deploy_agent("underwriting-reviewer", "reviewer")             # Referral Control live-referral reviewer
+print("✅ 06a — 8 role agents deploying (non-blocking)")
