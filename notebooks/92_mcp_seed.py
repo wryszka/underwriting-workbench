@@ -50,11 +50,8 @@ r = spark.sql(f"""SELECT submission_public_id, extraction_confidence, raw_text_e
 assert r is not None, "hostile doc not seeded"
 assert "IGNORE ALL PRIOR INSTRUCTIONS" in r.raw_text_excerpt, "injection text not captured verbatim"
 assert r.extraction_confidence < 0.5, "should be gated low-confidence"
-# The hero decision is unchanged — 900004 still fires only MAX_WAGEROLL (byte-identical), proving the
-# document text did not alter any decision path.
-ev = spark.sql(f"SELECT to_json({fqn}.fn_referral_events_from_checks('sub:900004')) AS e").first().e
-import json as _j
-fired = sorted(x["rule_id"] for x in _j.loads(ev))
-print("sub:900004 fires:", fired, "| hostile doc confidence:", r.extraction_confidence)
-assert fired == ["MAX_WAGEROLL"], f"hero decision changed — injection leaked into logic: {fired}"
-print("✅ 92 MCP seed — hostile document captured as DATA (low-confidence); hero decision unchanged")
+# Runs BEFORE the medallion refresh so the hostile doc flows through the extraction path exactly like
+# any other document. The hero-byte-identical invariant (sub:900004 still fires only MAX_WAGEROLL — the
+# document text never enters a decision path) is asserted by 98_smoke_test after the medallion runs.
+print("sub:900004 hostile cover-note captured verbatim as DATA | confidence:", r.extraction_confidence)
+print("✅ 92 MCP seed — prompt-injection document stored as low-confidence data; nothing executed")

@@ -9,3 +9,15 @@ resources:
           sql_warehouse:
             id: ${var.warehouse_id}
             permission: CAN_USE
+    # Lane F (MCP): custom FastMCP server — the governed agent tool surface (external submission
+    # workflow + propose_rule_change; escalate-not-bind, row-filtered, audited). Bundle-managed so a
+    # fresh-workspace deploy recreates it (bind the existing deployment once to avoid the 409).
+    uw_mcp_app:
+      name: uw-mcp
+      description: "Underwriting Workbench MCP server (FastMCP) — governed agent tool surface; mutating tools return pending_human_approval"
+      source_code_path: ../mcp_app
+      resources:
+        - name: sql_warehouse
+          sql_warehouse:
+            id: ${var.warehouse_id}
+            permission: CAN_USE

@@ -94,8 +94,16 @@ resources:
           notebook_task:
             notebook_path: ../notebooks/01d_wageroll_extraction.py
             base_parameters: {catalog: "{{job.parameters.catalog}}", schema: "{{job.parameters.schema}}", fm_endpoint: "${var.fm_endpoint}"}
-        - task_key: medallion
+        # Lane F (MCP): re-seed the hostile / prompt-injection document into the extraction path
+        # before the medallion refresh (survives reset; harness re-runs green).
+        - task_key: mcp_seed
           depends_on: [{task_key: doc_extraction}]
+          environment_key: default
+          notebook_task:
+            notebook_path: ../notebooks/92_mcp_seed.py
+            base_parameters: {catalog: "{{job.parameters.catalog}}", schema: "{{job.parameters.schema}}"}
+        - task_key: medallion
+          depends_on: [{task_key: doc_extraction}, {task_key: mcp_seed}]
           pipeline_task:
             pipeline_id: ${resources.pipelines.underwriting_medallion.id}
             full_refresh: true
