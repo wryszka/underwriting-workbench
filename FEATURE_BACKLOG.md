@@ -104,3 +104,19 @@ recomputed from telemetry, `gold_rule_recommendations` replaced by `gold_referra
 - **RC6** app: 5-tab Referral Control panel + time-travel scrubber + Work-a-submission reviewer box
   + Control Tower tile (`app/`) ✓
 - **RC7** scoped Genie space + smoke asserts (R1-R9) + docs ✓ (Lakeview dashboard page: follow-up)
+
+## Lane F — Agentic tool surface / MCP (SHIPPED 2026-08-26)
+
+The workbench re-cast as a governed MCP tool surface — the app is one client among several. Managed
+MCP (live on this workspace; OBO = caller is the principal) over UC functions + Genie, identity-scoped
+by per-principal grants; a custom FastMCP app for the external write-path. Escalate-not-bind at the
+protocol level (no bind/approve/send tool; mutating tools → pending_human_approval). See
+docs/MCP_ARCHITECTURE.md, docs/MCP_TOOL_CONTRACTS.md, docs/MCP_DEMO_RUN.md.
+
+- **F-P1/F-P2** read/compute fns for the managed surface (05f: dossier, precedent, rulebook_as_of,
+  decision_replay, change_ledger, ai_activity_log) + gold_mcp_activity audit + architecture/contracts docs ✓
+- **F-P3** custom FastMCP app `uw-mcp` (submit/upload/status/quote/respond + propose_rule_change; row
+  filter, rate limit, structured refusals, per-call audit) + broker/governance SPs + minimal grants ✓
+- **F-P4** hostile/prompt-injection seed (92_mcp_seed) + scripts/mcp_demo_harness.py (4 storylines) ✓
+- **F-P5** Governance "Agent traffic" card + Learn "Agentic access" panel + /api/mcp/traffic ✓
+- **F-P6** smoke MCP asserts (F1-F4) + MCP_DEMO_RUN.md + README/DEPLOY ✓

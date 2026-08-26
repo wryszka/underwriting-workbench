@@ -253,6 +253,29 @@ def referral_decision(transaction_id: str):
     return {"transaction_id": transaction_id, "events": rows}
 
 
+@app.get("/api/mcp/traffic")
+def mcp_traffic():
+    """Agent-traffic card (Governance): MCP tool calls across all client types from gold_mcp_activity —
+    volume by server/principal, refusals, top tools, recent rows. One audit trail, several clients."""
+    q = sql.query_many({
+        "by_server": f"""SELECT server, client_type, count(*) calls,
+            sum(CASE WHEN refused THEN 1 ELSE 0 END) refusals
+            FROM {F('gold_mcp_activity')} GROUP BY server, client_type ORDER BY calls DESC""",
+        "top_tools": f"""SELECT tool, count(*) calls FROM {F('gold_mcp_activity')}
+            GROUP BY tool ORDER BY calls DESC LIMIT 8""",
+        "refusals": f"""SELECT server, tool, refusal_code, count(*) n FROM {F('gold_mcp_activity')}
+            WHERE refused GROUP BY server, tool, refusal_code ORDER BY n DESC LIMIT 10""",
+        "recent": f"""SELECT cast(event_ts AS STRING) event_ts, server, tool, principal, client_type,
+            refused, refusal_code FROM {F('gold_mcp_activity')} ORDER BY event_ts DESC LIMIT 25""",
+    })
+    total = sql.query_one(f"""SELECT count(*) c, sum(CASE WHEN refused THEN 1 ELSE 0 END) r
+        FROM {F('gold_mcp_activity')}""")
+    return {"total": total, "by_server": q["by_server"], "top_tools": q["top_tools"],
+            "refusals": q["refusals"], "recent": q["recent"],
+            "sql": (f"SELECT server, tool, principal, client_type, refused, refusal_code "
+                    f"FROM {F('gold_mcp_activity')} ORDER BY event_ts DESC")}
+
+
 @app.get("/api/referral/reviewer/{sid:path}")
 def referral_reviewer(sid: str, cache: int = None):
     """The reviewer agent for a LIVE referral: fired rules + the historical outcome distribution for

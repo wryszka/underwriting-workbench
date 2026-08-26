@@ -35,6 +35,12 @@ Unity Catalog.
    human approval, then tracks realised-vs-predicted and recommends reversals when the world
    shifts — with time-travel across the book. Compliance-locked rules are computed but never
    changed. See `docs/REFERRAL_CONTROL_SPEC.md`.
+7. **A governed agent tool surface (MCP)** — the same UC functions, Genie spaces and workflows are
+   reachable over Model Context Protocol by internal copilots, an external broker's agent, and Claude —
+   under the same Unity Catalog governance, into the same audit trail. **The app is one client among
+   several.** Managed MCP over UC functions + Genie (identity-scoped by per-principal grants) plus a
+   custom FastMCP app for the external write-path. Escalate-not-bind at the protocol level: no tool
+   binds, approves or sends — mutating tools return `pending_human_approval`. See `docs/MCP_ARCHITECTURE.md`.
 
 Build spec: `UNDERWRITING_WORKBENCH_BUILD_BRIEF.md` · Conventions: `CONVENTIONS.md` ·
 Deployment: `docs/DEPLOY.md` (asset inventory + fresh-workspace runbook) ·

@@ -1187,7 +1187,7 @@ async function governancePage(){
   <p class="sub">Collect once, surface by role; every decision audited; AI activity logged; sensitive detail masked by Unity Catalog itself.</p>
   ${present("The masked watchlist is the proof point: this app's service principal is OUTSIDE the readers group, so the redaction you see is enforced by UC — not by the app being polite.")}
   <div class="tabs">
-    ${[["collect","🗂 What we collect"],["decisions","⚖ Decisions & audit"],["ai","🤖 Models & AI activity"],["conduct","🛡 Authority & conduct"]].map(([k,l])=>
+    ${[["collect","🗂 What we collect"],["decisions","⚖ Decisions & audit"],["ai","🤖 Models & AI activity"],["conduct","🛡 Authority & conduct"],["agents","🔌 Agent traffic"]].map(([k,l])=>
       `<button class="${GOV_TAB===k?"on":""}" onclick="GOV_TAB='${k}';governancePage()">${l}</button>`).join("")}
   </div><div id="govbody"><div class="loading">Loading…</div></div>`;
   const b=$("#govbody");
@@ -1196,6 +1196,16 @@ async function governancePage(){
     b.innerHTML=`<div class="card"><h3>Data inventory — collect once, surface many ways</h3>
       ${tbl(inv.rows,["asset","sensitivity_tier","contains_personal_data","retention","used_for","surfaced_as","audience"])}</div>
       <div class="card" style="margin-top:16px"><h3>Lineage (${esc(lin.source||"")})</h3>${tbl((lin.rows||[]).slice(0,25))}</div>`;
+  }else if(GOV_TAB==="agents"){
+    const t=await api("/mcp/traffic");
+    b.innerHTML=`<div class="card"><h3>Agent traffic — MCP tool calls across every client type</h3>
+      <div class="muted" style="margin-bottom:8px">The workbench is a governed <b>tool surface</b>: the app, internal underwriter copilots, external broker agents and Claude all reach the same UC functions and workflows over MCP — under the same Unity Catalog governance, into this one audit trail. ${t.total&&t.total.c?`<b>${t.total.c}</b> calls · <b>${t.total.r||0}</b> refusals.`:""}</div>
+      ${tbl(t.by_server,["server","client_type","calls","refusals"])}</div>
+      <div class="grid g2" style="margin-top:16px">
+      <div class="card"><h3>Top tools</h3>${tbl(t.top_tools,["tool","calls"])}</div>
+      <div class="card"><h3>Refusals — structured &amp; logged</h3>${tbl(t.refusals,["server","tool","refusal_code","n"])}</div></div>
+      <div class="card" style="margin-top:16px"><h3>Recent calls (drill)</h3>${tbl(t.recent,["event_ts","server","tool","principal","client_type","refused","refusal_code"])}
+      <div class="prov" style="margin-top:10px">Every MCP invocation — success or refusal — writes one row (server · tool · principal · arg/result hashes · latency · refusal code). No MCP tool binds, approves, or sends: mutating tools return <code>pending_human_approval</code>. <code style="font-size:11px">${esc(t.sql||"")}</code></div></div>`;
   }else if(GOV_TAB==="decisions"){
     const d=await api("/governance/decisions");
     const audRows=(d.audit||[]).map(r=>`<tr>
@@ -1564,7 +1574,16 @@ function learnPage(){
       <button class="btn ghost" onclick="SLIDE=Math.max(0,SLIDE-1);learnPage()">← Prev</button>
       <span class="muted">Slide ${SLIDE+1} of ${SLIDES.length}</span>
       <button class="btn" onclick="SLIDE=Math.min(${SLIDES.length-1},SLIDE+1);learnPage()">Next →</button></div></div>
-  <div class="prov">Demo run: Overview → Control Tower (drill a tile) → Inbox → work sub:900002 (checks · price · terms · decision · letter) → sub:900003 decline → Try a submission (HX7 vs city) → Ingestion (quarantine + Document AI) → Governance (mask) → Underwriting AI (tool trace) → One Book. Full step-by-step in the demo doc.</div>`;
+  <div class="prov">Demo run: Overview → Control Tower (drill a tile) → Inbox → work sub:900002 (checks · price · terms · decision · letter) → sub:900003 decline → Try a submission (HX7 vs city) → Ingestion (quarantine + Document AI) → Governance (mask) → Underwriting AI (tool trace) → One Book. Full step-by-step in the demo doc.</div>
+  <div class="card" style="margin-top:16px"><div class="eyebrow">Platform</div><h3 style="margin-top:4px">Agentic access — the workbench as a governed tool surface</h3>
+  <p class="sub">The app is one client among several. The same UC functions, Genie spaces and workflows are reachable over MCP by internal copilots, an external broker's agent, and Claude — under the same Unity Catalog governance, into the same audit trail (Governance → Agent traffic).</p>
+  <div class="grid g2">
+    <div class="tone tone-a"><b>F1 · uw-submission</b> <span class="muted">(external / broker agent)</span><br>custom FastMCP app: submit · upload · status · quote · respond. Row-filtered to the caller's own submissions.</div>
+    <div class="tone tone-b"><b>F2 · uw-decision-support</b> <span class="muted">(underwriter copilot)</span><br>managed MCP over the read crux functions + dossier + precedent, and the underwriting Genie space.</div>
+    <div class="tone tone-c"><b>F3 · uw-referral-control</b> <span class="muted">(portfolio agent)</span><br>managed findings · isolation · emulate · recommend + referral Genie; propose only — <b>no approve tool</b>.</div>
+    <div class="tone tone-d"><b>F4 · uw-governance</b> <span class="muted">(audit / compliance agent)</span><br>read-only: rulebook-as-of · decision replay · change ledger · activity log. No mutating grants.</div>
+  </div>
+  <div class="prov" style="margin-top:12px"><b>The rule stated aloud:</b> there is NO MCP tool that binds a policy, applies a rule change, or sends external comms. Every mutating tool returns <code>pending_human_approval</code> and a human approves in the app. Compliance-locked rules are refused at the function <i>and</i> the tool. Broker documents are data, never instructions. The trust boundary is per-principal Unity Catalog grants, enforced for every caller — the app is not privileged.</div></div>`;
 }
 
 /* ---------- boot ---------- */

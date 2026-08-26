@@ -31,6 +31,9 @@ portability anchor** — override one variable.
 | Dashboard | "Underwriting Portfolio" (Lakeview, published with embedded credentials) |
 | Builder-beat notebook | `09_external_agent_governed_call` — read-only demo: a foreign agent runtime calls governed UC functions and the conduct mask holds (positioning proof; not in reset) |
 | App | `underwriting-workbench` (FastAPI + self-contained SPA) |
+| MCP — managed servers (Lane F) | `/api/2.0/mcp/functions/<catalog>/underwriting_workbench` (F2/F3/F4 read UC-function tools; OBO — caller is the principal) · `/api/2.0/mcp/genie/<space_id>` (both Genie spaces). Trust boundary = per-principal EXECUTE grants |
+| MCP — custom server (Lane F) | Databricks App `uw-mcp` (FastMCP) — the mutating tools (submit_risk/upload_document/get_submission_status/get_quote/respond_to_subjectivity + propose_rule_change); all return `pending_human_approval`; row-filtered, rate-limited, structured refusals, per-call audit |
+| MCP — objects/principals | `gold_mcp_activity` (audit) · `gold_mcp_proposals` (pending) · `ref_mcp_broker_identity` · `mcp_broker_submissions` (UC row-filter view) · SPs `uw_broker_agent` + `uw_governance_agent` (read-only). Read fns in `05f_mcp_functions`. Harness `scripts/mcp_demo_harness.py`; seed `92_mcp_seed` (hostile doc). Docs: MCP_ARCHITECTURE / MCP_TOOL_CONTRACTS / MCP_DEMO_RUN / MCP_GOVERNANCE_NOTES |
 
 **Verification is automated:** `underwriting_98_smoke_test` step group A checks every asset
 above exists, then verifies data invariants and the three heroes end-to-end. On a fresh

@@ -468,6 +468,92 @@ check("R9 heroes byte-identical referral fires", _r_heroes_referral)
 
 # COMMAND ----------
 
+# MAGIC %md ## F · MCP tool surface (managed servers · custom app · audit · escalate-not-bind)
+
+# COMMAND ----------
+
+import urllib.request as _u
+
+# The tool contracts (source of truth = docs/MCP_TOOL_CONTRACTS.md). Managed F2/F3/F4 tools are UC fns;
+# F1 + propose are the custom-app tools (verified live by scripts/mcp_demo_harness.py).
+MCP_MANAGED_EXPECTED = {"fn_assemble_dossier", "fn_fire_pattern_precedent", "fn_recommendation",
+                        "fn_rulebook_as_of", "fn_decision_replay", "fn_change_ledger", "fn_ai_activity_log",
+                        "fn_recommend_action", "fn_isolation_analysis", "fn_emulate_rule_change"}
+MCP_CUSTOM_TOOLS = {"submit_risk", "upload_document", "get_submission_status", "get_quote",
+                    "respond_to_subjectivity", "propose_rule_change"}
+
+
+def _mcp_managed_list_tools():
+    """The managed UC-functions MCP server responds to initialize + tools/list, and the inventory
+    covers the read tools the contracts promise."""
+    from databricks.sdk import WorkspaceClient
+    w = WorkspaceClient()
+    host = w.config.host.rstrip("/")
+    url = f"{host}/api/2.0/mcp/functions/{catalog}/{schema}"
+    hdr = {**w.config._header_factory(), "Content-Type": "application/json",
+           "Accept": "application/json, text/event-stream"}
+
+    def rpc(method, params, sid=None):
+        h = dict(hdr)
+        if sid:
+            h["Mcp-Session-Id"] = sid
+        body = json.dumps({"jsonrpc": "2.0", "id": "1", "method": method, "params": params}).encode()
+        req = _u.Request(url, data=body, headers=h, method="POST")
+        r = _u.urlopen(req, timeout=60)
+        txt = r.read().decode()
+        sid2 = r.headers.get("Mcp-Session-Id")
+        if "data:" in txt and not txt.lstrip().startswith("{"):
+            txt = [ln[5:].strip() for ln in txt.splitlines() if ln.startswith("data:")][0]
+        return json.loads(txt), sid2
+
+    init, sid = rpc("initialize", {"protocolVersion": "2025-06-18", "capabilities": {},
+                                   "clientInfo": {"name": "smoke", "version": "1"}})
+    lst, _ = rpc("tools/list", {}, sid)
+    names = {t["name"] for t in lst.get("result", {}).get("tools", [])}
+    covered = {e for e in MCP_MANAGED_EXPECTED if any(e in n for n in names)}
+    assert len(covered) >= 8, f"managed MCP tool inventory thin: covered {sorted(covered)} of {len(names)} tools"
+    # No bind/approve/send tool anywhere in the managed surface + the documented custom set.
+    allnames = names | MCP_CUSTOM_TOOLS
+    banned = [n for n in allnames if any(k in n.lower() for k in ("bind", "approve", "send_comm", "issue_policy"))]
+    assert not banned, f"a bind/approve/send tool exists — escalate-not-bind violated: {banned}"
+    return f"managed MCP list_tools: {len(names)} tools, {len(covered)} contract fns covered; no bind/approve/send tool"
+
+
+check("F1 managed MCP servers respond + inventory matches contracts", _mcp_managed_list_tools)
+check("F2 MCP audit table + proposals installed", lambda: (lambda a, p: f"gold_mcp_activity={a}, gold_mcp_proposals={p}"
+      if spark.catalog.tableExists(f"{fqn}.gold_mcp_activity") and spark.catalog.tableExists(f"{fqn}.gold_mcp_proposals")
+      else (_ for _ in ()).throw(AssertionError("MCP audit tables missing")))(
+      spark.catalog.tableExists(f"{fqn}.gold_mcp_activity"), spark.catalog.tableExists(f"{fqn}.gold_mcp_proposals")))
+
+
+def _mcp_escalate_not_bind():
+    """No MCP-origin change ever auto-applies: broker proposals stay pending; MCP-proposed rule changes
+    stay 'proposed' (never live/approved without a human)."""
+    bad_prop = q(f"""SELECT count(*) c FROM {fqn}.gold_mcp_proposals
+                     WHERE status <> 'pending_human_approval'""").first().c
+    assert bad_prop == 0, f"{bad_prop} MCP proposals are not pending_human_approval"
+    bad_chg = q(f"""SELECT count(*) c FROM {fqn}.gold_rule_changes
+                    WHERE proposed_by LIKE 'mcp:%' AND status NOT IN ('proposed','reversed','retired')""").first().c
+    assert bad_chg == 0, f"{bad_chg} MCP-proposed rule changes were applied without human approval"
+    return "escalate-not-bind holds: MCP proposals pending; MCP rule changes stay proposed"
+
+
+check("F3 escalate-not-bind (no MCP tool auto-applies)", _mcp_escalate_not_bind)
+
+
+def _mcp_governance_readonly():
+    """The audit-agent governance principal has read grants only (no MODIFY on schema objects)."""
+    n = q(f"""SELECT count(*) c FROM system.information_schema.table_privileges
+              WHERE table_schema='{schema}' AND grantee ILIKE '%governance%'
+                AND privilege_type IN ('MODIFY','ALL PRIVILEGES')""").first().c
+    assert n == 0, f"governance principal has {n} MODIFY-class grants — must be read-only"
+    return "governance principal is read-only (no MODIFY/ALL grants on schema tables)"
+
+
+check("F4 governance principal cannot mutate", _mcp_governance_readonly)
+
+# COMMAND ----------
+
 import pandas as pd
 
 df = pd.DataFrame(RESULTS, columns=["step", "status", "seconds", "detail"])
