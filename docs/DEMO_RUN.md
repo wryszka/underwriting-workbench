@@ -202,3 +202,37 @@ lanes, not placeholders — each new line is a lane on the same governed chassis
   core stays the system of record; Databricks is the neutral data/governance layer underneath.
   The builder beat on the Underwriting AI page demonstrates exactly this: an external runtime
   calling a governed function with the conduct mask still enforced.
+
+## Beat — Referral Control (Head of Underwriting)
+
+The referral rulebook as governed data + a continuous discover→recommend→emulate→approve→monitor→
+reverse loop. Origin: a practitioner question about referral effectiveness (client-neutral).
+
+1. **Today** — the engine has already found this week's problem rules. Drill the top card
+   (work-at-height hazard): its metric tuple → each metric to the reconciling telemetry rows +
+   show-the-SQL → the **tail exhibit** (the handful that bound: small GWP, poor loss ratio —
+   nothing of value lost). The portfolio-advisor narrates the case. **Propose → approve** → the
+   rule gets a new SCD2 version (escalate-not-bind: you approve, the engine never auto-applies).
+2. **Advance one month** (the scrubber) — the feed changes. The converted hazard rule now shows a
+   **reversal**: a new broker channel is pushing growing good-risk volume into the auto-declined
+   segment (GWP-at-stake up ~4×) → recommend **reopen_to_referral** (probation — never straight to
+   accept), and the agent's reason cites the *mix shift*, not just a trend line.
+3. **Rulebook** — scrub the date to see the rulebook as it stood then (SCD2). The change ledger
+   shows predicted-vs-realised per change, including a **drift-flagged** one (a turnover
+   re-threshold running at ~half the predicted reduction — a new binder channel). **Decisions** —
+   replay a policy's decision under its *contemporaneous* rulebook (fire-vector + rule versions).
+4. **Work-a-submission** — the **reviewer agent** advises on a live referral: what usually happens
+   to this exact fire-pattern, the likely terms from precedent, and a consistency challenge if the
+   proposed decision diverges from comparable recent cases. Advisory, logged to audit.
+5. **How it works** — the no-black-box tab: telemetry → the detection SQL shown literally → the EV
+   formula with live numbers → the closed action set and why it is closed → what the agents do and
+   do NOT do → the governance-loop diagram. Boundaries stated: the engine never auto-applies;
+   compliance-locked rules (sanctions/regulatory/treaty) are untouchable; an auto-declined gate
+   reopens to referral, never straight to accept.
+
+**Q&A armour.** "Isn't this just a BI dashboard?" — no: it recommends a *governed change* from a
+closed action set, emulates it with a tail exhibit, takes a human approval that versions the
+rulebook, and tracks realised-vs-predicted. "Could the AI change a rule itself?" — never; agents
+narrate, deterministic functions compute, a human approves, and compliance-locked rules are refused
+at the function level. "How is this different from our tuning spreadsheet?" — it's continuous,
+time-travellable, reconciles every number to rows + SQL, and the rulebook change is auditable SCD2.

@@ -29,6 +29,12 @@ Unity Catalog.
    lands in a governed metric trunk; the questions a Head of Underwriting actually asks (how
    often does a rule bite, what does the pen do with it, where does discretion leak) are
    answered in Genie, not in a spreadsheet request.
+6. **Referral Control** — the referral rulebook as governed SCD2 data over a full fire-vector
+   telemetry substrate: a continuous loop that discovers this week's problem rules, recommends a
+   governed change from a closed action set (with a mandatory tail exhibit), emulates it, takes a
+   human approval, then tracks realised-vs-predicted and recommends reversals when the world
+   shifts — with time-travel across the book. Compliance-locked rules are computed but never
+   changed. See `docs/REFERRAL_CONTROL_SPEC.md`.
 
 Build spec: `UNDERWRITING_WORKBENCH_BUILD_BRIEF.md` · Conventions: `CONVENTIONS.md` ·
 Deployment: `docs/DEPLOY.md` (asset inventory + fresh-workspace runbook) ·

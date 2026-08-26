@@ -87,3 +87,20 @@ shipped, so its "pull-forward" in E3b collapses to a delta (see note).
 5. **C1 client master (+ B1 positioning card)** → then C2/C3
 6. **A2 loss-run gauntlet** · **A4 MTAs** (the two bigger builds)
 7. D-lane items woven in during GUI review; D5 last.
+
+## Lane RC — Referral Control (SHIPPED 2026-08-26)
+
+The referral rulebook as governed SCD2 data + a continuous discover→recommend→emulate→approve→
+monitor→reverse loop. Supersedes the E8/E9 tuning prototype (07b/07c retired; `gold_rule_effectiveness`
+recomputed from telemetry, `gold_rule_recommendations` replaced by `gold_referral_findings` +
+`gold_rule_changes`). See `docs/REFERRAL_CONTROL_SPEC.md`.
+
+- **RC1** SCD2 registry + crux reads the rulebook (`00e`, `05b`/`05d` refactor) — hero byte-identical ✓
+- **RC2** fire-vector telemetry + 3yr backfill + future book + 7 storylines (`00f`, RNG 4245) ✓
+- **RC3** detection engine: `fn_rule_metrics`/`fn_isolation_analysis`/`fn_recommend_action`/
+  `fn_emulate_rule_change` (`05e`) + findings/effectiveness/cofire tables (`07d`) ✓
+- **RC4** governance ledger + SCD2 write-path + predicted-vs-realised + drift (`07e`) ✓
+- **RC5** portfolio-advisor + reviewer narrate-only agents (`06a`) ✓
+- **RC6** app: 5-tab Referral Control panel + time-travel scrubber + Work-a-submission reviewer box
+  + Control Tower tile (`app/`) ✓
+- **RC7** scoped Genie space + smoke asserts (R1-R9) + docs ✓ (Lakeview dashboard page: follow-up)

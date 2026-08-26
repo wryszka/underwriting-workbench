@@ -79,3 +79,23 @@ hero (`sub:900004`) guarded by a scoped checksum. All synthetic generation uses 
   dataset carries a provenance label in the UI (incl. the honest GMP crime-data gap).
 - **Genie + dashboard are embedded** in Insight (embed URLs + in-app Genie API), not linked out.
 - **Deployability is tested**: smoke group A is the installed-assets checklist for any workspace.
+
+## Referral Control (Lane RC)
+
+- **Rulebook as SCD2 data.** `ref_referral_rules` is Type-2 (current = `valid_to IS NULL`). The crux
+  reads it via `fn_rule_threshold` / `fn_rule_version` instead of hardcoded literals — seeds equal
+  the old constants, so heroes stay byte-identical (smoke hero-gate). A governed change writes a new
+  version; decisions replay under the rulebook in force at their date.
+- **Fire-vector telemetry.** `gold_referral_telemetry` logs every rule that fired (no short-circuit)
+  plus `would_fire` shadow rows for auto-declined rules, with the outcome joined. Read through an
+  `as_of_date` filter — the time-travel mechanic (backfill + ~90d future book, RNG 4245, isolated
+  from the seed=42 and Lane E streams).
+- **Deterministic engine, agents narrate.** `fn_rule_metrics` / `fn_isolation_analysis` /
+  `fn_recommend_action` (closed action set; compliance-locked ⇒ keep, enforced in the function) /
+  `fn_emulate_rule_change` (mandatory tail exhibit) compute; `portfolio_advisor` + `reviewer`
+  narrate what they produce (invariant 9). SQL-UDF params are threaded via a one-row param relation
+  JOINed to the tables (no correlated-aggregate).
+- **Governance is escalate-not-bind.** `gold_rule_changes` is the lifecycle ledger with
+  predicted-vs-realised + drift; approval runs the SCD2 write-path (close current, append next),
+  refused for compliance-locked rules at both the function and the app route. Detection
+  (`07d`) supersedes the E8/E9 tuning tables.
