@@ -83,20 +83,25 @@ def referral_discipline():
 # Detection → recommend → emulate → approve → monitor → reverse. Every number is produced by the
 # 05e UC functions / the telemetry substrate; the app only presents. as_of drives the time-travel.
 
-@app.get("/api/referral/findings")
-def referral_findings(as_of: str = None):
-    """The ranked findings feed AS OF a date — computed live so any scrubbed date works."""
-    ao = _asof(as_of)
+def _rc_num(v, f=float):
+    try:
+        return f(v)
+    except Exception:
+        return None
+
+
+def _findings_live(ao):
+    """Compute the feed live (per-rule fn_recommend_action) — the fallback for off-snapshot dates."""
     rows = sql.query(f"""
         SELECT r.rule_id, r.category, to_json({F('fn_recommend_action')}(r.rule_id, DATE'{ao}')) AS rec
         FROM {F('ref_referral_rules')} r
         WHERE r.valid_to IS NULL AND r.rule_scope IN ('workflow','analytics_only')""")
-    findings = []
+    out = []
     for row in rows:
         rec = json.loads(row["rec"]) if row.get("rec") else {}
         rec["rule_id"] = row["rule_id"]
         rec["category"] = row["category"]
-        findings.append(rec)
+        out.append(rec)
     order = {"high": 3, "medium": 2, "low": 1, "locked": 0}
 
     def _impact(f):
@@ -104,8 +109,42 @@ def referral_findings(as_of: str = None):
             return abs(float(f.get("gwp_impact") or 0)) + float((f.get("evidence") or {}).get("touch_cost_gbp") or 0)
         except Exception:
             return 0.0
-    findings.sort(key=lambda f: (order.get(f.get("severity"), 0), _impact(f)), reverse=True)
-    return {"as_of": ao, "findings": findings}
+    out.sort(key=lambda f: (order.get(f.get("severity"), 0), _impact(f)), reverse=True)
+    return out
+
+
+@app.get("/api/referral/findings")
+def referral_findings(as_of: str = None):
+    """Ranked findings feed AS OF a date. FAST path reads the materialised snapshot at-or-before the
+    date (07d precomputes 4 monthly snapshots — instant); live per-rule compute is the fallback for
+    dates earlier than the first snapshot, so any scrubbed date still works."""
+    ao = _asof(as_of)
+    snap = sql.query_one(f"SELECT max(as_of_snapshot) s FROM {F('gold_referral_findings')} "
+                         f"WHERE as_of_snapshot <= DATE'{ao}'")
+    snap_date = snap.get("s") if snap else None
+    if snap_date:
+        rows = sql.query(f"""
+            SELECT rule_id, category, recommended_action, severity, headline, reason,
+                   portfolio_gbp_note, ops_note, referrals_released, hours_released, gwp_impact,
+                   fires, approval_pct, decline_walk_pct, noadj_pct, isolated_share, gwp_at_stake,
+                   recent_stake, prior_stake, touch_cost_gbp, compliance_lock
+            FROM {F('gold_referral_findings')} WHERE as_of_snapshot = DATE'{snap_date}'
+            ORDER BY severity_rank DESC, abs(coalesce(gwp_impact,0)) + coalesce(touch_cost_gbp,0) DESC""")
+        findings = [{
+            "rule_id": r["rule_id"], "category": r["category"], "action": r["recommended_action"],
+            "severity": r["severity"], "headline": r["headline"], "reason": r["reason"],
+            "portfolio_gbp_note": r["portfolio_gbp_note"], "ops_note": r["ops_note"],
+            "referrals_released": _rc_num(r["referrals_released"], int), "hours_released": _rc_num(r["hours_released"]),
+            "gwp_impact": _rc_num(r["gwp_impact"]),
+            "evidence": {"fires": _rc_num(r["fires"], int), "approval_pct": _rc_num(r["approval_pct"]),
+                         "decline_walk_pct": _rc_num(r["decline_walk_pct"]), "noadj_pct": _rc_num(r["noadj_pct"]),
+                         "isolated_share": _rc_num(r["isolated_share"]), "gwp_at_stake": _rc_num(r["gwp_at_stake"]),
+                         "recent_stake": _rc_num(r["recent_stake"]), "prior_stake": _rc_num(r["prior_stake"]),
+                         "touch_cost_gbp": _rc_num(r["touch_cost_gbp"]),
+                         "compliance_lock": str(r["compliance_lock"]).lower() == "true"}}
+            for r in rows]
+        return {"as_of": ao, "snapshot": str(snap_date), "source": "materialized", "findings": findings}
+    return {"as_of": ao, "source": "live", "findings": _findings_live(ao)}
 
 
 @app.get("/api/referral/rule/{rule_id}")

@@ -1319,7 +1319,9 @@ async function referralControl(){
 }
 async function rcToday(){
   const b=document.getElementById("rcbody");b.innerHTML='<div class="loading">The engine is scanning the book…</div>';
-  const d=await api("/referral/findings?as_of="+rcAsOf());
+  let d;
+  try{d=await api("/referral/findings?as_of="+rcAsOf());}
+  catch(e){b.innerHTML=`<div class="card">Couldn't reach the detection engine — <button class="btn ghost" onclick="rcToday()">retry</button><div class="muted" style="margin-top:6px">${esc(String(e))}</div></div>`;return;}
   const fs=(d.findings||[]);window._rcFind={};fs.forEach(f=>window._rcFind[f.rule_id]=f);
   const actionable=fs.filter(f=>f.action&&f.action!=="keep");
   const cards=fs.map(f=>{const ev=f.evidence||{};const act=f.action||"keep";
