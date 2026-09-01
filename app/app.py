@@ -119,6 +119,13 @@ def referral_findings(as_of: str = None):
     date (07d precomputes 4 monthly snapshots — instant); live per-rule compute is the fallback for
     dates earlier than the first snapshot, so any scrubbed date still works."""
     ao = _asof(as_of)
+    try:
+        return _referral_findings_impl(ao)
+    except Exception as e:
+        return JSONResponse({"error": "findings unavailable", "detail": str(e)[:200]}, status_code=500)
+
+
+def _referral_findings_impl(ao):
     snap = sql.query_one(f"SELECT max(as_of_snapshot) s FROM {F('gold_referral_findings')} "
                          f"WHERE as_of_snapshot <= DATE'{ao}'")
     snap_date = snap.get("s") if snap else None
