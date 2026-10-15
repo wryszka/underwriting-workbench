@@ -648,6 +648,13 @@ async function subView(sid){
   const d=await api(`/submission/${encodeURIComponent(sid)}/panels`);
   const es=d.dossier||{},app_=d.appetite||{},auth=d.authority||{},acc=d.accumulation||{},prc=d.price||{},
         scr=d.screening||{},ui=d.underinsurance||{},rec=d.recommendation||{},sc=d.scores||{},ty=d.treaty||{};
+  const zc=d.zone_check||{},zHits=(zc.districts||[]).filter(z=>z.decision==="REFER");
+  const zoneRows=(zc.districts||[]).map(z=>`<div class="kv"><span>${esc(z.postcode_district)} ${z.decision==="REFER"?pill(String(z.source)==="EA"?"EA "+(z.severity||"warning"):"active zone","red"):""}</span>
+      <b>${ragPill(z.decision==="REFER"?"red":z.decision==="CLEAR"?"green":"amber")}</b></div><div class="muted" style="margin:2px 0 6px">${esc(z.reason||"")}</div>`).join("");
+  const zoneSrc=`<div class="muted" style="font-size:11px;margin-top:4px">Rule <span class="mono">${esc(zc.rule_id||"CAT_ACTIVE_ZONE")}</span> · active zones published by the <b>Exposure &amp; Event Response</b> workbench (live Environment Agency flood warnings) · <span class="mono">fn_disaster_zone_check</span></div>`;
+  const zoneBanner=zHits.length?`<div class="rec RED" style="background:#fef2f2;border:1.5px solid #fecaca;color:#991b1b">⚠ ACTIVE FLOOD WARNING AT A RISK LOCATION — cover cannot be bound while it is in force.
+      <ul class="reasons">${zHits.map(z=>`<li>${esc(z.reason)}</li>`).join("")}</ul>
+      <div style="font-size:11.5px;font-weight:400;margin-top:4px;opacity:.85">Quote is blocked by rule CAT_ACTIVE_ZONE; refer to a senior underwriter. Source: the Exposure &amp; Event Response workbench's published active zones.</div></div>`:"";
   const actioncls=rec.action==="quote"?"GREEN":rec.action==="decline"?"RED":"AMBER";
   const autoBanner=d.auto_bound?`<div class="rec GREEN" style="background:#f0fdf4;border:1.5px solid #bbf7d0;color:#166534">⚡ BOUND ZERO-TOUCH by the platform at ${esc(d.auto_bound.bound_at)} — every rule passed inside e-trade system authority. Audit row ${esc(d.auto_bound.decision_id||"")} · <a class="lnk" href="/api/decision/pack?sid=${encodeURIComponent(sid)}" target="_blank">📦 audit pack</a></div>`:"";
   const accDistricts=(acc.districts||[]).map(x=>`<div class="kv"><span>${esc(x.postcode_district)} ${x.flood_band==="High"?pill("flood HIGH","red"):""}</span>
@@ -679,6 +686,7 @@ async function subView(sid){
   <p class="sub">${esc(es.trade_group||"")} · ${esc(es.segment||"")} · ${es.n_locations||1} location(s) · received ${esc(es.received_ts||"")}</p>
   ${present("The centrepiece: everything an underwriter used to swivel-chair across six systems, assembled live by Unity Catalog functions — checks, evidence, price build-up, and a human decision recorded to the audit trail.")}
   ${autoBanner}
+  ${zoneBanner}
   <div class="rec ${actioncls}">Recommendation: ${esc((rec.action||"…").toUpperCase().replace("_"," "))}
     ${rec.refer_to_grade?` → ${esc(rec.refer_to_grade)}${rec.suggested_underwriter?` (${esc(rec.suggested_underwriter)})`:""}`:""}
     ${rec.straight_through?pill("STRAIGHT-THROUGH ELIGIBLE","green"):""}
@@ -694,6 +702,8 @@ async function subView(sid){
       `<div class="muted">${esc((auth.triggers||[]).join(" · "))}</div>`)}
     ${checkCard("Accumulation",acc.worst_status==="breach"?"bad":acc.worst_status==="referral"?"warn":"ok",
       accDistricts||'<div class="muted">no district data</div>')}
+    ${checkCard("Disaster zone (live)",zHits.length?"bad":"ok",
+      (zoneRows||'<div class="muted">no locations to check</div>')+zoneSrc)}
     ${checkCard("Screening (real OFSI list)",scr.status==="internal_watchlist_hit"?"bad":scr.status==="false_positive_resolved"?"warn":"ok",
       kv("Status",pill((scr.status||"—").replaceAll("_"," "),scr.status==="clear"?"green":scr.status==="false_positive_resolved"?"amber":"red"))+
       (ofsi||"")+(wl||"")+
@@ -837,7 +847,7 @@ function recomputeAdj(){
   $("#adj_disc").textContent=adj.length?`· discretion ratio ${ratio.toFixed(2)}`:"";
   $("#adj_ipt").textContent="IPT "+money(Math.round(chargedV*0.12));
 }
-async function recordDecision(sid,action){
+async function recordDecision(sid,action,zoneOverride){
   const d=await api(`/submission/${encodeURIComponent(sid)}/panels`);
   const rec=d.recommendation||{},prc=d.price||{};
   const adj=collectAdj();
@@ -851,7 +861,13 @@ async function recordDecision(sid,action){
     decline_code:rec.decline_code_external,external_reason:rec.external_reason,
     internal_notes:rec.internal_notes||[],quoted_premium:charged,technical_premium:prc.technical_premium,
     commission_pct:prc.commission_pct,premium_adjustments:adj,discretion_ratio,
-    straight_through:!!rec.straight_through,evidence});
+    straight_through:!!rec.straight_through,evidence,zone_override:!!zoneOverride});
+  if(r.blocked){
+    $("#decmsg").innerHTML=`<div style="color:#991b1b"><b>⛔ Quote blocked</b> by rule <span class="mono">${esc(r.rule_id)}</span> — ${(r.reasons||[]).map(esc).join(" ")}</div>
+      <div style="margin-top:6px"><button class="btn warn" onclick="recordDecision('${sid}','refer')">→ Refer instead</button>
+      <button class="btn ghost" onclick="recordDecision('${sid}','quote',true)">Override &amp; record (audited)</button></div>`;
+    return;
+  }
   $("#decmsg").innerHTML=`✓ Recorded <span class="mono">${esc(r.decision_id)}</span> by ${esc(r.recorded_by)} — with the full as-at dossier snapshot${r.pack&&r.pack.file_name?` · <a class="lnk" href="/api/decision/pack?sid=${encodeURIComponent(sid)}" target="_blank">📦 audit pack (PDF)</a>`:""}`;
   loadDecisionHistory(sid);
 }

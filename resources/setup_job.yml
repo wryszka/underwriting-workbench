@@ -82,3 +82,13 @@ resources:
             base_parameters:
               catalog: "{{job.parameters.catalog}}"
               schema: "{{job.parameters.schema}}"
+        # Cross-workbench: disaster-zone check at quote/bind (Exposure & Event Response active zones). Additive.
+        - task_key: disaster_zone_check
+          depends_on:
+            - task_key: referral_governance
+          environment_key: default
+          notebook_task:
+            notebook_path: ../notebooks/05f_disaster_zone_check.py
+            base_parameters:
+              catalog: "{{job.parameters.catalog}}"
+              schema: "{{job.parameters.schema}}"
