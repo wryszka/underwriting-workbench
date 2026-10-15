@@ -65,6 +65,14 @@ resources:
           notebook_task:
             notebook_path: ../notebooks/07d_referral_detection.py
             base_parameters: {catalog: "{{job.parameters.catalog}}", schema: "{{job.parameters.schema}}"}
+        # Cross-workbench: disaster-zone check at quote/bind (Exposure & Event Response active zones). Additive —
+        # runs after the registry/telemetry/detection rebuild so no existing rule history or hero outcome changes.
+        - task_key: disaster_zone_check
+          depends_on: [{task_key: referral_detection}]
+          environment_key: default
+          notebook_task:
+            notebook_path: ../notebooks/05f_disaster_zone_check.py
+            base_parameters: {catalog: "{{job.parameters.catalog}}", schema: "{{job.parameters.schema}}"}
         - task_key: lane_e_source_feeds
           depends_on: [{task_key: lane_e_registry}]
           environment_key: default

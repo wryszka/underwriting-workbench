@@ -567,6 +567,26 @@ PANEL_FNS = {"dossier": "fn_extract_summary", "appetite": "fn_appetite_check",
              "recommendation": "fn_recommendation"}
 
 
+ZONE_RULE = "CAT_ACTIVE_ZONE"
+
+
+def _zone_checks(districts):
+    """Disaster-zone check per postcode district — governed fn_disaster_zone_check, which reads the active zones
+    published by the Exposure & Event Response workbench (live Environment Agency flood warnings + EU perils)."""
+    ds = sorted({str(x).upper().strip() for x in districts if x})
+    if not ds:
+        return {"districts": [], "any_refer": False, "rule_id": ZONE_RULE}
+    out = sql.query_many({d: f"SELECT * FROM {F('fn_disaster_zone_check')}('{sql.esc(d)}')" for d in ds})
+    rows = [(out.get(d) or [{}])[0] for d in ds]
+    return {"districts": rows, "any_refer": any(r.get("decision") == "REFER" for r in rows),
+            "rule_id": ZONE_RULE, "published_by": "exposure-response-workbench"}
+
+
+@app.get("/api/zone-check")
+def zone_check(district: str):
+    return _zone_checks([district])
+
+
 @app.get("/api/submission/{sid:path}/panels")
 def submission_panels(sid: str):
     sid = sql.esc(sid)
@@ -623,6 +643,10 @@ def submission_panels(sid: str):
     res["account"] = out.get("account", [])
     res["claims_experience"] = out.get("claims_experience", [])
     res["fns"] = {k: f"{F(v)}('{sid}')" for k, v in PANEL_FNS.items()}
+    try:
+        res["zone_check"] = _zone_checks([l.get("postcode_district") for l in res["locations"]])
+    except Exception as e:  # noqa: BLE001 — the dossier must render even if the zone surface is unavailable
+        res["zone_check"] = {"districts": [], "any_refer": False, "rule_id": ZONE_RULE, "error": str(e)[:200]}
     return res
 
 
@@ -669,6 +693,17 @@ async def decision(req: Request):
     sid = sql.esc(b.get("sid", ""))
     who = sql.esc(req.headers.get("x-forwarded-email", "demo-user"))
     did = "UW-" + uuid.uuid4().hex[:10]
+    if b.get("action") == "quote":
+        locs = sql.query(f"SELECT DISTINCT postcode_district FROM {F('silver_locations_enriched')} "
+                         f"WHERE submission_public_id='{sid}'")
+        zc = _zone_checks([r.get("postcode_district") for r in locs])
+        if zc["any_refer"]:
+            hits = [r for r in zc["districts"] if r.get("decision") == "REFER"]
+            if not b.get("zone_override"):
+                return {"blocked": True, "rule_id": ZONE_RULE, "reasons": [r.get("reason") for r in hits],
+                        "districts": [r.get("postcode_district") for r in hits]}
+            b["internal_notes"] = list(b.get("internal_notes") or []) + [
+                f"{ZONE_RULE} overridden by {who}: " + "; ".join(r.get("reason", "") for r in hits)]
 
     def arr(key):
         return "array(" + ",".join(f"'{sql.esc(x)}'" for x in b.get(key, [])) + ")"
