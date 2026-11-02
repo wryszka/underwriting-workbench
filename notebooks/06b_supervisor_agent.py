@@ -212,6 +212,16 @@ for t in ["silver_submissions", "silver_locations_enriched", "gold_accumulation"
     resources.append(DatabricksTable(table_name=f"{fqn}.{t}"))
 if genie_space_id:
     resources.append(DatabricksGenieSpace(genie_space_id=genie_space_id))
+    # Passthrough auth only grants DECLARED assets — declare every table the Genie space
+    # reads, or Genie fails PERMISSION_DENIED ("Failed to fetch tables for the agent").
+    from databricks.sdk import WorkspaceClient as _WC
+    _sp = _WC().api_client.do("GET", f"/api/2.0/genie/spaces/{genie_space_id}",
+                              query={"include_serialized_space": "true"})
+    _declared = {getattr(r, "table_name", None) or getattr(r, "name", None) for r in resources if isinstance(r, DatabricksTable)}
+    for _t in json.loads(_sp["serialized_space"]).get("data_sources", {}).get("tables", []):
+        if _t["identifier"] not in _declared:
+            resources.append(DatabricksTable(table_name=_t["identifier"]))
+    print("genie tables declared:", [t["identifier"] for t in json.loads(_sp["serialized_space"])["data_sources"]["tables"]])
 
 agent_uc_name = f"{fqn}.underwriting_agent"
 input_example = {"messages": [{"role": "user", "content": "Should we quote this? Give the call."}],
