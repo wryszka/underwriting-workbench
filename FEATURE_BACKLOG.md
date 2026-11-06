@@ -140,6 +140,14 @@ Two drill-down artefacts spotted in review, both fixed at source:
   its sum insured any more — 106 did). Trade LRs 16–31% with manufacturing highest; hero trades
   stay in `fn_technical_price`'s claims-experience credit band, so hero prices are byte-identical
   (smoke **B11** + **C3b**). Models retrained on the corrected claims (cohort LR + large-loss label).
+- **DR3 Referral Control S4 failed the reset on today's date (found while rolling DR1/DR2 out).**
+  `00f` drew backfill dates with `randint(0, today − epoch)`, whose bit consumption depends on the
+  span, so the whole RC stream re-sampled on every reset date; S4 `DUAL_TRADE_DECLARED` was planted
+  at 88% approval / 80% no-adjustment against `remove` gates of 85% / 70% (n=190) and missed on 21
+  of 73 sampled dates — every reset from 6 Nov to 31 Dec 2026 (live: 0.847 approval → `keep`, 07d
+  assert). Now one `random()` draw per backfill date (RC telemetry identical on every reset date —
+  verified across 150 dates over two years), S4 planted at 93% / 90%, and 00f's S4 gate = the
+  decision rule's thresholds, so a marginal plant fails at generation, not in detection.
 - **Open (decision needed):** the book-level 3-year LR is ~23% — kind for UK SME commercial
   (~50–60% typical). Lifting it moves the hero trades out of the <35% credit band, i.e. changes the
   sacred hero prices (£1,856 / £191,990 / £78,004) — so it needs a deliberate re-baseline, not a tweak.

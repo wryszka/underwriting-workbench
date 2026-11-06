@@ -117,7 +117,10 @@ def pick_date(window):
         return TODAY + datetime.timedelta(days=rnd.randint(1, 90))
     if window == "recent":                                   # last ~120 days before anchor
         return TODAY - datetime.timedelta(days=rnd.randint(1, 120))
-    return EPOCH + datetime.timedelta(days=rnd.randint(0, (TODAY - EPOCH).days))  # full backfill
+    # full backfill. ONE draw whatever the anchor date: randint(0, span) consumes bits according to
+    # the span, so the whole RC stream — and every storyline's realised rates — used to change with
+    # the reset date (S4 missed its `remove` thresholds on every reset from 6 Nov to 31 Dec 2026).
+    return EPOCH + datetime.timedelta(days=int(rnd.random() * ((TODAY - EPOCH).days + 1)))
 
 
 def pick_policy(trades=None):
@@ -182,12 +185,15 @@ def emit_case(primary_rule, outcome, *, window="past", co_rules=(), channel="bro
 # COMMAND ----------
 
 CO_POOL = ["MAX_TURNOVER", "MAX_SUMS_INSURED", "CLAIMS_FREQUENCY", "SI_AUTHORITY_BAND", "FLOOD_POSTCODE"]
+# Planted well clear of fn_recommend_action's `remove` gate (approval >= 0.85, no-adjustment >= 0.70,
+# isolation <= 0.08): ~93% approved, ~90% of those unadjusted. At 88% / 80% on n=190 the verdict
+# was a coin-toss on sampling noise.
 for _ in range(190):
     oc = rnd.choices(["bound_clean", "bound_with_terms", "price_walked", "declined"],
-                     weights=(72, 16, 7, 5))[0]
+                     weights=(79, 14, 4, 3))[0]
     emit_case("DUAL_TRADE_DECLARED", oc, window="past",
               co_rules=[rnd.choice(CO_POOL)],                 # ALWAYS co-fires → ~0 isolation
-              noadj=(rnd.random() < 0.80), lr=rnd.gauss(48, 8))
+              noadj=(rnd.random() < 0.90), lr=rnd.gauss(48, 8))
 
 # COMMAND ----------
 
@@ -364,6 +370,8 @@ def rule_stats(rid, as_of=None):
                avg(CASE WHEN outcome IN ('bound_clean','bound_with_terms') THEN 1.0 ELSE 0 END) approval,
                avg(CASE WHEN outcome IN ('declined','price_walked') THEN 1.0 ELSE 0 END) decline_walk,
                avg(CASE WHEN co_fire_count=0 THEN 1.0 ELSE 0 END) isolation,
+               avg(CASE WHEN outcome IN ('bound_clean','bound_with_terms')
+                        THEN CASE WHEN loading_pts = 0 THEN 1.0 ELSE 0 END END) noadj,
                avg(loss_ratio_pct) lr
         FROM {fqn}.gold_referral_telemetry WHERE {where}""").first()
     return r
@@ -383,8 +391,9 @@ assert h.decline_walk >= 0.85 and h.isolation >= 0.7, "S1 signal missing"
 
 # S4 dual-trade: high approval, near-zero isolation.
 d = rule_stats("DUAL_TRADE_DECLARED", as_of=TODAY.isoformat())
-print(f"S4 DUAL_TRADE: fires={d.fires} approval={d.approval:.2f} isolation={d.isolation:.2f}")
-assert d.approval >= 0.80 and d.isolation <= 0.05, "S4 signal missing"
+print(f"S4 DUAL_TRADE: fires={d.fires} approval={d.approval:.3f} noadj={d.noadj:.3f} isolation={d.isolation:.3f}")
+# same gate as fn_recommend_action's `remove` branch, so a marginal plant fails HERE, not in 07d
+assert d.approval >= 0.85 and d.noadj >= 0.70 and d.isolation <= 0.08, "S4 signal below the remove thresholds"
 
 # S5 new-venture: isolated fires carry worse LR than co-fires.
 lr_iso = spark.sql(f"""SELECT avg(loss_ratio_pct) FROM {fqn}.gold_referral_telemetry
