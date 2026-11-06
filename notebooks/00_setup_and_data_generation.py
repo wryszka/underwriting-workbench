@@ -402,12 +402,17 @@ write(spark.createDataFrame(clients,
 # COMMAND ----------
 
 # MAGIC %md ## PAS book — in-force commercial policies + claims history
-# MAGIC ~30k in-force + recent lapsed (retention story). HX7 in-force property SI is hand-seeded
-# MAGIC to exactly £16.75m so hero 900002's marginal £5m lands at 87% of the £25m capacity.
+# MAGIC ~30k in-force + recent lapsed (retention story — ~88% in every renewal month). HX7 in-force
+# MAGIC property SI is hand-seeded to exactly £16.75m so hero 900002's marginal £5m lands at 87% of the
+# MAGIC £25m capacity. Claim cost scales with the size of the risk, so trade loss ratios reflect
+# MAGIC peril mix, not average premium.
 
 # COMMAND ----------
 
 random.seed(SEED + 3)
+# Lapse dates come from their OWN stream so the main seed=42 stream (and therefore every other
+# attribute of every policy, the HX7 hand-seed and the claims sample) stays byte-identical.
+LAPSE_RNG = random.Random(SEED + 31)
 CONSTRUCTIONS = ["brick_traditional", "steel_frame_clad", "concrete_frame", "timber_frame", "composite_panel_clad"]
 REBUILD_RATE = dict(REBUILD)
 DISTRICT_POOL = [d for d in DISTRICTS if d != "HX7"]           # HX7 hand-seeded below
@@ -439,6 +444,12 @@ def mk_policy(seq, district=None, trade=None, forced_property_si=None, status="i
                           + employees * rg[3] + (turnover / 1000) * rg[4]) )
     prem = int(prem * random.uniform(0.85, 1.2))
     incep_days_ago = random.randint(0, 364) if status == "in_force" else random.randint(365, 720)
+    if status == "lapsed":
+        # A lapse = a policy that came up for renewal in the SAME trailing 12 months as the renewed
+        # book and was not renewed: its unrenewed term expired 0-364 days ago (incepted 365-729 days
+        # ago). The main-stream draw above is kept purely for stream alignment (see LAPSE_RNG);
+        # it used to stop 9 days short, leaving the oldest renewal month lapse-light.
+        incep_days_ago = 365 + LAPSE_RNG.randint(0, 364)
     inception = TODAY - datetime.timedelta(days=incep_days_ago)
     rate_change = round(random.uniform(-0.02, 0.11), 3)
     floor_area = max(80, int((buildings if buildings else contents * 4) / random.choice([1250, 1900, 2200])))
@@ -454,7 +465,8 @@ def mk_policy(seq, district=None, trade=None, forced_property_si=None, status="i
 for i in range(1, N_POLICIES + 1):
     policies.append(mk_policy(i))
 
-# Lapsed recent policies → retention KPI (~88%)
+# Lapsed recent policies → retention KPI (~88%, and ~88% in EVERY renewal month: gold_renewals
+# buckets a lapse by the month its term expired, a renewal by the month it renewed)
 for i in range(N_POLICIES + 1, N_POLICIES + 4_000):
     policies.append(mk_policy(i, status="lapsed"))
 
@@ -557,6 +569,14 @@ def peril_for(trade, district):
 SEV = {"fire": (45_000, 8.0), "escape_of_water": (9_500, 3.0), "storm": (7_000, 2.5), "flood": (38_000, 5.0),
        "theft": (6_500, 2.2), "impact": (5_200, 2.0), "el_injury": (22_000, 6.0), "pl_injury": (14_000, 5.0),
        "bi": (30_000, 6.0)}
+# Claim cost scales with the SIZE of the risk. SEV is the severity of an AVERAGE-sized policy;
+# each claim is scaled by the policy's gross premium / the book's mean premium (premium = the rate
+# guide's exposure measure: property SI, BI, employees, turnover). Without this a £5k office and a
+# £40k food factory had the same claim cost, so a trade's loss ratio was just 1 / its average
+# premium (office_professional ran at ~90% while hazard-4 trades looked like the best business in
+# the book). Deterministic post-draw factor: perils, loss dates, counts and the RNG stream are
+# unchanged, and the book's total incurred is preserved in expectation.
+MEAN_PREM = sum(p[17] for p in policies) / len(policies)
 claims = []
 pol_sample = random.sample(policies, 15_500)
 for k, p in enumerate(pol_sample):
@@ -564,6 +584,7 @@ for k, p in enumerate(pol_sample):
         peril = peril_for(p[1], p[4])
         base, tail = SEV[peril]
         paid = int(base * random.expovariate(1.0) * random.uniform(0.4, tail) / 2) + random.randint(250, 1500)
+        paid = max(250, int(paid * p[17] / MEAN_PREM))
         loss_days_ago = random.randint(5, 1095)
         open_flag = loss_days_ago < 120 and random.random() < 0.5
         claims.append((f"CLM-{100000 + len(claims):06d}", p[0], peril,

@@ -120,3 +120,26 @@ docs/MCP_ARCHITECTURE.md, docs/MCP_TOOL_CONTRACTS.md, docs/MCP_DEMO_RUN.md.
 - **F-P4** hostile/prompt-injection seed (92_mcp_seed) + scripts/mcp_demo_harness.py (4 storylines) ✓
 - **F-P5** Governance "Agent traffic" card + Learn "Agentic access" panel + /api/mcp/traffic ✓
 - **F-P6** smoke MCP asserts (F1-F4) + MCP_DEMO_RUN.md + README/DEPLOY ✓
+
+## Data realism — drill-down review fixes (2026-11-06)
+
+Two drill-down artefacts spotted in review, both fixed at source:
+
+- **DR1 `gold_renewals` showed 100% retention for 12 of the last 14 months.** Not the reset
+  re-anchoring — the generator put renewed policies' terms in the last 12 months and lapsed ones
+  12–24 months ago, and the mart bucketed both by *inception* month, so a lapse always landed a
+  year before the window. Now bucketed by **renewal month** (renewed = current-term inception,
+  lapsed = expiry of the unrenewed term), rate change averaged over renewed policies only, and the
+  lapse window aligned to the same trailing 12 months (isolated RNG stream — every other policy
+  attribute byte-identical). Every month now reads ~87–90%; headline retention unchanged (89.0%).
+  Smoke **B10**.
+- **DR2 `office_professional` ran at an 89.9% 3-year loss ratio.** Not intended: claim severity
+  ignored the size of the risk, so a trade's LR was just 1 / its average premium (office ≈ £5.5k vs
+  £12–40k) — which also made hazard-4 trades look like the best business. Claims now scale with
+  policy premium (deterministic post-draw factor; perils/dates/counts unchanged; no claim exceeds
+  its sum insured any more — 106 did). Trade LRs 16–31% with manufacturing highest; hero trades
+  stay in `fn_technical_price`'s claims-experience credit band, so hero prices are byte-identical
+  (smoke **B11** + **C3b**). Models retrained on the corrected claims (cohort LR + large-loss label).
+- **Open (decision needed):** the book-level 3-year LR is ~23% — kind for UK SME commercial
+  (~50–60% typical). Lifting it moves the hero trades out of the <35% credit band, i.e. changes the
+  sacred hero prices (£1,856 / £191,990 / £78,004) — so it needs a deliberate re-baseline, not a tweak.

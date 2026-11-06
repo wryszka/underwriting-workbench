@@ -159,6 +159,41 @@ check("B9 doc extraction confident for hero, fax gated", lambda: (lambda h, f_: 
       float(q(f"SELECT extraction_confidence c FROM {fqn}.landing_doc_extractions WHERE file_name='sub-900002_proposal_form.pdf'").first().c),
       float(q(f"SELECT extraction_confidence c FROM {fqn}.landing_doc_extractions WHERE file_name='sub-108150_fax_scan.txt'").first().c)))
 
+
+def _renewals_monthly():
+    # Every renewal month carries BOTH renewals and lapses (a lapse buckets by the month its
+    # term expired) and sits near the headline — never a "100% retention" year from bucketing.
+    rows = q(f"""SELECT month, sum(in_force) i, sum(lapsed) l FROM {fqn}.gold_renewals
+                 GROUP BY month ORDER BY month DESC LIMIT 13""").collect()
+    empty = [(r.month, r.i, r.l) for r in rows if r.i == 0 or r.l == 0]
+    # band-check only near-complete months (the month-to-date and the oldest month can be a few days)
+    full = [(r.month, round(r.i / (r.i + r.l) * 100, 1)) for r in rows if r.i >= 1000]
+    off = [(m, x) for m, x in full if not 82.0 <= x <= 95.0]
+    assert len(rows) >= 12 and len(full) >= 11 and not empty and not off, f"renewal months off: empty={empty} band={off}"
+    return (f"{len(rows)} renewal months all with lapses · retention "
+            f"{min(x for _, x in full):.1f}–{max(x for _, x in full):.1f}% per full month")
+
+
+def _trade_loss_ratios():
+    # Claims scale with risk size, so no trade's loss ratio is an artefact of its average premium
+    # (office_professional once ran ~90%). Hero trades must stay in fn_technical_price's
+    # claims-experience CREDIT band (cohort LR < 35) — that band is part of the sacred hero prices.
+    lr = {r.trade_group: float(r.lr) for r in q(
+        f"SELECT trade_group, loss_ratio_3y_pct lr FROM {fqn}.gold_portfolio_position").collect()}
+    out = {t: v for t, v in lr.items() if not 8.0 <= v <= 45.0}
+    assert len(lr) >= 15 and not out, f"trade loss ratios outside 8-45%: {out}"
+    coh = {r.trade_group: float(r.c) for r in q(
+        f"""SELECT trade_group, any_value(cohort_loss_ratio_pct) c FROM {fqn}.silver_submissions
+            WHERE trade_group IN ('retail_shop', 'food_manufacturing', 'construction_contractors')
+            GROUP BY trade_group""").collect()}
+    assert len(coh) == 3 and all(v < 35 for v in coh.values()), f"hero-trade cohort LR left the credit band: {coh}"
+    return (f"trade LR {min(lr.values()):.1f}–{max(lr.values()):.1f}% · hero-trade cohorts "
+            + ", ".join(f"{t} {v:.1f}" for t, v in sorted(coh.items())))
+
+
+check("B10 renewals: every month has lapses, retention near headline", _renewals_monthly)
+check("B11 trade loss ratios sane + hero trades in credit band", _trade_loss_ratios)
+
 # COMMAND ----------
 
 # MAGIC %md ## C · The three heroes — exact outcomes
@@ -207,6 +242,17 @@ def _hero3():
 check("C1 hero 900001 fast-track", _hero1)
 check("C2 hero 900002 referral", _hero2)
 check("C3 hero 900003 decline", _hero3)
+
+
+def _hero_prices():
+    # Byte-identical hero technical prices (invariant 10) — live-verified figures in the brief/demo docs.
+    want = {"sub:900001": 1856, "sub:900002": 191990, "sub:900004": 78004}
+    got = {s: int(scalar_fn("fn_technical_price", s)["technical_premium"]) for s in want}
+    assert got == want, f"hero technical prices drifted: {got} (want {want})"
+    return " · ".join(f"{s[4:]} £{v:,}" for s, v in got.items())
+
+
+check("C3b hero technical prices exact", _hero_prices)
 check("C4 what-if fns", lambda: (lambda p: f"HX7 whatif flood loading £{p['flood_loading']:.0f} > 0" if p["flood_loading"] > 0 else (_ for _ in ()).throw(AssertionError("no flood loading in HX7")))(
       json.loads(q(f"SELECT to_json({fqn}.fn_price_whatif('food_manufacturing','HX7',2000000,500000,0,300000,1000000,50,4000000,NULL)) AS r").first().r)))
 check("C4b call transcripts through the pipeline", lambda: (lambda n, t: (_ for _ in ()).throw(AssertionError(f"transcripts n={n} fd_turnover={t}")) if (n < 3 or t != 24_000_000) else f"{n} transcripts · FD call turnover £24m extracted")(

@@ -131,16 +131,18 @@ def gold_rate_adequacy():
 # COMMAND ----------
 
 @dlt.table(name="gold_renewals",
-           comment="Retention and rate change by month: in-force renewed vs lapsed (retention %), average rate change — the head-of-underwriting vital signs.",
+           comment="Retention and rate change by RENEWAL month × trade: of the policies that came up for renewal in the month, how many renewed (in_force) vs lapsed (retention %), and the average rate change achieved on the renewed ones — the head-of-underwriting vital signs. Renewal month = inception of the current term for a renewed policy, expiry of the unrenewed term for a lapsed one (bucketing lapses by their old inception put every lapse a year early and showed 100% retention for the recent year).",
            table_properties=GOLD_PROPS)
 def gold_renewals():
     pol = dlt.read("bronze_pas_policies")
-    return (pol.withColumn("month", F.date_format(F.to_date("inception_date"), "yyyy-MM"))
+    renewed = F.col("policy_status") == "in_force"
+    renewal_date = F.when(F.col("policy_status") == "lapsed", F.to_date("expiry_date")).otherwise(F.to_date("inception_date"))
+    return (pol.withColumn("month", F.date_format(renewal_date, "yyyy-MM"))
             .groupBy("month", "trade_group")
-            .agg(F.sum(F.when(F.col("policy_status") == "in_force", 1).otherwise(0)).alias("in_force"),
+            .agg(F.sum(F.when(renewed, 1).otherwise(0)).alias("in_force"),
                  F.sum(F.when(F.col("policy_status") == "lapsed", 1).otherwise(0)).alias("lapsed"),
-                 F.round(F.avg("rate_change_pct") * 100, 1).alias("avg_rate_change_pct"),
-                 F.sum(F.when(F.col("policy_status") == "in_force", F.col("gross_premium")).otherwise(0)).alias("gwp")))
+                 F.round(F.avg(F.when(renewed, F.col("rate_change_pct"))) * 100, 1).alias("avg_rate_change_pct"),
+                 F.sum(F.when(renewed, F.col("gross_premium")).otherwise(0)).alias("gwp")))
 
 # COMMAND ----------
 
